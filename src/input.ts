@@ -42,7 +42,7 @@ export class InputManager {
     return this.justPressed.has(key.toLowerCase());
   }
 
-  // Movement helpers
+  // Movement helpers (held — for overworld walking)
   moveUp(): boolean {
     return this.isHeld('w') || this.isHeld('arrowup');
   }
@@ -57,6 +57,15 @@ export class InputManager {
 
   moveRight(): boolean {
     return this.isHeld('d') || this.isHeld('arrowright');
+  }
+
+  // Menu navigation helpers (just pressed — for menus)
+  menuUp(): boolean {
+    return this.wasJustPressed('w') || this.wasJustPressed('arrowup');
+  }
+
+  menuDown(): boolean {
+    return this.wasJustPressed('s') || this.wasJustPressed('arrowdown');
   }
 
   interact(): boolean {

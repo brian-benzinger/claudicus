@@ -203,10 +203,10 @@ class Game {
   private updateTitle(): void {
     const options = hasSave() ? 2 : 1;
 
-    if (this.input.moveUp()) {
+    if (this.input.menuUp()) {
       this.titleCursor = (this.titleCursor - 1 + options) % options;
     }
-    if (this.input.moveDown()) {
+    if (this.input.menuDown()) {
       this.titleCursor = (this.titleCursor + 1) % options;
     }
 
@@ -425,10 +425,10 @@ class Game {
   // --- SHOP ---
 
   private updateShop(): void {
-    if (this.input.moveUp()) {
+    if (this.input.menuUp()) {
       this.npcManager.moveShopCursor(-1);
     }
-    if (this.input.moveDown()) {
+    if (this.input.menuDown()) {
       this.npcManager.moveShopCursor(1);
     }
 
@@ -565,10 +565,10 @@ class Game {
   // --- PAUSE MENU ---
 
   private updatePause(): void {
-    if (this.input.moveUp()) {
+    if (this.input.menuUp()) {
       this.pauseCursor = (this.pauseCursor - 1 + 3) % 3;
     }
-    if (this.input.moveDown()) {
+    if (this.input.menuDown()) {
       this.pauseCursor = (this.pauseCursor + 1) % 3;
     }
 
