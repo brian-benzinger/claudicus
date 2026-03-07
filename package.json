@@ -1,0 +1,13 @@
+{
+  "name": "claudicus",
+  "version": "1.0.0",
+  "description": "A top-down 2D tile-based sprite RPG",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --outfile=dist/game.js --watch --sourcemap",
+    "build": "esbuild src/main.ts --bundle --outfile=dist/game.js --minify"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
