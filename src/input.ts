@@ -44,19 +44,19 @@ export class InputManager {
 
   // Movement helpers
   moveUp(): boolean {
-    return this.wasJustPressed('w') || this.wasJustPressed('arrowup');
+    return this.isHeld('w') || this.isHeld('arrowup');
   }
 
   moveDown(): boolean {
-    return this.wasJustPressed('s') || this.wasJustPressed('arrowdown');
+    return this.isHeld('s') || this.isHeld('arrowdown');
   }
 
   moveLeft(): boolean {
-    return this.wasJustPressed('a') || this.wasJustPressed('arrowleft');
+    return this.isHeld('a') || this.isHeld('arrowleft');
   }
 
   moveRight(): boolean {
-    return this.wasJustPressed('d') || this.wasJustPressed('arrowright');
+    return this.isHeld('d') || this.isHeld('arrowright');
   }
 
   interact(): boolean {

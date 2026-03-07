@@ -161,20 +161,22 @@ export class MapManager {
     return this.worldState.openedChests.includes(id);
   }
 
-  // Update camera to follow player
+  // Update camera to follow player (tile coords)
   updateCamera(playerTileX: number, playerTileY: number): void {
+    this.updateCameraToPixel(playerTileX * TILE_SIZE, playerTileY * TILE_SIZE);
+  }
+
+  // Update camera using smooth pixel position
+  updateCameraToPixel(pixelX: number, pixelY: number): void {
     const mapPixelWidth = this.currentMap.width * TILE_SIZE;
     const mapPixelHeight = this.currentMap.height * TILE_SIZE;
 
-    // Target center on player
-    let targetX = playerTileX * TILE_SIZE + TILE_SIZE / 2 - CANVAS_WIDTH / 2;
-    let targetY = playerTileY * TILE_SIZE + TILE_SIZE / 2 - CANVAS_HEIGHT / 2;
+    let targetX = pixelX + TILE_SIZE / 2 - CANVAS_WIDTH / 2;
+    let targetY = pixelY + TILE_SIZE / 2 - CANVAS_HEIGHT / 2;
 
-    // Clamp to map bounds
     targetX = Math.max(0, Math.min(targetX, mapPixelWidth - CANVAS_WIDTH));
     targetY = Math.max(0, Math.min(targetY, mapPixelHeight - CANVAS_HEIGHT));
 
-    // Handle maps smaller than viewport
     if (mapPixelWidth <= CANVAS_WIDTH) {
       targetX = (mapPixelWidth - CANVAS_WIDTH) / 2;
     }

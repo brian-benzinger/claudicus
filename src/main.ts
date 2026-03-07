@@ -2,6 +2,7 @@ import {
   GameState,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
+  TILE_SIZE,
   PlayerState,
   QuestState,
   WorldState,
@@ -42,6 +43,20 @@ class Game {
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
 
+  // Smooth tile-to-tile movement
+  private visualX: number = 0;
+  private visualY: number = 0;
+  private startPixelX: number = 0;
+  private startPixelY: number = 0;
+  private targetPixelX: number = 0;
+  private targetPixelY: number = 0;
+  private moveProgress: number = 1; // 1 = arrived at target
+  private readonly MOVE_DURATION: number = 15; // frames at 120fps ≈ 125ms per tile
+
+  // 120fps cap
+  private lastTimestamp: number = 0;
+  private readonly FRAME_MS: number = 1000 / 120;
+
   private notificationMessages: string[] = [];
   private notificationTimer: number = 0;
 
@@ -59,16 +74,41 @@ class Game {
     this.npcManager = new NpcManager();
     this.ui = new UIRenderer();
 
-    this.gameLoop();
+    requestAnimationFrame(this.gameLoop);
   }
 
-  private gameLoop = (): void => {
+  private gameLoop = (timestamp: number): void => {
+    requestAnimationFrame(this.gameLoop);
+
+    const delta = timestamp - this.lastTimestamp;
+    if (delta < this.FRAME_MS) return;
+    this.lastTimestamp = timestamp - (delta % this.FRAME_MS);
+
     this.input.flushFrame();
     this.update();
     this.render();
     this.frame++;
-    requestAnimationFrame(this.gameLoop);
   };
+
+  private initVisualPosition(): void {
+    this.visualX = this.player.state.tileX * TILE_SIZE;
+    this.visualY = this.player.state.tileY * TILE_SIZE;
+    this.startPixelX = this.visualX;
+    this.startPixelY = this.visualY;
+    this.targetPixelX = this.visualX;
+    this.targetPixelY = this.visualY;
+    this.moveProgress = 1;
+  }
+
+  private updateVisualPosition(): void {
+    if (this.moveProgress < 1) {
+      this.moveProgress = Math.min(1, this.moveProgress + 1 / this.MOVE_DURATION);
+      // Ease-out: starts fast, decelerates into tile
+      const t = 1 - Math.pow(1 - this.moveProgress, 2);
+      this.visualX = this.startPixelX + (this.targetPixelX - this.startPixelX) * t;
+      this.visualY = this.startPixelY + (this.targetPixelY - this.startPixelY) * t;
+    }
+  }
 
   private update(): void {
     switch (this.state) {
@@ -192,6 +232,8 @@ class Game {
     this.world = createDefaultWorld();
     this.mapManager = new MapManager(this.world);
     this.mapManager.loadMap('village');
+    this.initVisualPosition();
+    this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
     this.state = GameState.OVERWORLD;
   }
 
@@ -203,6 +245,8 @@ class Game {
       this.world = data.world;
       this.mapManager = new MapManager(this.world);
       this.mapManager.loadMap(data.player.currentMap);
+      this.initVisualPosition();
+      this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
       this.state = GameState.OVERWORLD;
     } else {
       this.startNewGame();
@@ -212,6 +256,9 @@ class Game {
   // --- OVERWORLD ---
 
   private updateOverworld(): void {
+    // Advance visual position animation
+    this.updateVisualPosition();
+
     // Pause menu
     if (this.input.cancel()) {
       this.pauseCursor = 0;
@@ -219,14 +266,16 @@ class Game {
       return;
     }
 
-    // Movement
+    // Movement — only when previous move animation is complete
     let dx = 0;
     let dy = 0;
 
-    if (this.input.moveUp()) dy = -1;
-    else if (this.input.moveDown()) dy = 1;
-    else if (this.input.moveLeft()) dx = -1;
-    else if (this.input.moveRight()) dx = 1;
+    if (this.moveProgress >= 1) {
+      if (this.input.moveUp()) dy = -1;
+      else if (this.input.moveDown()) dy = 1;
+      else if (this.input.moveLeft()) dx = -1;
+      else if (this.input.moveRight()) dx = 1;
+    }
 
     if (dx !== 0 || dy !== 0) {
       const newX = this.player.state.tileX + dx;
@@ -249,8 +298,15 @@ class Game {
           return;
         }
 
-        // Move
+        // Move player logic
         this.player.move(dx, dy);
+
+        // Start smooth animation toward new tile
+        this.startPixelX = this.visualX;
+        this.startPixelY = this.visualY;
+        this.targetPixelX = this.player.state.tileX * TILE_SIZE;
+        this.targetPixelY = this.player.state.tileY * TILE_SIZE;
+        this.moveProgress = 0;
 
         // Check for map transition
         const transition = this.mapManager.getTransition(newX, newY);
@@ -260,6 +316,9 @@ class Game {
         }
       }
     }
+
+    // Update camera to follow visual (smooth) position
+    this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
 
     // Interaction
     if (this.input.interact()) {
@@ -289,21 +348,16 @@ class Game {
         this.autoSave();
       }
     }
-
-    // Update camera
-    this.mapManager.updateCamera(this.player.state.tileX, this.player.state.tileY);
   }
 
   private renderOverworld(): void {
     // Render map
     this.mapManager.render(this.ctx, this.frame);
 
-    // Render player
-    const screenPos = this.mapManager.tileToScreen(
-      this.player.state.tileX,
-      this.player.state.tileY
-    );
-    drawPlayer(this.ctx, screenPos.x, screenPos.y, this.frame, this.player.state.facing);
+    // Render player at smooth visual position
+    const screenX = this.visualX - this.mapManager.camera.x;
+    const screenY = this.visualY - this.mapManager.camera.y;
+    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing);
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);
@@ -315,7 +369,8 @@ class Game {
     this.player.state.tileX = spawnX;
     this.player.state.tileY = spawnY;
     this.mapManager.loadMap(targetMap);
-    this.mapManager.updateCamera(spawnX, spawnY);
+    this.initVisualPosition();
+    this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
   }
 
   // --- DIALOG ---
@@ -493,7 +548,8 @@ class Game {
       // Clear defeated enemies so they respawn
       this.mapManager.clearDefeatedEnemies();
       this.mapManager.loadMap('village');
-      this.mapManager.updateCamera(this.player.state.tileX, this.player.state.tileY);
+      this.initVisualPosition();
+      this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
 
       this.autoSave();
       this.combat = null;
