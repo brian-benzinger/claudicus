@@ -22,6 +22,7 @@ import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
 import { QUESTS, createDefaultQuests } from './data/quests';
+import { MusicEngine } from './music';
 
 class Game {
   private canvas: HTMLCanvasElement;
@@ -34,6 +35,7 @@ class Game {
   private combat: CombatEngine | null = null;
   private npcManager: NpcManager;
   private ui: UIRenderer;
+  private music: MusicEngine;
 
   private quests: Record<string, QuestState>;
   private world: WorldState;
@@ -85,6 +87,7 @@ class Game {
     this.mapManager = new MapManager(this.world);
     this.npcManager = new NpcManager();
     this.ui = new UIRenderer();
+    this.music = new MusicEngine();
 
     requestAnimationFrame(this.gameLoop);
   }
@@ -255,6 +258,8 @@ class Game {
     this.mapManager.loadMap('village');
     this.initVisualPosition();
     this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
+    this.music.init();
+    this.music.play('village');
     this.state = GameState.OVERWORLD;
   }
 
@@ -268,6 +273,8 @@ class Game {
       this.mapManager.loadMap(data.player.currentMap);
       this.initVisualPosition();
       this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
+      this.music.init();
+      this.music.play(data.player.currentMap === 'forest' ? 'forest' : 'village');
       this.state = GameState.OVERWORLD;
     } else {
       this.startNewGame();
@@ -279,6 +286,12 @@ class Game {
   private updateOverworld(): void {
     // Advance visual position animation
     this.updateVisualPosition();
+
+    // Mute toggle
+    if (this.input.toggleMute()) {
+      const muted = this.music.toggleMute();
+      this.showNotification([muted ? 'Music OFF' : 'Music ON']);
+    }
 
     // Pause menu
     if (this.input.cancel()) {
@@ -439,6 +452,7 @@ class Game {
     this.mapManager.loadMap(targetMap);
     this.initVisualPosition();
     this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
+    this.music.play(targetMap === 'forest' ? 'forest' : 'village');
   }
 
   // --- DIALOG ---
