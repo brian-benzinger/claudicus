@@ -122,7 +122,7 @@ export function createForestMap(): MapDef {
       // Wolves near the entrance path
       createEnemy(EnemyType.WOLF, 8, 5),
       createEnemy(EnemyType.WOLF, 12, 8),
-      createEnemy(EnemyType.WOLF, 6, 10),
+      createEnemy(EnemyType.WOLF, 7, 10),
 
       // Wolf den area (upper right area)
       createEnemy(EnemyType.WOLF, 25, 6),
@@ -139,7 +139,7 @@ export function createForestMap(): MapDef {
 
       // Skeletons near chapel (bottom right, near the walls)
       createEnemy(EnemyType.SKELETON, 30, 20),
-      createEnemy(EnemyType.SKELETON, 29, 22),
+      createEnemy(EnemyType.SKELETON, 27, 22),
     ],
     npcs: [],
     chests: [

@@ -268,3 +268,45 @@ describe('PlayerManager.reset', () => {
     expect(p.state.level).toBe(1);
   });
 });
+
+describe('PlayerManager inventory', () => {
+  it('starts with the default weapon in the weapons array', () => {
+    const p = makePlayer();
+    expect(p.state.weapons).toContain('rusty_shortsword');
+  });
+
+  it('equipWeapon adds weapon to the array if not present', () => {
+    const p = makePlayer();
+    p.equipWeapon('iron_longsword');
+    expect(p.state.weapons).toContain('iron_longsword');
+    expect(p.state.weaponId).toBe('iron_longsword');
+  });
+
+  it('equipWeapon does not duplicate weapon in array', () => {
+    const p = makePlayer();
+    p.equipWeapon('rusty_shortsword');
+    p.equipWeapon('rusty_shortsword');
+    expect(p.state.weapons.filter(w => w === 'rusty_shortsword').length).toBe(1);
+  });
+
+  it('addWeaponToInventory adds without equipping', () => {
+    const p = makePlayer();
+    p.addWeaponToInventory('halberd');
+    expect(p.state.weapons).toContain('halberd');
+    expect(p.state.weaponId).toBe('rusty_shortsword');
+  });
+
+  it('addWeaponToInventory does not duplicate', () => {
+    const p = makePlayer();
+    p.addWeaponToInventory('rusty_shortsword');
+    expect(p.state.weapons.filter(w => w === 'rusty_shortsword').length).toBe(1);
+  });
+
+  it('ownsWeapon checks the weapons array', () => {
+    const p = makePlayer();
+    expect(p.ownsWeapon('rusty_shortsword')).toBe(true);
+    expect(p.ownsWeapon('halberd')).toBe(false);
+    p.addWeaponToInventory('halberd');
+    expect(p.ownsWeapon('halberd')).toBe(true);
+  });
+});

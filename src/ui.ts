@@ -5,7 +5,8 @@ import {
   ShopItem,
   CombatState,
   CombatPhase,
-  EnemyInstance
+  EnemyInstance,
+  WeaponSpeed
 } from './types';
 import { getWeapon } from './data/weapons';
 import { drawPlayer, drawEnemy } from './renderer';
@@ -444,6 +445,158 @@ export class UIRenderer {
     ctx.textAlign = 'left';
 
     ctx.restore();
+  }
+
+  // Draw inventory screen
+  drawInventoryScreen(
+    ctx: CanvasRenderingContext2D,
+    player: PlayerState,
+    cursor: number
+  ): void {
+    // Darken overworld behind
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const panelW = 620;
+    const panelH = 420;
+    const panelX = (CANVAS_WIDTH - panelW) / 2;
+    const panelY = (CANVAS_HEIGHT - panelH) / 2;
+
+    // Panel background
+    ctx.fillStyle = COLORS.bgDark;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    // Title
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('INVENTORY', panelX + 240, panelY + 32);
+
+    // Divider
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 10, panelY + 44);
+    ctx.lineTo(panelX + panelW - 10, panelY + 44);
+    ctx.stroke();
+
+    // Build item list: weapons first, then potions entry
+    const items: Array<{ type: 'weapon'; id: string } | { type: 'potions' }> = [
+      ...player.weapons.map(id => ({ type: 'weapon' as const, id })),
+      { type: 'potions' as const }
+    ];
+
+    // Left column: item list
+    ctx.font = '14px monospace';
+    const listX = panelX + 20;
+    const listStartY = panelY + 65;
+    const rowH = 28;
+
+    items.forEach((item, i) => {
+      const rowY = listStartY + i * rowH;
+
+      // Cursor highlight
+      if (i === cursor) {
+        ctx.fillStyle = COLORS.menuHighlight;
+        ctx.fillRect(panelX + 10, rowY - 18, 280, rowH);
+      }
+
+      if (item.type === 'weapon') {
+        const weapon = getWeapon(item.id);
+        const isEquipped = player.weaponId === item.id;
+
+        ctx.fillStyle = isEquipped ? COLORS.textGold : COLORS.text;
+        const label = isEquipped ? `[E] ${weapon.name}` : `    ${weapon.name}`;
+        ctx.fillText(label, listX, rowY);
+      } else {
+        ctx.fillStyle = player.potions > 0 ? COLORS.text : COLORS.textDark;
+        ctx.fillText(`    Health Potion x${player.potions}`, listX, rowY);
+      }
+    });
+
+    // Vertical divider between list and detail panel
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 310, panelY + 44);
+    ctx.lineTo(panelX + 310, panelY + panelH - 10);
+    ctx.stroke();
+
+    // Right column: selected item details
+    const detailX = panelX + 325;
+    const detailY = panelY + 70;
+    const selectedItem = items[cursor];
+
+    if (selectedItem?.type === 'weapon') {
+      const weapon = getWeapon(selectedItem.id);
+      const isEquipped = player.weaponId === selectedItem.id;
+
+      ctx.fillStyle = COLORS.textGold;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(weapon.name, detailX, detailY);
+
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = '12px monospace';
+      ctx.fillText(isEquipped ? 'Currently Equipped' : '', detailX, detailY + 20);
+
+      const speedLabel: Record<WeaponSpeed, string> = {
+        [WeaponSpeed.FAST]: 'Fast',
+        [WeaponSpeed.NORMAL]: 'Normal',
+        [WeaponSpeed.SLOW]: 'Slow',
+        [WeaponSpeed.RANGED]: 'Ranged'
+      };
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '14px monospace';
+      ctx.fillText(`Damage:  +${weapon.damageBonus}`, detailX, detailY + 55);
+      ctx.fillText(`Speed:   ${speedLabel[weapon.speed]}`, detailX, detailY + 80);
+
+      if (weapon.critChance > 0) {
+        ctx.fillText(`Crit:    ${Math.round(weapon.critChance * 100)}%`, detailX, detailY + 105);
+      }
+      if (weapon.missChance > 0) {
+        ctx.fillText(`Miss:    ${Math.round(weapon.missChance * 100)}%`, detailX, detailY + 105 + (weapon.critChance > 0 ? 25 : 0));
+      }
+      if (weapon.ignoresDefense > 0) {
+        ctx.fillText(`Armor pierce: ${Math.round(weapon.ignoresDefense * 100)}%`, detailX, detailY + 130 + (weapon.critChance > 0 ? 25 : 0));
+      }
+
+      // Action hint
+      if (!isEquipped) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.font = '13px monospace';
+        ctx.fillText('[SPACE] Equip', detailX, detailY + 200);
+      }
+    } else if (selectedItem?.type === 'potions') {
+      ctx.fillStyle = COLORS.textGold;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('Health Potion', detailX, detailY);
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '14px monospace';
+      ctx.fillText(`In pack: ${player.potions}`, detailX, detailY + 55);
+      ctx.fillText('Restores 20 HP', detailX, detailY + 80);
+
+      if (player.potions > 0) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.font = '13px monospace';
+        ctx.fillText('[SPACE] Use Potion', detailX, detailY + 200);
+      }
+    }
+
+    // Footer
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 10, panelY + panelH - 30);
+    ctx.lineTo(panelX + panelW - 10, panelY + panelH - 30);
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '12px monospace';
+    ctx.fillText('[W/S] Navigate   [SPACE] Use/Equip   [I/ESC] Close', panelX + 100, panelY + panelH - 12);
   }
 
   // Draw notification message

@@ -8,7 +8,8 @@ export enum GameState {
   COMBAT_VICTORY = 'COMBAT_VICTORY',
   COMBAT_DEFEAT = 'COMBAT_DEFEAT',
   PAUSE = 'PAUSE',
-  VICTORY = 'VICTORY'
+  VICTORY = 'VICTORY',
+  INVENTORY = 'INVENTORY'
 }
 
 // Tile types for map rendering
@@ -181,6 +182,7 @@ export interface PlayerState {
   xp: number;
   gold: number;
   weaponId: string;
+  weapons: string[];   // all owned weapon IDs
   potions: number;
   tileX: number;
   tileY: number;
@@ -274,7 +276,7 @@ export const MAX_POTIONS = 10;
 export const POTION_HEAL = 20;
 export const POTION_COST = 5;
 export const MAX_LEVEL = 10;
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // Default player state factory
 export function createDefaultPlayer(): PlayerState {
@@ -288,6 +290,7 @@ export function createDefaultPlayer(): PlayerState {
     xp: 0,
     gold: 10,
     weaponId: 'rusty_shortsword',
+    weapons: ['rusty_shortsword'],
     potions: 3,
     tileX: 5,
     tileY: 5,

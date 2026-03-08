@@ -212,3 +212,39 @@ describe('MapManager.clearDefeatedEnemies', () => {
     expect(world.defeatedEnemies.length).toBe(0);
   });
 });
+
+describe('Entity spawn placement - no blocking tiles', () => {
+  it('all village NPCs are on walkable tiles', () => {
+    const mgr = makeMapManager();
+    for (const npc of mgr.currentMap.npcs) {
+      expect(
+        mgr.isWalkable(npc.tileX, npc.tileY),
+        `NPC "${npc.id}" at (${npc.tileX}, ${npc.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('all forest enemies are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    for (const enemy of mgr.currentMap.enemies) {
+      expect(
+        mgr.isWalkable(enemy.tileX, enemy.tileY),
+        `Enemy "${enemy.id}" (${enemy.type}) at (${enemy.tileX}, ${enemy.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('all forest chests are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    for (const chest of mgr.currentMap.chests) {
+      expect(
+        mgr.isWalkable(chest.tileX, chest.tileY),
+        `Chest "${chest.id}" at (${chest.tileX}, ${chest.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+});

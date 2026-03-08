@@ -122,15 +122,24 @@ export class PlayerManager {
     return true;
   }
 
-  // Equip weapon
+  // Equip a weapon (adds to owned list if not already there)
   equipWeapon(weaponId: string): void {
+    if (!this.state.weapons.includes(weaponId)) {
+      this.state.weapons.push(weaponId);
+    }
     this.state.weaponId = weaponId;
   }
 
-  // Check if player owns a weapon (for shop display)
-  // For now, just check if it's equipped - could add inventory later
+  // Add a weapon to the inventory without equipping it
+  addWeaponToInventory(weaponId: string): void {
+    if (!this.state.weapons.includes(weaponId)) {
+      this.state.weapons.push(weaponId);
+    }
+  }
+
+  // Check if player owns a weapon
   ownsWeapon(weaponId: string): boolean {
-    return this.state.weaponId === weaponId;
+    return this.state.weapons.includes(weaponId);
   }
 
   // Respawn after death

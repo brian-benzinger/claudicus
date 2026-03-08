@@ -56,7 +56,7 @@ export const VILLAGE_NPCS: NpcDef[] = [
     id: 'old_marta',
     name: 'Old Marta',
     tileX: 14,
-    tileY: 12,
+    tileY: 13,
     role: NpcRole.SHOP_POTIONS,
     color: '#6b4423',
     dialogs: {
@@ -86,8 +86,8 @@ export const VILLAGE_NPCS: NpcDef[] = [
   {
     id: 'farmer_wulf',
     name: 'Farmer Wulf',
-    tileX: 4,
-    tileY: 14,
+    tileX: 5,
+    tileY: 13,
     role: NpcRole.DIALOG,
     color: '#5d4e37',
     dialogs: {

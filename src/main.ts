@@ -39,6 +39,7 @@ class Game {
   private frame: number = 0;
   private titleCursor: number = 0;
   private pauseCursor: number = 0;
+  private inventoryCursor: number = 0;
 
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
@@ -139,6 +140,9 @@ class Game {
       case GameState.VICTORY:
         this.updateVictory();
         break;
+      case GameState.INVENTORY:
+        this.updateInventory();
+        break;
     }
 
     // Update timers
@@ -166,6 +170,7 @@ class Game {
       case GameState.DIALOG:
       case GameState.SHOP:
       case GameState.PAUSE:
+      case GameState.INVENTORY:
         this.renderOverworld();
         if (this.state === GameState.DIALOG) {
           this.renderDialog();
@@ -173,6 +178,8 @@ class Game {
           this.renderShop();
         } else if (this.state === GameState.PAUSE) {
           this.ui.drawPauseMenu(this.ctx, this.pauseCursor);
+        } else if (this.state === GameState.INVENTORY) {
+          this.ui.drawInventoryScreen(this.ctx, this.player.state, this.inventoryCursor);
         }
         break;
       case GameState.COMBAT:
@@ -263,6 +270,13 @@ class Game {
     if (this.input.cancel()) {
       this.pauseCursor = 0;
       this.state = GameState.PAUSE;
+      return;
+    }
+
+    // Inventory
+    if (this.input.openInventory()) {
+      this.inventoryCursor = 0;
+      this.state = GameState.INVENTORY;
       return;
     }
 
@@ -589,6 +603,46 @@ class Game {
     }
 
     if (this.input.cancel()) {
+      this.state = GameState.OVERWORLD;
+    }
+  }
+
+  // --- INVENTORY ---
+
+  private updateInventory(): void {
+    // items = weapons[] + potions entry
+    const itemCount = this.player.state.weapons.length + 1;
+
+    if (this.input.menuUp()) {
+      this.inventoryCursor = (this.inventoryCursor - 1 + itemCount) % itemCount;
+    }
+    if (this.input.menuDown()) {
+      this.inventoryCursor = (this.inventoryCursor + 1) % itemCount;
+    }
+
+    if (this.input.interact()) {
+      const isPotion = this.inventoryCursor === this.player.state.weapons.length;
+
+      if (isPotion) {
+        const used = this.player.usePotion();
+        if (used) {
+          this.showNotification(['Used Health Potion.', `HP: ${this.player.state.hp}/${this.player.state.maxHp}`]);
+          this.autoSave();
+        } else {
+          this.showNotification(['No potions remaining!']);
+        }
+      } else {
+        const weaponId = this.player.state.weapons[this.inventoryCursor];
+        if (weaponId && weaponId !== this.player.state.weaponId) {
+          this.player.equipWeapon(weaponId);
+          const weapon = this.player.getWeapon();
+          this.showNotification([`Equipped ${weapon.name}.`]);
+          this.autoSave();
+        }
+      }
+    }
+
+    if (this.input.cancel() || this.input.openInventory()) {
       this.state = GameState.OVERWORLD;
     }
   }
