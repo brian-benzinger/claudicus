@@ -3,6 +3,7 @@ import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   TILE_SIZE,
+  TileType,
   PlayerState,
   QuestState,
   WorldState,
@@ -46,6 +47,9 @@ class Game {
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
   private levelUpRewardLabel: string = '';
+
+  // Bed save fade: 0=idle, 1-30=fade out, 31=save, 32-60=fade in
+  private bedFadeTimer: number = 0;
   private victoryTimer: number = 0;
   private victoryXp: number = 0;
   private victoryGold: number = 0;
@@ -371,6 +375,33 @@ class Game {
         this.mapManager.openChest(chest.id);
         this.showNotification(result.messages);
         this.autoSave();
+        return;
+      }
+
+      // Check for adjacent bed
+      const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+      const onBed = dirs.some(({ dx, dy }) =>
+        this.mapManager.getTile(
+          this.player.state.tileX + dx,
+          this.player.state.tileY + dy
+        ) === TileType.BED
+      ) || this.mapManager.getTile(this.player.state.tileX, this.player.state.tileY) === TileType.BED;
+
+      if (onBed && this.bedFadeTimer === 0) {
+        this.bedFadeTimer = 1;
+      }
+    }
+
+    // Advance bed-save fade
+    if (this.bedFadeTimer > 0) {
+      this.bedFadeTimer++;
+      if (this.bedFadeTimer === 31) {
+        this.autoSave();
+        this.player.state.hp = this.player.state.maxHp; // rest heals fully
+        this.showNotification(['Game saved', 'HP restored']);
+      }
+      if (this.bedFadeTimer > 60) {
+        this.bedFadeTimer = 0;
       }
     }
   }
@@ -386,6 +417,18 @@ class Game {
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);
+
+    // Bed save fade overlay
+    if (this.bedFadeTimer > 0) {
+      const t = this.bedFadeTimer;
+      // Frames 1-30: fade to black; frames 31-60: fade back in
+      const alpha = t <= 30 ? t / 30 : 1 - (t - 30) / 30;
+      this.ctx.save();
+      this.ctx.globalAlpha = Math.min(1, alpha);
+      this.ctx.fillStyle = '#000000';
+      this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      this.ctx.restore();
+    }
   }
 
   private transitionMap(targetMap: string, spawnX: number, spawnY: number): void {

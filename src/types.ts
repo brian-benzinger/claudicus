@@ -27,7 +27,8 @@ export enum TileType {
   DOOR = 10,
   ROOF = 11,
   WELL = 12,
-  GATE = 13
+  GATE = 13,
+  BED = 14
 }
 
 // Weapon speed categories

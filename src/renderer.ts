@@ -265,6 +265,27 @@ export function drawTile(
       ctx.fillRect(x + 2, y, 28, 6);
       break;
 
+    case TileType.BED:
+      // Floor
+      ctx.fillStyle = COLORS.wood;
+      ctx.fillRect(x, y, s, s);
+      // Bed frame
+      ctx.fillStyle = COLORS.woodDark;
+      ctx.fillRect(x + 4, y + 4, 24, 24);
+      // Mattress
+      ctx.fillStyle = '#c8b4a0';
+      ctx.fillRect(x + 6, y + 6, 20, 16);
+      // Pillow
+      ctx.fillStyle = '#f0e8e0';
+      ctx.fillRect(x + 8, y + 7, 8, 6);
+      // Blanket
+      ctx.fillStyle = '#7a8cc4';
+      ctx.fillRect(x + 6, y + 16, 20, 6);
+      // Headboard
+      ctx.fillStyle = COLORS.trunk;
+      ctx.fillRect(x + 4, y + 4, 24, 4);
+      break;
+
     default:
       ctx.fillStyle = '#ff00ff'; // Magenta for missing tiles
       ctx.fillRect(x, y, s, s);

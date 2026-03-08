@@ -61,7 +61,8 @@ export class MapManager {
       TileType.COBBLESTONE,
       TileType.DARK_GRASS,
       TileType.DOOR,
-      TileType.GATE
+      TileType.GATE,
+      TileType.BED
     ];
     return walkableTiles.includes(tile);
   }

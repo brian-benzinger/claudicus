@@ -16,6 +16,7 @@ const B = TileType.BUILDING_WALL;
 const O = TileType.DOOR;
 const E = TileType.WELL;
 const A = TileType.GATE;
+const N = TileType.BED;
 
 // Village "Brannford" - 30x20 tiles
 // Features: Player cottage, Elder's house, Blacksmith, Market, Well, Gate to forest
@@ -24,7 +25,7 @@ const VILLAGE_TILES: number[][] = [
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T], // 0
   [T,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,T], // 1
   [T,G,B,B,B,B,G,G,B,B,B,B,G,G,G,G,G,G,G,B,B,B,B,B,G,G,G,G,G,T], // 2
-  [T,G,B,G,G,B,G,G,B,G,G,B,G,G,G,G,G,G,G,B,G,G,G,B,G,G,G,G,G,T], // 3
+  [T,G,B,N,G,B,G,G,B,G,G,B,G,G,G,G,G,G,G,B,G,G,G,B,G,G,G,G,G,T], // 3
   [T,G,B,G,G,B,G,G,O,G,G,B,G,G,G,G,G,G,G,B,G,G,G,B,G,G,G,G,G,T], // 4
   [T,G,B,B,O,B,G,G,B,B,B,B,G,G,G,G,G,G,G,B,B,O,B,B,G,G,G,G,G,T], // 5
   [T,G,G,G,D,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,D,G,G,G,G,G,G,G,T], // 6
@@ -35,7 +36,7 @@ const VILLAGE_TILES: number[][] = [
   [T,G,G,F,F,F,F,F,G,G,G,G,G,G,G,G,G,G,G,G,G,D,G,G,G,G,G,G,G,T], // 11
   [T,G,G,F,G,G,G,F,G,G,G,G,F,F,F,F,F,G,G,G,G,D,G,G,G,G,G,G,G,T], // 12
   [T,G,G,F,G,G,G,F,G,G,G,G,F,G,G,G,F,G,G,G,G,D,G,G,G,G,G,G,G,T], // 13
-  [T,G,G,F,F,F,F,F,G,G,G,G,F,F,F,F,F,G,G,G,G,D,G,G,G,G,G,G,G,T], // 14
+  [T,G,G,F,F,G,F,F,G,G,G,G,F,F,G,F,F,G,G,G,G,D,G,G,G,G,G,G,G,T], // 14
   [T,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,D,G,G,G,G,G,G,G,T], // 15
   [T,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,D,D,D,D,D,D,D,D,T], // 16
   [T,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,A,T], // 17
@@ -69,7 +70,7 @@ const FOREST_TILES: number[][] = [
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,K,K,T,T,L,L,T,T,K,K,K,D,K,T,T], // 19
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,T,L,K,K,L,T,T,K,K,D,T,T,T], // 20
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,T,L,K,K,L,T,T,K,D,D,T,T,T], // 21
-  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,L,L,L,L,T,K,K,D,T,T,T,T], // 22
+  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,O,L,L,T,K,K,D,T,T,T,T], // 22
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,D,T,T,K,D,D,T,T,T,T], // 23
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,D,T,K,K,D,T,T,T,T,T], // 24
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,D,D,D,D,T,T,T,T,T], // 25
