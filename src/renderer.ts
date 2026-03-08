@@ -1,4 +1,4 @@
-import { TileType, EnemyType, NpcDef, TILE_SIZE } from './types';
+import { TileType, EnemyType, NpcDef, TILE_SIZE, WeaponSpeed } from './types';
 
 // Color palette - medieval/earthy tones
 const COLORS = {
@@ -432,6 +432,140 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, type: EnemyType, x: num
       drawWildBoar(ctx, x, y);
       break;
   }
+}
+
+// Draw weapon sprite, pivoted at (0,0) = grip, blade extends in +x when angle=0
+function drawWeaponSprite(ctx: CanvasRenderingContext2D, speed: WeaponSpeed): void {
+  switch (speed) {
+    case WeaponSpeed.FAST: // dagger
+      ctx.fillStyle = '#c0c0c0';
+      ctx.fillRect(0, -1, 10, 3);   // blade
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(-6, -2, 6, 5);   // handle
+      ctx.fillStyle = '#a08030';
+      ctx.fillRect(-1, -3, 2, 7);   // crossguard
+      break;
+
+    case WeaponSpeed.NORMAL: // longsword
+      ctx.fillStyle = '#d0d8e0';
+      ctx.fillRect(0, -1, 18, 3);   // blade
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(-8, -2, 8, 5);   // handle
+      ctx.fillStyle = '#a08030';
+      ctx.fillRect(-1, -4, 2, 9);   // crossguard
+      break;
+
+    case WeaponSpeed.SLOW: // halberd / mace — long heavy weapon
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(-12, -2, 26, 4); // long pole
+      ctx.fillStyle = '#808898';
+      ctx.fillRect(10, -6, 5, 13);  // axe blade
+      ctx.fillRect(13, -3, 6, 7);   // axe body
+      break;
+
+    case WeaponSpeed.RANGED: // hunting bow — drawn vertically, held at left
+      ctx.strokeStyle = '#7a5a2a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, -Math.PI * 0.55, Math.PI * 0.55);
+      ctx.stroke();
+      // bowstring
+      ctx.strokeStyle = '#d4b896';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -10);
+      ctx.lineTo(0, 10);
+      ctx.stroke();
+      break;
+  }
+}
+
+// Draw player with weapon, used in combat screen (called inside a translated+scaled ctx)
+export function drawCombatPlayer(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  frame: number,
+  weaponSpeed: WeaponSpeed,
+  attackProgress: number  // -1 = idle, 0..1 = attack animation
+): void {
+  drawPlayer(ctx, x, y, frame, 'right');
+
+  const bob = Math.sin(frame * 0.2);
+
+  if (weaponSpeed === WeaponSpeed.RANGED) {
+    // Bow is held vertically in the left hand, pointing up
+    const bowX = x + 8;
+    const bowY = y + 14 + bob;
+    const pullback = attackProgress >= 0 && attackProgress < 0.5
+      ? attackProgress * 2 * 5  // string pulls back up to 5px
+      : attackProgress >= 0.5
+        ? (1 - (attackProgress - 0.5) * 2) * 5
+        : 0;
+
+    ctx.save();
+    ctx.translate(bowX, bowY);
+    ctx.rotate(-Math.PI / 2); // bow points up
+    drawWeaponSprite(ctx, WeaponSpeed.RANGED);
+
+    // Draw taut string when pulling
+    if (pullback > 0) {
+      ctx.strokeStyle = '#d4b896';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -10);
+      ctx.lineTo(pullback, 0);
+      ctx.lineTo(0, 10);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // Melee weapons: extend from right hand
+  const handX = x + 26;
+  const handY = y + 14 + bob;
+
+  // Compute weapon angle based on type and progress
+  let angle = 0;
+  if (attackProgress < 0) {
+    // Idle stance
+    switch (weaponSpeed) {
+      case WeaponSpeed.FAST:   angle = -0.35; break;
+      case WeaponSpeed.NORMAL: angle = -0.6;  break;
+      case WeaponSpeed.SLOW:   angle = -Math.PI / 2; break;
+    }
+  } else {
+    const p = attackProgress;
+    switch (weaponSpeed) {
+      case WeaponSpeed.FAST:
+        // Two quick stabs: extend to 0 then retract, twice
+        if      (p < 0.25) angle = -0.35 + (p / 0.25) * 0.35;
+        else if (p < 0.5)  angle = -((p - 0.25) / 0.25) * 0.35;
+        else if (p < 0.75) angle = -0.2 + ((p - 0.5) / 0.25) * 0.2;
+        else               angle = -((1 - p) / 0.25) * 0.2;
+        break;
+
+      case WeaponSpeed.NORMAL:
+        // Diagonal slash: sweep from -60° down to +50°, then snap back
+        if (p < 0.65) angle = -1.05 + (p / 0.65) * 1.9;
+        else          angle = 0.85 - ((p - 0.65) / 0.35) * 1.45;
+        break;
+
+      case WeaponSpeed.SLOW:
+        // Overhead slam: raise weapon back over head, then slam down hard
+        if      (p < 0.45) angle = -Math.PI / 2 - (p / 0.45) * Math.PI;
+        else if (p < 0.55) angle = -Math.PI * 1.5;  // pause at top
+        else               angle = -Math.PI * 1.5 + ((p - 0.55) / 0.45) * (Math.PI * 1.5 + 0.4);
+        break;
+    }
+  }
+
+  ctx.save();
+  ctx.translate(handX, handY);
+  ctx.rotate(angle);
+  drawWeaponSprite(ctx, weaponSpeed);
+  ctx.restore();
 }
 
 // Draw NPC

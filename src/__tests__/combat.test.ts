@@ -73,21 +73,32 @@ describe('CombatEngine constructor', () => {
 });
 
 describe('CombatEngine.playerAttack', () => {
-  it('transitions to ENEMY_ACTION after attacking (enemy survives)', () => {
-    mockAttacks([0, 0, 0]); // no miss, min variance, no crit
+  it('transitions to PLAYER_ANIMATING immediately after attacking', () => {
+    mockAttacks([0, 0, 0]);
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
     engine.playerAttack();
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
+  });
+
+  it('transitions to ENEMY_ACTION after animation completes (enemy survives)', () => {
+    mockAttacks([0, 0, 0]);
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.playerAttack();
+    // Advance animation frames past the threshold
+    for (let i = 0; i <= 21; i++) engine.update();
     expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
   });
 
-  it('transitions to DONE when enemy is killed', () => {
-    mockAttacks([0, 0.9, 0]); // no miss, max variance (+2), no crit
-    const player = makeFastPlayer(); // dagger: FAST, str=5, damageBonus=1 → 6 atk
+  it('transitions to DONE after animation completes when enemy is killed', () => {
+    mockAttacks([0, 0.9, 0]);
+    const player = makeFastPlayer();
     player.state.str = 999;
-    const enemy = makeEnemy(EnemyType.WOLF); // hp=12, def=1
+    const enemy = makeEnemy(EnemyType.WOLF);
     const engine = new CombatEngine(player, enemy);
     engine.playerAttack();
     expect(engine.state.enemyHp).toBe(0);
+    // Advance animation frames
+    for (let i = 0; i <= 21; i++) engine.update();
     expect(engine.isDone()).toBe(true);
     expect(engine.getResult()).toBe('victory');
   });
@@ -95,9 +106,9 @@ describe('CombatEngine.playerAttack', () => {
   it('does nothing outside PLAYER_ACTION phase', () => {
     mockAttacks([0, 0, 0], [0, 0, 0]);
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
-    engine.playerAttack(); // moves to ENEMY_ACTION
+    engine.playerAttack(); // moves to PLAYER_ANIMATING
     const hpBefore = engine.state.enemyHp;
-    engine.playerAttack(); // should do nothing
+    engine.playerAttack(); // should do nothing (wrong phase)
     expect(engine.state.enemyHp).toBe(hpBefore);
   });
 

@@ -118,20 +118,18 @@ export class CombatEngine {
   playerAttack(): void {
     if (this.state.phase !== CombatPhase.PLAYER_ACTION) return;
 
-    this.state.phase = CombatPhase.PLAYER_ANIMATING;
-    this.state.animationFrame = 0;
     this.state.defendingThisTurn = false;
     this.state.enemyDefending = false;
 
     this.executePlayerAttack();
 
     if (this.state.enemyHp <= 0) {
-      this.state.phase = CombatPhase.DONE;
       this.state.log.push(`The ${this.state.enemy.name} is defeated!`);
-    } else {
-      this.state.phase = CombatPhase.ENEMY_ACTION;
-      this.state.playerTurn = false;
     }
+
+    // Phase transitions happen in update() after animation completes
+    this.state.phase = CombatPhase.PLAYER_ANIMATING;
+    this.state.animationFrame = 0;
   }
 
   // Player defend action

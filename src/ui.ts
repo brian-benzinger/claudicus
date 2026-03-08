@@ -9,7 +9,7 @@ import {
   WeaponSpeed
 } from './types';
 import { getWeapon } from './data/weapons';
-import { drawPlayer, drawEnemy } from './renderer';
+import { drawPlayer, drawEnemy, drawCombatPlayer } from './renderer';
 
 const COLORS = {
   bgDark: 'rgba(20, 20, 30, 0.95)',
@@ -212,13 +212,42 @@ export class UIRenderer {
     const enemyX = CANVAS_WIDTH - 200;
     const combatY = CANVAS_HEIGHT / 2 - 50;
 
+    const weapon = getWeapon(player.weaponId);
+    const weaponSpeed = weapon.speed;
+
     // Animation offsets
     let playerOffset = 0;
     let enemyOffset = 0;
+    let playerAttackProgress = -1;
 
     if (combat.phase === CombatPhase.PLAYER_ANIMATING) {
       const progress = combat.animationFrame / 20;
-      playerOffset = Math.sin(progress * Math.PI) * 50;
+      playerAttackProgress = progress;
+
+      switch (weaponSpeed) {
+        case WeaponSpeed.FAST:
+          // Two short forward dashes
+          playerOffset = Math.sin(progress * Math.PI * 2) * 28;
+          break;
+        case WeaponSpeed.NORMAL:
+          // Big lunge forward
+          playerOffset = Math.sin(progress * Math.PI) * 55;
+          break;
+        case WeaponSpeed.SLOW:
+          // Subtle step in — overhead weapon does the work
+          playerOffset = Math.sin(Math.min(progress * 2, 1) * Math.PI) * 22;
+          break;
+        case WeaponSpeed.RANGED:
+          // Stay put — it's a ranged attack
+          playerOffset = 0;
+          break;
+      }
+
+      // Enemy flinches backward when hit (during second half of player animation)
+      if (progress > 0.45) {
+        const flinchP = (progress - 0.45) / 0.55;
+        enemyOffset = Math.sin(flinchP * Math.PI) * 18;
+      }
     } else if (combat.phase === CombatPhase.ENEMY_ANIMATING) {
       const progress = combat.animationFrame / 20;
       enemyOffset = -Math.sin(progress * Math.PI) * 50;
@@ -228,8 +257,38 @@ export class UIRenderer {
     ctx.save();
     ctx.translate(playerX + playerOffset, combatY);
     ctx.scale(2, 2);
-    drawPlayer(ctx, 0, 0, frame, 'right');
+    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress);
     ctx.restore();
+
+    // Draw arrow projectile for ranged attack (in screen space, after player draw)
+    if (combat.phase === CombatPhase.PLAYER_ANIMATING &&
+        weaponSpeed === WeaponSpeed.RANGED &&
+        combat.animationFrame / 20 > 0.5) {
+      const arrowProgress = (combat.animationFrame / 20 - 0.5) / 0.5;
+      const arrowStartX = playerX + 32;
+      const arrowStartY = combatY + 28;
+      const arrowEndX = enemyX - 10;
+      const arrowEndY = combatY + 28;
+      const arrowX = arrowStartX + (arrowEndX - arrowStartX) * arrowProgress;
+      const arrowY = arrowStartY - Math.sin(arrowProgress * Math.PI) * 12;
+
+      ctx.save();
+      ctx.strokeStyle = '#8b6914';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(arrowX - 10, arrowY);
+      ctx.lineTo(arrowX + 6, arrowY);
+      ctx.stroke();
+      // arrowhead
+      ctx.fillStyle = '#b0b0b0';
+      ctx.beginPath();
+      ctx.moveTo(arrowX + 6, arrowY);
+      ctx.lineTo(arrowX,     arrowY - 3);
+      ctx.lineTo(arrowX,     arrowY + 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Draw enemy (scaled up)
     ctx.save();
