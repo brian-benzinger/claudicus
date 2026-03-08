@@ -80,28 +80,31 @@ export function drawTile(
   const s = TILE_SIZE;
 
   switch (type) {
-    case TileType.GRASS:
+    case TileType.GRASS: {
+      const rng = tilePrng(tileX, tileY);
       ctx.fillStyle = COLORS.grass;
       ctx.fillRect(x, y, s, s);
-      // Add some texture
       ctx.fillStyle = COLORS.grassDark;
       for (let i = 0; i < 3; i++) {
-        const gx = x + Math.floor(Math.random() * 28) + 2;
-        const gy = y + Math.floor(Math.random() * 28) + 2;
+        const gx = x + Math.floor(rng() * 28) + 2;
+        const gy = y + Math.floor(rng() * 28) + 2;
         ctx.fillRect(gx, gy, 2, 4);
       }
       break;
+    }
 
-    case TileType.DARK_GRASS:
+    case TileType.DARK_GRASS: {
+      const rng = tilePrng(tileX, tileY);
       ctx.fillStyle = COLORS.grassDark;
       ctx.fillRect(x, y, s, s);
       ctx.fillStyle = COLORS.grass;
       for (let i = 0; i < 2; i++) {
-        const gx = x + Math.floor(Math.random() * 26) + 3;
-        const gy = y + Math.floor(Math.random() * 26) + 3;
+        const gx = x + Math.floor(rng() * 26) + 3;
+        const gy = y + Math.floor(rng() * 26) + 3;
         ctx.fillRect(gx, gy, 2, 3);
       }
       break;
+    }
 
     case TileType.DIRT:
       ctx.fillStyle = COLORS.dirt;
