@@ -56,6 +56,17 @@ const COLORS = {
   menuBorder: '#5a4a3a'
 };
 
+// Seeded PRNG — returns a deterministic sequence of [0,1) values for a given tile position
+function tilePrng(x: number, y: number) {
+  let seed = (x * 1619 + y * 31337) ^ 0xdeadbeef;
+  return () => {
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0) / 0x100000000;
+  };
+}
+
 // Draw a single tile
 export function drawTile(ctx: CanvasRenderingContext2D, type: TileType, x: number, y: number): void {
   const s = TILE_SIZE;
@@ -126,23 +137,52 @@ export function drawTile(ctx: CanvasRenderingContext2D, type: TileType, x: numbe
       ctx.strokeRect(x + 18, y + 18, 10, 10);
       break;
 
-    case TileType.TREE:
-      // Draw grass underneath
+    case TileType.TREE: {
+      const rng = tilePrng(x, y);
+      // Grass base
       ctx.fillStyle = COLORS.grassDark;
       ctx.fillRect(x, y, s, s);
-      // Trunk
+
+      // Randomise trunk: width 6–10, height 10–16, offset ±3px from centre
+      const trunkW = 6 + Math.floor(rng() * 5);
+      const trunkH = 10 + Math.floor(rng() * 7);
+      const trunkOffX = Math.floor(rng() * 7) - 3;
+      const trunkX = x + 16 - trunkW / 2 + trunkOffX;
+      const trunkY = y + s - trunkH;
       ctx.fillStyle = COLORS.trunk;
-      ctx.fillRect(x + 12, y + 20, 8, 12);
-      // Canopy
+      ctx.fillRect(trunkX, trunkY, trunkW, trunkH);
+
+      // Randomise canopy: 2–3 overlapping blobs of varying radius and position
+      const blobCount = 2 + Math.floor(rng() * 2); // 2 or 3
+      const canopyR = 11 + Math.floor(rng() * 5);  // main radius 11–15
+      const canopyCX = x + 14 + Math.floor(rng() * 5);
+      const canopyCY = y + 10 + Math.floor(rng() * 5);
+
+      // Main blob
       ctx.fillStyle = COLORS.tree;
       ctx.beginPath();
-      ctx.arc(x + 16, y + 14, 14, 0, Math.PI * 2);
+      ctx.arc(canopyCX, canopyCY, canopyR, 0, Math.PI * 2);
       ctx.fill();
+
+      // Additional highlight/shadow blobs
+      for (let b = 1; b < blobCount; b++) {
+        const bOffX = Math.floor(rng() * 14) - 7;
+        const bOffY = Math.floor(rng() * 10) - 5;
+        const bR = 5 + Math.floor(rng() * 6);
+        const dark = rng() > 0.4;
+        ctx.fillStyle = dark ? COLORS.treeDark : '#3a7028';
+        ctx.beginPath();
+        ctx.arc(canopyCX + bOffX, canopyCY + bOffY, bR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Small dark shadow blob always present
       ctx.fillStyle = COLORS.treeDark;
       ctx.beginPath();
-      ctx.arc(x + 12, y + 16, 6, 0, Math.PI * 2);
+      ctx.arc(canopyCX + Math.floor(rng() * 8) - 4, canopyCY + Math.floor(rng() * 6), 4 + Math.floor(rng() * 4), 0, Math.PI * 2);
       ctx.fill();
       break;
+    }
 
     case TileType.FENCE:
       ctx.fillStyle = COLORS.grass;
@@ -220,15 +260,109 @@ export function drawTile(ctx: CanvasRenderingContext2D, type: TileType, x: numbe
   }
 }
 
+// Draw a small overworld weapon held in the player's hand
+function drawOverworldWeapon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  bob: number,
+  facing: 'up' | 'down' | 'left' | 'right',
+  speed: WeaponSpeed
+): void {
+  ctx.save();
+
+  // Colour by type
+  const bladeColor  = speed === WeaponSpeed.RANGED ? COLORS.wood : '#c8c8d4';
+  const handleColor = COLORS.trunk;
+
+  if (speed === WeaponSpeed.RANGED) {
+    // Bow: small arc on the right side of the player
+    const bx = x + (facing === 'left' ? 2 : 26);
+    const by = y + 12 + bob;
+    ctx.strokeStyle = COLORS.wood;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(bx, by, 7,
+      facing === 'left' ? Math.PI * 0.6  : -Math.PI * 0.6,
+      facing === 'left' ? Math.PI * 1.4  :  Math.PI * 0.6);
+    ctx.stroke();
+    // String
+    ctx.strokeStyle = '#e8d8a0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const capAngle = facing === 'left' ? Math.PI : 0;
+    ctx.moveTo(bx + Math.cos(capAngle - Math.PI * 0.6) * 7,
+               by + Math.sin(capAngle - Math.PI * 0.6) * 7 - 6);
+    ctx.lineTo(bx + Math.cos(capAngle + Math.PI * 0.6) * 7,
+               by + Math.sin(capAngle + Math.PI * 0.6) * 7 + 6);
+    ctx.stroke();
+  } else {
+    // Melee: handle + blade, length varies by speed
+    const bladeLen = speed === WeaponSpeed.FAST ? 7
+                   : speed === WeaponSpeed.SLOW ? 14
+                   : 10; // NORMAL
+
+    // Position grip at shoulder; direction depends on facing
+    let gx: number, gy: number, angle: number;
+    if (facing === 'right') {
+      gx = x + 26; gy = y + 14 + bob; angle = -Math.PI / 6;
+    } else if (facing === 'left') {
+      gx = x + 6;  gy = y + 14 + bob; angle = Math.PI + Math.PI / 6;
+    } else if (facing === 'up') {
+      gx = x + 24; gy = y + 12 + bob; angle = -Math.PI / 2 - Math.PI / 6;
+    } else { // down
+      gx = x + 8;  gy = y + 14 + bob; angle = Math.PI / 2 + Math.PI / 6;
+    }
+
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+
+    // Handle (3px)
+    ctx.strokeStyle = handleColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + cos * 3, gy + sin * 3);
+    ctx.stroke();
+
+    // Blade
+    ctx.strokeStyle = bladeColor;
+    ctx.lineWidth = speed === WeaponSpeed.SLOW ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(gx + cos * 3, gy + sin * 3);
+    ctx.lineTo(gx + cos * (3 + bladeLen), gy + sin * (3 + bladeLen));
+    ctx.stroke();
+
+    // Crossguard for NORMAL/SLOW
+    if (speed !== WeaponSpeed.FAST) {
+      const gLen = speed === WeaponSpeed.SLOW ? 4 : 3;
+      const px = gx + cos * 3, py = gy + sin * 3;
+      ctx.strokeStyle = '#888899';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px - sin * gLen, py + cos * gLen);
+      ctx.lineTo(px + sin * gLen, py - cos * gLen);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
 // Draw player sprite
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   frame: number,
-  facing: 'up' | 'down' | 'left' | 'right'
+  facing: 'up' | 'down' | 'left' | 'right',
+  weaponSpeed?: WeaponSpeed
 ): void {
   const bob = Math.sin(frame * 0.2) * 1;
+
+  // Draw weapon behind player when facing up
+  if (weaponSpeed !== undefined && (facing === 'up')) {
+    drawOverworldWeapon(ctx, x, y, bob, facing, weaponSpeed);
+  }
 
   // Body
   ctx.fillStyle = COLORS.playerBody;
@@ -263,6 +397,11 @@ export function drawPlayer(
   const legOffset = Math.sin(frame * 0.3) * 2;
   ctx.fillRect(x + 8, y + 26 + bob, 6, 6 + legOffset);
   ctx.fillRect(x + 18, y + 26 + bob, 6, 6 - legOffset);
+
+  // Draw weapon in front of player when facing down/left/right
+  if (weaponSpeed !== undefined && facing !== 'up') {
+    drawOverworldWeapon(ctx, x, y, bob, facing, weaponSpeed);
+  }
 }
 
 // Draw wolf

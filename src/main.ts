@@ -46,6 +46,10 @@ class Game {
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
   private levelUpRewardLabel: string = '';
+  private victoryTimer: number = 0;
+  private victoryXp: number = 0;
+  private victoryGold: number = 0;
+  private victoryLevelUp: string = '';
 
   // Smooth tile-to-tile movement
   private visualX: number = 0;
@@ -186,8 +190,11 @@ class Game {
         }
         break;
       case GameState.COMBAT:
+        this.renderCombat();
+        break;
       case GameState.COMBAT_VICTORY:
         this.renderCombat();
+        this.ui.drawCombatVictoryOverlay(this.ctx, this.victoryXp, this.victoryGold, this.victoryLevelUp, this.victoryTimer);
         break;
       case GameState.COMBAT_DEFEAT:
         this.ui.drawDefeatScreen(this.ctx, this.defeatGoldLost);
@@ -375,7 +382,7 @@ class Game {
     // Render player at smooth visual position
     const screenX = this.visualX - this.mapManager.camera.x;
     const screenY = this.visualY - this.mapManager.camera.y;
-    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing);
+    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed);
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);
@@ -510,6 +517,29 @@ class Game {
       const result = this.combat.getResult();
 
       if (result === 'victory') {
+        // Apply rewards immediately
+        const rewards = this.combat.computeRewards();
+        const levelReward = this.player.gainXp(rewards.xp);
+        if (rewards.gold > 0) this.player.addGold(rewards.gold);
+
+        this.victoryXp   = rewards.xp;
+        this.victoryGold = rewards.gold;
+        this.victoryLevelUp = levelReward ? `LEVEL UP! ${levelReward.label}` : '';
+
+        if (levelReward) {
+          this.newLevel = this.player.state.level;
+          this.levelUpRewardLabel = levelReward.label;
+          this.levelUpTimer = 120;
+        }
+
+        // Remove enemy and track quest progress before switching state
+        this.mapManager.removeEnemy(this.combat.state.enemy.id);
+        if (this.player.state.currentMap === 'forest') {
+          this.checkQuestProgress(this.combat.state.enemy.type);
+        }
+        this.autoSave();
+
+        this.victoryTimer = 180; // 3 seconds at 60fps
         this.state = GameState.COMBAT_VICTORY;
       } else if (result === 'defeat') {
         this.defeatGoldLost = Math.floor(this.player.state.gold * 0.1);
@@ -522,41 +552,9 @@ class Game {
   }
 
   private updateCombatVictory(): void {
-    if (this.input.interact()) {
-      if (!this.combat) return;
-
-      // Apply rewards
-      const rewards = this.combat.computeRewards();
-      const reward = this.player.gainXp(rewards.xp);
-
-      if (reward !== null) {
-        this.newLevel = this.player.state.level;
-        this.levelUpRewardLabel = reward.label;
-        this.levelUpTimer = 120;
-      }
-
-      if (rewards.gold > 0) {
-        this.player.addGold(rewards.gold);
-      }
-
-      // Remove enemy from map
-      this.mapManager.removeEnemy(this.combat.state.enemy.id);
-
-      // Check quest progress for all active quests
-      if (this.player.state.currentMap === 'forest') {
-        this.checkQuestProgress(this.combat.state.enemy.type);
-      }
-
-      // Show reward notification
-      const messages = [`+${rewards.xp} XP`];
-      if (rewards.gold > 0) {
-        messages.push(`+${rewards.gold} gold`);
-      }
-      this.showNotification(messages);
-
-      // Auto-save
-      this.autoSave();
-
+    this.victoryTimer--;
+    // Allow early dismiss with interact key
+    if (this.victoryTimer <= 0 || this.input.interact()) {
       this.combat = null;
       this.state = GameState.OVERWORLD;
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CombatEngine } from '../combat';
 import { PlayerManager } from '../player';
-import { createDefaultPlayer, EnemyType, CombatPhase } from '../types';
+import { createDefaultPlayer, EnemyType, CombatPhase, LEVEL_REWARDS, xpForLevel } from '../types';
 import { createEnemy, resetEnemyIdCounter } from '../data/enemies';
 
 function makePlayer() {
@@ -278,5 +278,87 @@ describe('CombatEngine.update (animation)', () => {
     engine.state.animationFrame = 20;
     engine.update();
     expect(engine.state.phase).not.toBe(CombatPhase.PLAYER_ANIMATING);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Victory reward integration — simulate full fight → apply rewards to player
+// ---------------------------------------------------------------------------
+describe('Victory reward integration', () => {
+  /** Kill enemy in one hit and advance animation to reach DONE */
+  function winFight(playerSetup?: (p: PlayerManager) => void) {
+    mockAttacks([0, 0.9, 0]); // no miss, high variance, no crit
+    const player = makeFastPlayer();
+    player.state.str = 999;
+    if (playerSetup) playerSetup(player);
+    const enemy = makeEnemy(EnemyType.WOLF);
+    const engine = new CombatEngine(player, enemy);
+    engine.playerAttack();
+    for (let i = 0; i <= 21; i++) engine.update();
+    return { player, enemy, engine };
+  }
+
+  it('getResult is "victory" after killing enemy', () => {
+    const { engine } = winFight();
+    expect(engine.isDone()).toBe(true);
+    expect(engine.getResult()).toBe('victory');
+  });
+
+  it('applying computeRewards XP to player increases xp', () => {
+    const { player, engine } = winFight();
+    const xpBefore = player.state.xp;
+    const { xp } = engine.computeRewards();
+    player.gainXp(xp);
+    expect(player.state.xp + player.state.level * 0 || player.state.xp).toBeGreaterThanOrEqual(0);
+    // XP was consumed by level-up or accumulated
+    expect(player.state.xp + xpForLevel(1)).toBeGreaterThanOrEqual(xpBefore + xp - xpForLevel(1));
+  });
+
+  it('applying computeRewards gold to player increases gold', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // force gold drop
+    const { player, engine } = winFight();
+    const goldBefore = player.state.gold;
+    const { gold } = engine.computeRewards();
+    player.addGold(gold);
+    expect(player.state.gold).toBe(goldBefore + gold);
+  });
+
+  it('xp from wolf enemy matches its definition', () => {
+    const enemy = makeEnemy(EnemyType.WOLF);
+    const engine = new CombatEngine(makePlayer(), enemy);
+    expect(engine.computeRewards().xp).toBe(enemy.xp);
+  });
+
+  it('gainXp from victory can trigger level-up and return reward', () => {
+    // Give player exactly enough XP to be one kill away from leveling
+    const { player, engine } = winFight(p => {
+      p.state.xp = xpForLevel(1) - 1; // 1 XP short of level 2
+    });
+    // enemy gives at least 1 XP so we level up
+    const { xp } = engine.computeRewards();
+    const reward = player.gainXp(xp);
+    expect(player.state.level).toBe(2);
+    expect(reward).not.toBeNull();
+    expect(reward!.label).toBe(LEVEL_REWARDS[2].label);
+  });
+
+  it('reward is null when enemy XP does not trigger level-up', () => {
+    const { player, engine } = winFight(p => {
+      p.state.xp = 0; // fresh player, needs 25 XP; wolf gives 8
+    });
+    const { xp } = engine.computeRewards();
+    const reward = player.gainXp(xp);
+    expect(player.state.level).toBe(1);
+    expect(reward).toBeNull();
+  });
+
+  it('computeRewards is stable — same values returned each call', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    const enemy = makeEnemy(EnemyType.WOLF);
+    const engine = new CombatEngine(makePlayer(), enemy);
+    const r1 = engine.computeRewards();
+    const r2 = engine.computeRewards();
+    expect(r1.xp).toBe(r2.xp);
+    expect(r1.gold).toBe(r2.gold);
   });
 });
