@@ -45,6 +45,7 @@ class Game {
 
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
+  private levelUpRewardLabel: string = '';
 
   // Smooth tile-to-tile movement
   private visualX: number = 0;
@@ -199,7 +200,7 @@ class Game {
 
     // Overlays
     if (this.levelUpTimer > 0) {
-      this.ui.drawLevelUpBanner(this.ctx, this.newLevel, 90 - this.levelUpTimer);
+      this.ui.drawLevelUpBanner(this.ctx, this.newLevel, this.levelUpRewardLabel, 120 - this.levelUpTimer);
     }
 
     if (this.notificationTimer > 0 && this.notificationMessages.length > 0) {
@@ -526,11 +527,12 @@ class Game {
 
       // Apply rewards
       const rewards = this.combat.computeRewards();
-      const leveled = this.player.gainXp(rewards.xp);
+      const reward = this.player.gainXp(rewards.xp);
 
-      if (leveled) {
+      if (reward !== null) {
         this.newLevel = this.player.state.level;
-        this.levelUpTimer = 90;
+        this.levelUpRewardLabel = reward.label;
+        this.levelUpTimer = 120;
       }
 
       if (rewards.gold > 0) {

@@ -322,3 +322,28 @@ export function createDefaultWorld(): WorldState {
 export function xpForLevel(level: number): number {
   return level * 25;
 }
+
+// Reward granted when reaching a given level
+export interface LevelReward {
+  level: number;
+  label: string;       // short description shown in banner
+  bonusHp?: number;    // extra max HP (on top of the base +5)
+  bonusStr?: number;   // extra STR (on top of base +2)
+  bonusDef?: number;   // extra DEF (on top of base +1)
+  bonusAgi?: number;   // extra AGI (on top of base +1)
+  bonusGold?: number;
+  bonusPotions?: number;
+  weaponId?: string;   // unlock a free weapon
+}
+
+export const LEVEL_REWARDS: Record<number, LevelReward> = {
+  2:  { level: 2,  label: '+2 Potions',         bonusPotions: 2 },
+  3:  { level: 3,  label: '+50 Gold',            bonusGold: 50 },
+  4:  { level: 4,  label: 'Iron Longsword',      weaponId: 'iron_longsword' },
+  5:  { level: 5,  label: '+5 STR, +5 Max HP',   bonusStr: 5, bonusHp: 5 },
+  6:  { level: 6,  label: '+100 Gold',            bonusGold: 100 },
+  7:  { level: 7,  label: 'Hand Axe',            weaponId: 'hand_axe' },
+  8:  { level: 8,  label: '+5 DEF, +10 Max HP',  bonusDef: 5, bonusHp: 10 },
+  9:  { level: 9,  label: '+200 Gold',            bonusGold: 200 },
+  10: { level: 10, label: 'War Halberd — MAX',   weaponId: 'war_halberd' },
+};

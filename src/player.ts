@@ -1,6 +1,8 @@
 import {
   PlayerState,
   Weapon,
+  LevelReward,
+  LEVEL_REWARDS,
   createDefaultPlayer,
   xpForLevel,
   MAX_LEVEL,
@@ -79,16 +81,16 @@ export class PlayerManager {
     return this.state.potions;
   }
 
-  // Gain XP and check for level up
-  gainXp(amount: number): boolean {
+  // Gain XP and check for level up; returns the LevelReward if leveled, else null
+  gainXp(amount: number): LevelReward | null {
     this.state.xp += amount;
     return this.checkLevelUp();
   }
 
-  // Check and apply level up, returns true if leveled
-  checkLevelUp(): boolean {
+  // Check and apply level up; returns the LevelReward granted, or null
+  checkLevelUp(): LevelReward | null {
     if (this.state.level >= MAX_LEVEL) {
-      return false;
+      return null;
     }
 
     const needed = xpForLevel(this.state.level);
@@ -96,16 +98,30 @@ export class PlayerManager {
       this.state.xp -= needed;
       this.state.level++;
 
-      // Apply stat gains
+      // Base stat gains every level
       this.state.maxHp += 5;
-      this.state.hp = this.state.maxHp; // Full heal on level up
       this.state.str += 2;
       this.state.def += 1;
       this.state.agi += 1;
 
-      return true;
+      // Apply bonus reward for this level
+      const reward = LEVEL_REWARDS[this.state.level] ?? null;
+      if (reward) {
+        if (reward.bonusHp)      { this.state.maxHp += reward.bonusHp; }
+        if (reward.bonusStr)     { this.state.str += reward.bonusStr; }
+        if (reward.bonusDef)     { this.state.def += reward.bonusDef; }
+        if (reward.bonusAgi)     { this.state.agi += reward.bonusAgi; }
+        if (reward.bonusGold)    { this.state.gold += reward.bonusGold; }
+        if (reward.bonusPotions) { this.state.potions = Math.min(MAX_POTIONS, this.state.potions + reward.bonusPotions); }
+        if (reward.weaponId && !this.state.weapons.includes(reward.weaponId)) {
+          this.state.weapons.push(reward.weaponId);
+        }
+      }
+
+      this.state.hp = this.state.maxHp; // Full heal on level up
+      return reward;
     }
-    return false;
+    return null;
   }
 
   // Add gold

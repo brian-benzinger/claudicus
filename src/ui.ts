@@ -6,7 +6,9 @@ import {
   CombatState,
   CombatPhase,
   EnemyInstance,
-  WeaponSpeed
+  WeaponSpeed,
+  xpForLevel,
+  MAX_LEVEL
 } from './types';
 import { getWeapon } from './data/weapons';
 import { drawPlayer, drawEnemy, drawCombatPlayer } from './renderer';
@@ -45,20 +47,47 @@ export class UIRenderer {
     this.drawHpBar(ctx, 40, 14, 120, 16, player.hp, player.maxHp, COLORS.hpPlayer);
     ctx.fillText(`${player.hp}/${player.maxHp}`, 170, 26);
 
-    // Level & XP
+    // Level & XP bar
+    ctx.fillStyle = COLORS.text;
     ctx.fillText(`LV ${player.level}`, 250, 26);
+
+    const needed = xpForLevel(player.level);
+    const xpPct = player.level >= MAX_LEVEL ? 1 : Math.min(1, player.xp / needed);
+    const xpBarX = 290;
+    const xpBarW = 80;
+    const xpBarY = 14;
+    const xpBarH = 8;
+    // Background
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(xpBarX, xpBarY, xpBarW, xpBarH);
+    // Fill
+    ctx.fillStyle = COLORS.xpBar;
+    ctx.fillRect(xpBarX, xpBarY, Math.floor(xpPct * xpBarW), xpBarH);
+    // Border
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(xpBarX, xpBarY, xpBarW, xpBarH);
+    // XP label underneath bar
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '10px monospace';
+    if (player.level >= MAX_LEVEL) {
+      ctx.fillText('MAX', xpBarX + 26, xpBarY + xpBarH + 10);
+    } else {
+      ctx.fillText(`${player.xp}/${needed}`, xpBarX, xpBarY + xpBarH + 10);
+    }
+    ctx.font = '14px monospace';
 
     // Gold
     ctx.fillStyle = COLORS.textGold;
-    ctx.fillText(`${player.gold}g`, 320, 26);
+    ctx.fillText(`${player.gold}g`, 390, 26);
 
     // Potions
     ctx.fillStyle = COLORS.text;
-    ctx.fillText(`Potions: ${player.potions}`, 400, 26);
+    ctx.fillText(`Potions: ${player.potions}`, 460, 26);
 
     // Weapon
     const weapon = getWeapon(player.weaponId);
-    ctx.fillText(weapon.name, 520, 26);
+    ctx.fillText(weapon.name, 600, 26);
 
     // Map name
     ctx.fillStyle = COLORS.textDark;
@@ -479,28 +508,39 @@ export class UIRenderer {
   }
 
   // Draw level up banner
-  drawLevelUpBanner(ctx: CanvasRenderingContext2D, newLevel: number, frame: number): void {
-    const alpha = Math.min(1, frame / 10);
-    const scale = 1 + Math.sin(frame * 0.1) * 0.05;
+  drawLevelUpBanner(ctx: CanvasRenderingContext2D, newLevel: number, rewardLabel: string, frame: number): void {
+    // Fade in over first 10 frames, fade out over last 20 frames of 120 total
+    const fadeIn  = Math.min(1, frame / 10);
+    const fadeOut = Math.max(0, 1 - Math.max(0, frame - 100) / 20);
+    const alpha   = fadeIn * fadeOut;
+    const scale   = 1 + Math.sin(frame * 0.1) * 0.04;
 
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
     ctx.scale(scale, scale);
 
-    // Glow effect
-    ctx.fillStyle = `rgba(255, 215, 0, ${0.3 - frame * 0.003})`;
+    // Glow
+    ctx.fillStyle = `rgba(255, 215, 0, 0.2)`;
     ctx.beginPath();
-    ctx.arc(0, 0, 100 + frame * 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, 110, 0, Math.PI * 2);
     ctx.fill();
 
     // Text
     ctx.fillStyle = COLORS.textGold;
     ctx.font = 'bold 32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('LEVEL UP!', 0, -10);
-    ctx.font = '24px monospace';
-    ctx.fillText(`Level ${newLevel}`, 0, 30);
+    ctx.fillText('LEVEL UP!', 0, -20);
+    ctx.font = '22px monospace';
+    ctx.fillText(`Level ${newLevel}`, 0, 16);
+
+    // Reward line
+    if (rewardLabel) {
+      ctx.font = '16px monospace';
+      ctx.fillStyle = '#aaddff';
+      ctx.fillText(`Reward: ${rewardLabel}`, 0, 46);
+    }
+
     ctx.textAlign = 'left';
 
     ctx.restore();

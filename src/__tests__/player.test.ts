@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PlayerManager } from '../player';
-import { createDefaultPlayer, MAX_POTIONS, POTION_HEAL } from '../types';
+import { createDefaultPlayer, MAX_POTIONS, MAX_LEVEL, LEVEL_REWARDS, POTION_HEAL, xpForLevel } from '../types';
 
 function makePlayer() {
   return new PlayerManager(createDefaultPlayer());
@@ -154,16 +154,16 @@ describe('PlayerManager.equipWeapon / ownsWeapon', () => {
 describe('PlayerManager.gainXp / checkLevelUp', () => {
   it('accumulates xp without leveling', () => {
     const p = makePlayer();
-    const leveled = p.gainXp(10);
-    expect(leveled).toBe(false);
+    const reward = p.gainXp(10);
+    expect(reward).toBeNull();
     expect(p.state.xp).toBe(10);
     expect(p.state.level).toBe(1);
   });
 
   it('levels up when xp threshold is met', () => {
     const p = makePlayer();
-    const leveled = p.gainXp(25); // xpForLevel(1) = 25
-    expect(leveled).toBe(true);
+    const reward = p.gainXp(25); // xpForLevel(1) = 25
+    expect(reward).not.toBeNull();
     expect(p.state.level).toBe(2);
     expect(p.state.xp).toBe(0);
   });
@@ -308,5 +308,93 @@ describe('PlayerManager inventory', () => {
     expect(p.ownsWeapon('halberd')).toBe(false);
     p.addWeaponToInventory('halberd');
     expect(p.ownsWeapon('halberd')).toBe(true);
+  });
+});
+
+describe('Level rewards', () => {
+  // Helper: level a player up to a target level by granting exact XP
+  function levelTo(p: PlayerManager, targetLevel: number) {
+    while (p.state.level < targetLevel) {
+      p.gainXp(xpForLevel(p.state.level));
+    }
+  }
+
+  it('gainXp returns null when no level-up occurs', () => {
+    const p = makePlayer();
+    expect(p.gainXp(1)).toBeNull();
+  });
+
+  it('gainXp returns a LevelReward object on level-up', () => {
+    const p = makePlayer();
+    const reward = p.gainXp(xpForLevel(1));
+    expect(reward).not.toBeNull();
+    expect(typeof reward!.label).toBe('string');
+  });
+
+  it('reward label matches LEVEL_REWARDS table for each defined level', () => {
+    for (const [lvlStr, def] of Object.entries(LEVEL_REWARDS)) {
+      const targetLevel = Number(lvlStr);
+      const p = makePlayer();
+      levelTo(p, targetLevel - 1);
+      const reward = p.gainXp(xpForLevel(p.state.level));
+      expect(reward).not.toBeNull();
+      expect(reward!.label).toBe(def.label);
+    }
+  });
+
+  it('bonus gold is added on level-up with gold reward', () => {
+    // Level 3 gives +50 gold
+    const p = makePlayer();
+    levelTo(p, 2);
+    const goldBefore = p.state.gold;
+    p.gainXp(xpForLevel(2)); // reaches level 3
+    expect(p.state.gold).toBe(goldBefore + (LEVEL_REWARDS[3].bonusGold ?? 0));
+  });
+
+  it('bonus potions are added on level-up with potion reward', () => {
+    // Level 2 gives +2 potions
+    const p = makePlayer();
+    p.state.potions = 0;
+    p.gainXp(xpForLevel(1)); // reaches level 2
+    expect(p.state.potions).toBe(LEVEL_REWARDS[2].bonusPotions ?? 0);
+  });
+
+  it('bonus potions do not exceed MAX_POTIONS', () => {
+    const p = makePlayer();
+    p.state.potions = MAX_POTIONS;
+    p.gainXp(xpForLevel(1)); // level 2 gives +2 potions but already at cap
+    expect(p.state.potions).toBe(MAX_POTIONS);
+  });
+
+  it('weapon reward is added to inventory without equipping', () => {
+    // Level 4 gives iron_longsword
+    const p = makePlayer();
+    levelTo(p, 3);
+    p.gainXp(xpForLevel(3)); // reaches level 4
+    expect(p.state.weapons).toContain(LEVEL_REWARDS[4].weaponId);
+    expect(p.state.weaponId).toBe('rusty_shortsword'); // still equipped original
+  });
+
+  it('weapon reward is not added twice if already owned', () => {
+    const p = makePlayer();
+    const weaponId = LEVEL_REWARDS[4].weaponId!;
+    p.state.weapons.push(weaponId);
+    levelTo(p, 3);
+    p.gainXp(xpForLevel(3));
+    expect(p.state.weapons.filter(w => w === weaponId).length).toBe(1);
+  });
+
+  it('returns null at MAX_LEVEL even with excess XP', () => {
+    const p = makePlayer();
+    levelTo(p, MAX_LEVEL);
+    expect(p.state.level).toBe(MAX_LEVEL);
+    expect(p.gainXp(9999)).toBeNull();
+    expect(p.state.level).toBe(MAX_LEVEL);
+  });
+
+  it('every level in LEVEL_REWARDS has a non-empty label', () => {
+    for (const def of Object.values(LEVEL_REWARDS)) {
+      expect(def.label.length).toBeGreaterThan(0);
+    }
   });
 });
