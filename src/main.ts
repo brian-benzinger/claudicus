@@ -40,6 +40,7 @@ class Game {
   private titleCursor: number = 0;
   private pauseCursor: number = 0;
   private inventoryCursor: number = 0;
+  private inventoryReturnState: GameState = GameState.OVERWORLD;
 
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
@@ -276,6 +277,7 @@ class Game {
     // Inventory
     if (this.input.openInventory()) {
       this.inventoryCursor = 0;
+      this.inventoryReturnState = GameState.OVERWORLD;
       this.state = GameState.INVENTORY;
       return;
     }
@@ -579,6 +581,13 @@ class Game {
   // --- PAUSE MENU ---
 
   private updatePause(): void {
+    if (this.input.openInventory()) {
+      this.inventoryCursor = 0;
+      this.inventoryReturnState = GameState.PAUSE;
+      this.state = GameState.INVENTORY;
+      return;
+    }
+
     if (this.input.menuUp()) {
       this.pauseCursor = (this.pauseCursor - 1 + 3) % 3;
     }
@@ -643,7 +652,7 @@ class Game {
     }
 
     if (this.input.cancel() || this.input.openInventory()) {
-      this.state = GameState.OVERWORLD;
+      this.state = this.inventoryReturnState;
     }
   }
 
