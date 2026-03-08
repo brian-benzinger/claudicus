@@ -539,7 +539,7 @@ class Game {
         }
         this.autoSave();
 
-        this.victoryTimer = 180; // 3 seconds at 60fps
+        this.victoryTimer = 360; // 6 seconds at 60fps
         this.state = GameState.COMBAT_VICTORY;
       } else if (result === 'defeat') {
         this.defeatGoldLost = Math.floor(this.player.state.gold * 0.1);

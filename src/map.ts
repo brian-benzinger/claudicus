@@ -210,7 +210,8 @@ export class MapManager {
         if (y >= 0 && x >= 0) {
           const screenPos = this.tileToScreen(x, y);
           const tileType = this.getTile(x, y);
-          drawTile(ctx, tileType, screenPos.x, screenPos.y);
+          // Floor to integers to eliminate sub-pixel gaps between tiles
+          drawTile(ctx, tileType, Math.floor(screenPos.x), Math.floor(screenPos.y), x, y);
         }
       }
     }

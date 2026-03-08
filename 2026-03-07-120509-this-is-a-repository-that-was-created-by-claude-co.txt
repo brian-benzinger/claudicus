@@ -1,0 +1,25 @@
+
+╭─── Claude Code v2.1.71 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back Brian!                │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ Recent activity         │
+│                        ▘▘ ▝▝                       │ No recent activity      │
+│                                                    │                         │
+│   Sonnet 4.6 · Claude Pro · bb42392@gmail.com's    │                         │
+│   Organization                                     │                         │
+│            ~\Documents\GitHub\Claudicus            │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+✻ Conversation compacted (ctrl+o for history)
+
+
+❯ /compact                                                                      
+  ⎿  Compacted (ctrl+o to see full summary)
+  ⎿  Referenced file src\main.ts
+  ⎿  Read src\input.ts (95 lines)
+  ⎿  Read src\__tests__\map.test.ts (215 lines)
+  ⎿  Read src\__tests__\combat.test.ts (272 lines)
+  ⎿  Read src\__tests__\save.test.ts (100 lines)
+  ⎿  Skills restored (statusline)

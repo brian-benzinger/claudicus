@@ -479,20 +479,19 @@ export class UIRenderer {
     levelUpText: string,
     timerRemaining: number
   ): void {
-    const totalFrames = 180;
-    const fadeInFrames = 15;
-    const fadeOutFrames = 30;
+    const totalFrames = 360; // 6 seconds at 60 fps
+    const fadeInFrames  = 20;
+    const fadeOutFrames = 60;
     const elapsed = totalFrames - timerRemaining;
-    const fadeIn  = Math.min(1, elapsed / fadeInFrames);
-    const fadeOut = Math.max(0, 1 - Math.max(0, timerRemaining - fadeOutFrames) / fadeOutFrames * 0);
-    // Only fade out at the very end
-    const alpha = fadeIn * (timerRemaining <= fadeOutFrames ? timerRemaining / fadeOutFrames : 1);
 
+    const panelAlpha = Math.min(1, elapsed / fadeInFrames) *
+                       (timerRemaining <= fadeOutFrames ? timerRemaining / fadeOutFrames : 1);
+
+    // Panel
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = panelAlpha;
 
-    // Semi-transparent dark panel
-    const panelW = 320, panelH = levelUpText ? 200 : 160;
+    const panelW = 320, panelH = levelUpText ? 190 : 155;
     const panelX = CANVAS_WIDTH / 2 - panelW / 2;
     const panelY = CANVAS_HEIGHT / 2 - panelH / 2;
 
@@ -502,13 +501,11 @@ export class UIRenderer {
     ctx.lineWidth = 3;
     ctx.strokeRect(panelX, panelY, panelW, panelH);
 
-    // "VICTORY" header
     ctx.fillStyle = '#66ee66';
     ctx.font = 'bold 28px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('VICTORY!', CANVAS_WIDTH / 2, panelY + 44);
 
-    // Divider
     ctx.strokeStyle = '#336633';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -516,7 +513,6 @@ export class UIRenderer {
     ctx.lineTo(panelX + panelW - 20, panelY + 56);
     ctx.stroke();
 
-    // Rewards
     ctx.font = '18px monospace';
     ctx.fillStyle = COLORS.textGold;
     ctx.fillText(`+${xpGained} XP`, CANVAS_WIDTH / 2, panelY + 84);
@@ -524,32 +520,28 @@ export class UIRenderer {
       ctx.fillText(`+${goldGained} Gold`, CANVAS_WIDTH / 2, panelY + 110);
     }
 
-    // Level-up bonus line
     if (levelUpText) {
       ctx.fillStyle = '#aaddff';
       ctx.font = 'bold 14px monospace';
       ctx.fillText(levelUpText, CANVAS_WIDTH / 2, panelY + 140);
     }
 
-    // Auto-close progress bar
-    const barW = panelW - 40;
-    const barX = panelX + 20;
-    const barY = panelY + panelH - 24;
-    const pct  = timerRemaining / totalFrames;
-    ctx.fillStyle = '#1a2e1a';
-    ctx.fillRect(barX, barY, barW, 10);
-    ctx.fillStyle = '#44bb44';
-    ctx.fillRect(barX, barY, Math.floor(pct * barW), 10);
-    ctx.strokeStyle = '#336633';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barW, 10);
-
     ctx.font = '11px monospace';
     ctx.fillStyle = COLORS.textDark;
-    ctx.fillText('[SPACE] to continue', CANVAS_WIDTH / 2, panelY + panelH - 4);
+    ctx.fillText('[SPACE] to continue', CANVAS_WIDTH / 2, panelY + panelH - 10);
 
     ctx.textAlign = 'left';
     ctx.restore();
+
+    // Full-screen black fade-out that covers everything
+    if (timerRemaining <= fadeOutFrames) {
+      const fadeAlpha = 1 - timerRemaining / fadeOutFrames;
+      ctx.save();
+      ctx.globalAlpha = fadeAlpha;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      ctx.restore();
+    }
   }
 
   drawVictoryScreen(ctx: CanvasRenderingContext2D): void {

@@ -68,7 +68,15 @@ function tilePrng(x: number, y: number) {
 }
 
 // Draw a single tile
-export function drawTile(ctx: CanvasRenderingContext2D, type: TileType, x: number, y: number): void {
+// tileX/tileY are the grid coordinates and are used as a stable PRNG seed for tree variation.
+export function drawTile(
+  ctx: CanvasRenderingContext2D,
+  type: TileType,
+  x: number,
+  y: number,
+  tileX: number = 0,
+  tileY: number = 0
+): void {
   const s = TILE_SIZE;
 
   switch (type) {
@@ -138,7 +146,7 @@ export function drawTile(ctx: CanvasRenderingContext2D, type: TileType, x: numbe
       break;
 
     case TileType.TREE: {
-      const rng = tilePrng(x, y);
+      const rng = tilePrng(tileX, tileY);
       // Grass base
       ctx.fillStyle = COLORS.grassDark;
       ctx.fillRect(x, y, s, s);
