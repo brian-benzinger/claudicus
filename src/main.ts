@@ -6,8 +6,8 @@ import {
   PlayerState,
   QuestState,
   WorldState,
+  EnemyType,
   createDefaultPlayer,
-  createDefaultQuest,
   createDefaultWorld,
   NpcRole
 } from './types';
@@ -20,6 +20,7 @@ import { UIRenderer } from './ui';
 import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
+import { QUESTS, createDefaultQuests } from './data/quests';
 
 class Game {
   private canvas: HTMLCanvasElement;
@@ -33,7 +34,7 @@ class Game {
   private npcManager: NpcManager;
   private ui: UIRenderer;
 
-  private quest: QuestState;
+  private quests: Record<string, QuestState>;
   private world: WorldState;
 
   private frame: number = 0;
@@ -69,7 +70,7 @@ class Game {
     this.ctx = this.canvas.getContext('2d')!;
 
     this.input = new InputManager();
-    this.quest = createDefaultQuest();
+    this.quests = createDefaultQuests();
     this.world = createDefaultWorld();
     this.player = new PlayerManager();
     this.mapManager = new MapManager(this.world);
@@ -236,7 +237,7 @@ class Game {
   private startNewGame(): void {
     clearSave();
     this.player = new PlayerManager(createDefaultPlayer());
-    this.quest = createDefaultQuest();
+    this.quests = createDefaultQuests();
     this.world = createDefaultWorld();
     this.mapManager = new MapManager(this.world);
     this.mapManager.loadMap('village');
@@ -249,7 +250,7 @@ class Game {
     const data = load();
     if (data) {
       this.player = new PlayerManager(data.player);
-      this.quest = data.quest;
+      this.quests = data.quests;
       this.world = data.world;
       this.mapManager = new MapManager(this.world);
       this.mapManager.loadMap(data.player.currentMap);
@@ -391,12 +392,15 @@ class Game {
 
   // --- DIALOG ---
 
-  private startDialog(npc: { id: string; name: string; tileX: number; tileY: number; role: NpcRole; dialogs: any; color: string }): void {
-    this.npcManager.startDialog(npc, this.quest);
+  private startDialog(npc: { id: string; name: string; tileX: number; tileY: number; role: NpcRole; questId?: string; dialogs: any; color: string }): void {
+    this.npcManager.startDialog(npc, this.quests);
 
-    // Check if this is the quest NPC and quest hasn't started
-    if (npc.role === NpcRole.QUEST && !this.quest.started) {
-      this.npcManager.startQuest(this.quest);
+    // Start this NPC's quest on first encounter
+    if (npc.questId) {
+      const questState = this.quests[npc.questId];
+      if (questState && !questState.started) {
+        questState.started = true;
+      }
     }
 
     this.state = GameState.DIALOG;
@@ -406,20 +410,26 @@ class Game {
     if (this.input.interact()) {
       const result = this.npcManager.advanceDialog();
 
-      if (result === 'done') {
-        // Check for quest completion reward
-        if (this.npcManager.dialogState?.npc.role === NpcRole.QUEST &&
-            this.quest.completed && !this.quest.rewardClaimed) {
-          const reward = this.npcManager.claimQuestReward(this.quest, this.player);
-          if (reward.success) {
-            this.showNotification(reward.rewards);
+      if (result === 'done' || result === 'shop') {
+        // Claim quest reward for any NPC whose quest is complete but unclaimed
+        const npc = this.npcManager.dialogState?.npc;
+        if (npc?.questId) {
+          const questState = this.quests[npc.questId];
+          const questDef = QUESTS[npc.questId];
+          if (questState?.completed && !questState.rewardClaimed) {
+            const reward = this.npcManager.claimQuestReward(questState, this.player, questDef);
+            if (reward.success) {
+              this.showNotification(reward.rewards);
+            }
           }
         }
 
-        this.npcManager.clearDialog();
-        this.state = GameState.OVERWORLD;
-      } else if (result === 'shop') {
-        this.state = GameState.SHOP;
+        if (result === 'done') {
+          this.npcManager.clearDialog();
+          this.state = GameState.OVERWORLD;
+        } else {
+          this.state = GameState.SHOP;
+        }
       }
     }
 
@@ -530,15 +540,9 @@ class Game {
       // Remove enemy from map
       this.mapManager.removeEnemy(this.combat.state.enemy.id);
 
-      // Track for quest
+      // Check quest progress for all active quests
       if (this.player.state.currentMap === 'forest') {
-        this.npcManager.recordEnemyDefeated(this.quest);
-
-        // Check quest completion
-        if (this.quest.started && !this.quest.completed && this.quest.enemiesDefeated >= 5) {
-          this.quest.completed = true;
-          this.showNotification(['Quest objective complete!', 'Return to Elder Aldric.']);
-        }
+        this.checkQuestProgress(this.combat.state.enemy.type);
       }
 
       // Show reward notification
@@ -666,8 +670,30 @@ class Game {
 
   // --- HELPERS ---
 
+  private checkQuestProgress(enemyType: EnemyType): void {
+    for (const [questId, questDef] of Object.entries(QUESTS)) {
+      const questState = this.quests[questId];
+      if (!questState || !questState.started || questState.completed) continue;
+
+      const counts =
+        questDef.goalType === 'kill_any' ||
+        (questDef.goalType === 'kill_type' && questDef.goalEnemyTypes?.includes(enemyType));
+
+      if (counts) {
+        questState.count++;
+        if (questState.count >= questDef.goalCount) {
+          questState.completed = true;
+          this.showNotification([
+            `${questDef.name}: Complete!`,
+            `Return to ${questDef.npcName}.`
+          ]);
+        }
+      }
+    }
+  }
+
   private saveGame(): void {
-    save(this.player.state, this.quest, this.world);
+    save(this.player.state, this.quests, this.world);
   }
 
   private autoSave(): void {

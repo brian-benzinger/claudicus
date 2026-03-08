@@ -1,15 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NpcManager } from '../npc';
 import { PlayerManager } from '../player';
-import { createDefaultPlayer, createDefaultQuest, NpcRole } from '../types';
-import { MAIN_QUEST } from '../data/quests';
+import { createDefaultPlayer, createDefaultQuestState, NpcRole, QuestState } from '../types';
+import { QUESTS } from '../data/quests';
 
 function makePlayer() {
   return new PlayerManager(createDefaultPlayer());
 }
 
-function makeQuest() {
-  return createDefaultQuest();
+function makeQuestState(overrides: Partial<QuestState> = {}): QuestState {
+  return { ...createDefaultQuestState(), ...overrides };
+}
+
+/** Build a quests record with a single entry keyed to 'test_quest' */
+function makeQuests(overrides: Partial<QuestState> = {}): Record<string, QuestState> {
+  return { test_quest: makeQuestState(overrides) };
 }
 
 function makeQuestNpc() {
@@ -19,6 +24,7 @@ function makeQuestNpc() {
     tileX: 5,
     tileY: 5,
     role: NpcRole.QUEST,
+    questId: 'test_quest',
     color: '#fff',
     dialogs: {
       default: ['Hello.'],
@@ -45,36 +51,32 @@ function makeShopNpc(role: NpcRole) {
 describe('NpcManager.startDialog', () => {
   it('returns questNotStarted lines when quest not started', () => {
     const mgr = new NpcManager();
-    const quest = makeQuest();
-    mgr.startDialog(makeQuestNpc(), quest);
+    mgr.startDialog(makeQuestNpc(), makeQuests());
     expect(mgr.getCurrentLine()).toBe('Please help us!');
   });
 
   it('returns questInProgress lines when quest started', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), started: true };
-    mgr.startDialog(makeQuestNpc(), quest);
+    mgr.startDialog(makeQuestNpc(), makeQuests({ started: true }));
     expect(mgr.getCurrentLine()).toBe('Keep fighting!');
   });
 
   it('returns questComplete lines when quest completed', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), started: true, completed: true };
-    mgr.startDialog(makeQuestNpc(), quest);
+    mgr.startDialog(makeQuestNpc(), makeQuests({ started: true, completed: true }));
     expect(mgr.getCurrentLine()).toBe('Well done!');
   });
 
   it('returns questDone lines when reward claimed', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), started: true, completed: true, rewardClaimed: true };
-    mgr.startDialog(makeQuestNpc(), quest);
+    mgr.startDialog(makeQuestNpc(), makeQuests({ started: true, completed: true, rewardClaimed: true }));
     expect(mgr.getCurrentLine()).toBe('Thank you, hero.');
   });
 
-  it('returns default lines for non-quest NPCs', () => {
+  it('returns default lines for NPCs with no questId', () => {
     const mgr = new NpcManager();
     const npc = makeShopNpc(NpcRole.SHOP_WEAPONS);
-    mgr.startDialog(npc, makeQuest());
+    mgr.startDialog(npc, makeQuests());
     expect(mgr.getCurrentLine()).toBe('Welcome to my shop!');
   });
 });
@@ -83,19 +85,19 @@ describe('NpcManager.advanceDialog', () => {
   it('returns continue when more lines exist', () => {
     const mgr = new NpcManager();
     const npc = { ...makeQuestNpc(), dialogs: { default: ['Line 1', 'Line 2'] } };
-    mgr.startDialog(npc, makeQuest());
+    mgr.startDialog(npc, makeQuests());
     expect(mgr.advanceDialog()).toBe('continue');
   });
 
   it('returns done for a quest NPC with one line', () => {
     const mgr = new NpcManager();
-    mgr.startDialog(makeQuestNpc(), { ...makeQuest(), rewardClaimed: true });
+    mgr.startDialog(makeQuestNpc(), makeQuests({ started: true, completed: true, rewardClaimed: true }));
     expect(mgr.advanceDialog()).toBe('done');
   });
 
   it('returns shop and opens shop for SHOP_WEAPONS NPC', () => {
     const mgr = new NpcManager();
-    mgr.startDialog(makeShopNpc(NpcRole.SHOP_WEAPONS), makeQuest());
+    mgr.startDialog(makeShopNpc(NpcRole.SHOP_WEAPONS), makeQuests());
     expect(mgr.advanceDialog()).toBe('shop');
     expect(mgr.isInShop).toBe(true);
     expect(mgr.shopItems.length).toBeGreaterThan(0);
@@ -110,7 +112,7 @@ describe('NpcManager.advanceDialog', () => {
 describe('NpcManager.getSpeakerName', () => {
   it('returns npc name during dialog', () => {
     const mgr = new NpcManager();
-    mgr.startDialog(makeQuestNpc(), makeQuest());
+    mgr.startDialog(makeQuestNpc(), makeQuests());
     expect(mgr.getSpeakerName()).toBe('Elder Aldric');
   });
 
@@ -180,8 +182,8 @@ describe('NpcManager.buySelectedItem', () => {
     const player = makePlayer();
     player.state.gold = 999;
     mgr.openShop(NpcRole.SHOP_WEAPONS);
-    mgr.buySelectedItem(player); // buy it
-    const result = mgr.buySelectedItem(player); // try again
+    mgr.buySelectedItem(player);
+    const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
     expect(result.message).toContain('already own');
   });
@@ -211,55 +213,67 @@ describe('NpcManager.buySelectedItem', () => {
 describe('NpcManager.startQuest / recordEnemyDefeated', () => {
   it('startQuest sets quest.started', () => {
     const mgr = new NpcManager();
-    const quest = makeQuest();
+    const quest = makeQuestState();
     mgr.startQuest(quest);
     expect(quest.started).toBe(true);
   });
 
   it('recordEnemyDefeated increments count when quest started', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), started: true };
+    const quest = makeQuestState({ started: true });
     mgr.recordEnemyDefeated(quest);
     mgr.recordEnemyDefeated(quest);
-    expect(quest.enemiesDefeated).toBe(2);
+    expect(quest.count).toBe(2);
   });
 
   it('does not increment when quest not started', () => {
     const mgr = new NpcManager();
-    const quest = makeQuest();
+    const quest = makeQuestState();
     mgr.recordEnemyDefeated(quest);
-    expect(quest.enemiesDefeated).toBe(0);
+    expect(quest.count).toBe(0);
   });
 
   it('does not increment when quest already completed', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), started: true, completed: true };
+    const quest = makeQuestState({ started: true, completed: true });
     mgr.recordEnemyDefeated(quest);
-    expect(quest.enemiesDefeated).toBe(0);
+    expect(quest.count).toBe(0);
   });
 });
 
 describe('NpcManager.claimQuestReward', () => {
+  const testQuestDef = QUESTS.forest_menace;
+
   it('grants gold and marks reward claimed', () => {
     const mgr = new NpcManager();
     const player = makePlayer();
-    const quest = { ...makeQuest(), started: true, completed: true };
-    const result = mgr.claimQuestReward(quest, player);
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, testQuestDef);
     expect(result.success).toBe(true);
-    expect(player.state.gold).toBe(10 + MAIN_QUEST.rewardGold);
+    expect(player.state.gold).toBe(10 + testQuestDef.rewardGold);
     expect(quest.rewardClaimed).toBe(true);
+  });
+
+  it('grants potions when quest has potion reward', () => {
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 0;
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, QUESTS.boar_problem);
+    expect(result.success).toBe(true);
+    expect(player.state.potions).toBe(QUESTS.boar_problem.rewardPotions);
   });
 
   it('fails when quest not completed', () => {
     const mgr = new NpcManager();
-    const result = mgr.claimQuestReward(makeQuest(), makePlayer());
+    const result = mgr.claimQuestReward(makeQuestState(), makePlayer(), testQuestDef);
     expect(result.success).toBe(false);
   });
 
   it('fails when reward already claimed', () => {
     const mgr = new NpcManager();
-    const quest = { ...makeQuest(), completed: true, rewardClaimed: true };
-    const result = mgr.claimQuestReward(quest, makePlayer());
+    const quest = makeQuestState({ completed: true, rewardClaimed: true });
+    const result = mgr.claimQuestReward(quest, makePlayer(), testQuestDef);
     expect(result.success).toBe(false);
   });
 });

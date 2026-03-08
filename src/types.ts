@@ -120,6 +120,7 @@ export interface NpcDef {
   tileX: number;
   tileY: number;
   role: NpcRole;
+  questId?: string;       // links to a QuestDef; any role can have a quest
   dialogs: {
     default: string[];
     questNotStarted?: string[];
@@ -190,10 +191,10 @@ export interface PlayerState {
   facing: 'up' | 'down' | 'left' | 'right';
 }
 
-// Quest state tracking
+// Quest state tracking (generic per-quest progress counter)
 export interface QuestState {
   started: boolean;
-  enemiesDefeated: number;
+  count: number;          // progress toward goalCount
   completed: boolean;
   rewardClaimed: boolean;
 }
@@ -207,7 +208,7 @@ export interface WorldState {
 // Full save data structure
 export interface SaveData {
   player: PlayerState;
-  quest: QuestState;
+  quests: Record<string, QuestState>;
   world: WorldState;
   version: number;
 }
@@ -276,7 +277,7 @@ export const MAX_POTIONS = 10;
 export const POTION_HEAL = 20;
 export const POTION_COST = 5;
 export const MAX_LEVEL = 10;
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 // Default player state factory
 export function createDefaultPlayer(): PlayerState {
@@ -299,14 +300,14 @@ export function createDefaultPlayer(): PlayerState {
   };
 }
 
-// Default quest state factory
+// Single quest state factory
+export function createDefaultQuestState(): QuestState {
+  return { started: false, count: 0, completed: false, rewardClaimed: false };
+}
+
+// Kept for backward compatibility with existing tests
 export function createDefaultQuest(): QuestState {
-  return {
-    started: false,
-    enemiesDefeated: 0,
-    completed: false,
-    rewardClaimed: false
-  };
+  return createDefaultQuestState();
 }
 
 // Default world state factory

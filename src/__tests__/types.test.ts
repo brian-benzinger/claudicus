@@ -41,7 +41,7 @@ describe('createDefaultQuest', () => {
   it('returns all false/zero state', () => {
     const q = createDefaultQuest();
     expect(q.started).toBe(false);
-    expect(q.enemiesDefeated).toBe(0);
+    expect(q.count).toBe(0);
     expect(q.completed).toBe(false);
     expect(q.rewardClaimed).toBe(false);
   });

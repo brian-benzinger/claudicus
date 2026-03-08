@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { save, load, hasSave, clearSave, createNewGameData } from '../save';
 import {
   createDefaultPlayer,
-  createDefaultQuest,
   createDefaultWorld,
   SAVE_VERSION,
 } from '../types';
+import { createDefaultQuests } from '../data/quests';
 
 // Mock localStorage since jsdom's implementation may vary
 const localStorageMock = (() => {
@@ -25,26 +25,26 @@ beforeEach(() => {
 });
 
 describe('save and load', () => {
-  it('round-trips player, quest and world data', () => {
+  it('round-trips player, quests and world data', () => {
     const player = createDefaultPlayer();
-    const quest = createDefaultQuest();
+    const quests = createDefaultQuests();
     const world = createDefaultWorld();
 
     player.gold = 999;
-    quest.started = true;
+    quests['forest_menace'].started = true;
     world.openedChests.push('chest_1');
 
-    save(player, quest, world);
+    save(player, quests, world);
     const data = load();
 
     expect(data).not.toBeNull();
     expect(data!.player.gold).toBe(999);
-    expect(data!.quest.started).toBe(true);
+    expect(data!.quests['forest_menace'].started).toBe(true);
     expect(data!.world.openedChests).toContain('chest_1');
   });
 
   it('stores the current SAVE_VERSION', () => {
-    save(createDefaultPlayer(), createDefaultQuest(), createDefaultWorld());
+    save(createDefaultPlayer(), createDefaultQuests(), createDefaultWorld());
     const data = load();
     expect(data!.version).toBe(SAVE_VERSION);
   });
@@ -56,14 +56,14 @@ describe('hasSave', () => {
   });
 
   it('returns true after saving', () => {
-    save(createDefaultPlayer(), createDefaultQuest(), createDefaultWorld());
+    save(createDefaultPlayer(), createDefaultQuests(), createDefaultWorld());
     expect(hasSave()).toBe(true);
   });
 });
 
 describe('clearSave', () => {
   it('removes the save so hasSave returns false', () => {
-    save(createDefaultPlayer(), createDefaultQuest(), createDefaultWorld());
+    save(createDefaultPlayer(), createDefaultQuests(), createDefaultWorld());
     clearSave();
     expect(hasSave()).toBe(false);
     expect(load()).toBeNull();
@@ -93,7 +93,16 @@ describe('createNewGameData', () => {
     const data = createNewGameData();
     expect(data.version).toBe(SAVE_VERSION);
     expect(data.player.level).toBe(1);
-    expect(data.quest.started).toBe(false);
+    expect(data.quests['forest_menace'].started).toBe(false);
     expect(data.world.openedChests).toEqual([]);
+  });
+
+  it('initialises all five quests', () => {
+    const data = createNewGameData();
+    expect(Object.keys(data.quests)).toHaveLength(5);
+    for (const q of Object.values(data.quests)) {
+      expect(q.started).toBe(false);
+      expect(q.count).toBe(0);
+    }
   });
 });

@@ -7,7 +7,7 @@ import {
 } from './types';
 import { PlayerManager } from './player';
 import { getShopWeapons, getWeapon, WEAPONS } from './data/weapons';
-import { MAIN_QUEST } from './data/quests';
+import { QUESTS, QuestDef } from './data/quests';
 
 export class NpcManager {
   dialogState: DialogState | null = null;
@@ -16,11 +16,12 @@ export class NpcManager {
   isInShop: boolean = false;
 
   // Start dialog with an NPC
-  startDialog(npc: NpcDef, quest: QuestState): string[] {
+  startDialog(npc: NpcDef, quests: Record<string, QuestState>): string[] {
+    const quest = npc.questId ? quests[npc.questId] : null;
     let lines: string[];
 
-    if (npc.role === NpcRole.QUEST) {
-      // Quest NPC - determine which dialog to show
+    if (quest) {
+      // Any NPC with a questId shows quest-aware dialog
       if (quest.rewardClaimed) {
         lines = npc.dialogs.questDone || npc.dialogs.default;
       } else if (quest.completed) {
@@ -50,10 +51,8 @@ export class NpcManager {
     this.dialogState.currentLine++;
 
     if (this.dialogState.currentLine >= this.dialogState.lines.length) {
-      // Dialog finished
       const role = this.dialogState.npc.role;
 
-      // If shop NPC, open shop after dialog
       if (role === NpcRole.SHOP_WEAPONS || role === NpcRole.SHOP_POTIONS) {
         this.openShop(role);
         return 'shop';
@@ -155,37 +154,34 @@ export class NpcManager {
     return { success: false, message: 'Unknown item.' };
   }
 
-  // Handle quest completion check
-  checkQuestComplete(quest: QuestState, player: PlayerManager): { completed: boolean; message: string[] } {
-    if (!quest.started || quest.rewardClaimed) {
-      return { completed: false, message: [] };
-    }
-
-    if (quest.enemiesDefeated >= MAIN_QUEST.goalCount && !quest.completed) {
-      quest.completed = true;
-      return { completed: true, message: ['You have completed the quest objective!'] };
-    }
-
-    return { completed: false, message: [] };
-  }
-
-  // Claim quest reward
-  claimQuestReward(quest: QuestState, player: PlayerManager): { success: boolean; rewards: string[] } {
+  // Claim quest reward using the quest definition for reward details
+  claimQuestReward(
+    quest: QuestState,
+    player: PlayerManager,
+    questDef?: QuestDef
+  ): { success: boolean; rewards: string[] } {
     if (!quest.completed || quest.rewardClaimed) {
       return { success: false, rewards: [] };
     }
 
+    // Fall back to the main quest def if none provided (legacy path)
+    const def = questDef ?? QUESTS.forest_menace;
     const rewards: string[] = [];
 
-    // Add gold
-    player.addGold(MAIN_QUEST.rewardGold);
-    rewards.push(`Received ${MAIN_QUEST.rewardGold} gold!`);
+    if (def.rewardGold > 0) {
+      player.addGold(def.rewardGold);
+      rewards.push(`Received ${def.rewardGold} gold!`);
+    }
 
-    // Add weapon if not owned
-    if (MAIN_QUEST.rewardWeaponId && !player.ownsWeapon(MAIN_QUEST.rewardWeaponId)) {
-      player.equipWeapon(MAIN_QUEST.rewardWeaponId);
-      const weapon = getWeapon(MAIN_QUEST.rewardWeaponId);
+    if (def.rewardWeaponId && !player.ownsWeapon(def.rewardWeaponId)) {
+      player.equipWeapon(def.rewardWeaponId);
+      const weapon = getWeapon(def.rewardWeaponId);
       rewards.push(`Received ${weapon.name}!`);
+    }
+
+    if (def.rewardPotions && def.rewardPotions > 0) {
+      player.addPotions(def.rewardPotions);
+      rewards.push(`Received ${def.rewardPotions} Health Potions!`);
     }
 
     quest.rewardClaimed = true;
@@ -198,10 +194,10 @@ export class NpcManager {
     quest.started = true;
   }
 
-  // Increment enemy defeated count
+  // Increment progress counter
   recordEnemyDefeated(quest: QuestState): void {
     if (quest.started && !quest.completed) {
-      quest.enemiesDefeated++;
+      quest.count++;
     }
   }
 

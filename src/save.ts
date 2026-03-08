@@ -4,20 +4,19 @@ import {
   QuestState,
   WorldState,
   createDefaultPlayer,
-  createDefaultQuest,
   createDefaultWorld,
   SAVE_VERSION
 } from './types';
+import { createDefaultQuests } from './data/quests';
 
 const SAVE_KEY = 'claudicus_save';
 
-export function save(player: PlayerState, quest: QuestState, world: WorldState): void {
-  const data: SaveData = {
-    player,
-    quest,
-    world,
-    version: SAVE_VERSION
-  };
+export function save(
+  player: PlayerState,
+  quests: Record<string, QuestState>,
+  world: WorldState
+): void {
+  const data: SaveData = { player, quests, world, version: SAVE_VERSION };
 
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -29,13 +28,10 @@ export function save(player: PlayerState, quest: QuestState, world: WorldState):
 export function load(): SaveData | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) {
-      return null;
-    }
+    if (!raw) return null;
 
     const data = JSON.parse(raw) as SaveData;
 
-    // Version check - could add migration logic here
     if (data.version !== SAVE_VERSION) {
       console.warn('Save version mismatch, starting fresh');
       return null;
@@ -59,7 +55,7 @@ export function clearSave(): void {
 export function createNewGameData(): SaveData {
   return {
     player: createDefaultPlayer(),
-    quest: createDefaultQuest(),
+    quests: createDefaultQuests(),
     world: createDefaultWorld(),
     version: SAVE_VERSION
   };
