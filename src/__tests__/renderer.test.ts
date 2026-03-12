@@ -181,6 +181,36 @@ describe('drawPlayer — with weaponSpeed', () => {
 });
 
 // ---------------------------------------------------------------------------
+// drawPlayer — gender avatars
+// ---------------------------------------------------------------------------
+describe('drawPlayer — gender', () => {
+  it('male avatar renders without throwing', () => {
+    const { ctx } = makeCtx();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, 'male')).not.toThrow();
+  });
+
+  it('female avatar renders without throwing', () => {
+    const { ctx } = makeCtx();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, 'female')).not.toThrow();
+  });
+
+  it('female avatar produces more arc calls (hair)', () => {
+    const { ctx: maleCtx, calls: maleCalls } = makeCtx();
+    const { ctx: femaleCtx, calls: femaleCalls } = makeCtx();
+    drawPlayer(maleCtx,   0, 0, 0, 'down', undefined, 'male');
+    drawPlayer(femaleCtx, 0, 0, 0, 'down', undefined, 'female');
+    const maleArcs   = maleCalls.filter(c => c.method === 'arc').length;
+    const femaleArcs = femaleCalls.filter(c => c.method === 'arc').length;
+    expect(femaleArcs).toBeGreaterThan(maleArcs);
+  });
+
+  it('female avatar with weapon renders without throwing', () => {
+    const { ctx } = makeCtx();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.NORMAL, 'female')).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // drawEnemy — all types render without throwing
 // ---------------------------------------------------------------------------
 describe('drawEnemy — all enemy types render without throwing', () => {

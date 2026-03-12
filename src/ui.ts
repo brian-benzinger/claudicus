@@ -286,7 +286,7 @@ export class UIRenderer {
     ctx.save();
     ctx.translate(playerX + playerOffset, combatY);
     ctx.scale(2, 2);
-    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress);
+    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress, player.gender ?? 'male');
     ctx.restore();
 
     // Draw arrow projectile for ranged attack (in screen space, after player draw)
@@ -789,5 +789,77 @@ export class UIRenderer {
     messages.forEach((msg, i) => {
       ctx.fillText(msg, boxX + 20, boxY + 25 + i * 25);
     });
+  }
+
+  drawCharacterSelectScreen(ctx: CanvasRenderingContext2D, cursor: number): void {
+    // Background
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Title
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText('Choose Your Hero', CANVAS_WIDTH / 2, 100);
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '16px monospace';
+    ctx.fillText('Select your character', CANVAS_WIDTH / 2, 135);
+
+    const options: Array<'male' | 'female'> = ['male', 'female'];
+    const labels = ['Man', 'Woman'];
+    const cardW = 160;
+    const cardH = 200;
+    const cardY = 175;
+    const spacing = 60;
+    const totalW = options.length * cardW + (options.length - 1) * spacing;
+    const startX = CANVAS_WIDTH / 2 - totalW / 2;
+
+    options.forEach((gender, i) => {
+      const cardX = startX + i * (cardW + spacing);
+      const isSelected = cursor === i;
+
+      // Card background
+      ctx.fillStyle = isSelected ? 'rgba(90, 74, 58, 0.9)' : 'rgba(30, 25, 35, 0.9)';
+      ctx.fillRect(cardX, cardY, cardW, cardH);
+
+      // Card border
+      ctx.strokeStyle = isSelected ? COLORS.textGold : COLORS.border;
+      ctx.lineWidth = isSelected ? 3 : 1;
+      ctx.strokeRect(cardX, cardY, cardW, cardH);
+
+      // Draw avatar preview (scaled up 3x) centered in card
+      const avatarScale = 3;
+      const avatarW = 32 * avatarScale;
+      const avatarCenterX = cardX + cardW / 2;
+      const avatarDrawX = avatarCenterX - avatarW / 2;
+      const avatarDrawY = cardY + 20;
+
+      ctx.save();
+      ctx.translate(avatarDrawX, avatarDrawY);
+      ctx.scale(avatarScale, avatarScale);
+      drawPlayer(ctx, 0, 0, 0, 'down', undefined, gender);
+      ctx.restore();
+
+      // Label
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isSelected ? COLORS.textGold : COLORS.text;
+      ctx.font = `${isSelected ? 'bold ' : ''}20px monospace`;
+      ctx.fillText(labels[i], cardX + cardW / 2, cardY + cardH - 20);
+
+      // Selection indicator
+      if (isSelected) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.font = '20px monospace';
+        ctx.fillText('▲', cardX + cardW / 2, cardY - 10);
+      }
+    });
+
+    // Instructions
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[A/D] or [←/→] Select   [SPACE/ENTER] Confirm', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 50);
+    ctx.textAlign = 'left';
   }
 }

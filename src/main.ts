@@ -42,6 +42,7 @@ class Game {
 
   private frame: number = 0;
   private titleCursor: number = 0;
+  private characterSelectCursor: number = 0;
   private pauseCursor: number = 0;
   private inventoryCursor: number = 0;
   private inventoryReturnState: GameState = GameState.OVERWORLD;
@@ -130,6 +131,9 @@ class Game {
       case GameState.TITLE:
         this.updateTitle();
         break;
+      case GameState.CHARACTER_SELECT:
+        this.updateCharacterSelect();
+        break;
       case GameState.OVERWORLD:
         this.updateOverworld();
         break;
@@ -179,6 +183,9 @@ class Game {
     switch (this.state) {
       case GameState.TITLE:
         this.renderTitle();
+        break;
+      case GameState.CHARACTER_SELECT:
+        this.ui.drawCharacterSelectScreen(this.ctx, this.characterSelectCursor);
         break;
       case GameState.OVERWORLD:
       case GameState.DIALOG:
@@ -239,8 +246,9 @@ class Game {
         // Continue
         this.loadGame();
       } else {
-        // New Game
-        this.startNewGame();
+        // New Game — go to character select
+        this.characterSelectCursor = 0;
+        this.state = GameState.CHARACTER_SELECT;
       }
     }
   }
@@ -249,9 +257,22 @@ class Game {
     this.ui.drawTitleScreen(this.ctx, hasSave(), this.titleCursor);
   }
 
-  private startNewGame(): void {
+  private updateCharacterSelect(): void {
+    if (this.input.menuLeft()) {
+      this.characterSelectCursor = (this.characterSelectCursor - 1 + 2) % 2;
+    }
+    if (this.input.menuRight()) {
+      this.characterSelectCursor = (this.characterSelectCursor + 1) % 2;
+    }
+    if (this.input.interact()) {
+      const gender: 'male' | 'female' = this.characterSelectCursor === 0 ? 'male' : 'female';
+      this.startNewGame(gender);
+    }
+  }
+
+  private startNewGame(gender: 'male' | 'female' = 'male'): void {
     clearSave();
-    this.player = new PlayerManager(createDefaultPlayer());
+    this.player = new PlayerManager(createDefaultPlayer(gender));
     this.quests = createDefaultQuests();
     this.world = createDefaultWorld();
     this.mapManager = new MapManager(this.world);
@@ -426,7 +447,7 @@ class Game {
     // Render player at smooth visual position
     const screenX = this.visualX - this.mapManager.camera.x;
     const screenY = this.visualY - this.mapManager.camera.y;
-    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed);
+    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed, this.player.state.gender);
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);

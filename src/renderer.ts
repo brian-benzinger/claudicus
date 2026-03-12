@@ -32,6 +32,10 @@ const COLORS = {
 
   // Player
   playerBody: '#4a3728',
+  playerBodyFemale: '#2e4a6b',
+  playerHair: '#2a1f14',
+  playerHairFemale: '#5c3a1e',
+  playerDress: '#3a6b9e',
   playerHead: '#d4a574',
   playerOutline: '#2a1f14',
 
@@ -387,29 +391,67 @@ export function drawPlayer(
   y: number,
   frame: number,
   facing: 'up' | 'down' | 'left' | 'right',
-  weaponSpeed?: WeaponSpeed
+  weaponSpeed?: WeaponSpeed,
+  gender: 'male' | 'female' = 'male'
 ): void {
   const bob = Math.sin(frame * 0.2) * 1;
+  const isFemale = gender === 'female';
 
   // Draw weapon behind player when facing up
   if (weaponSpeed !== undefined && (facing === 'up')) {
     drawOverworldWeapon(ctx, x, y, bob, facing, weaponSpeed);
   }
 
-  // Body
-  ctx.fillStyle = COLORS.playerBody;
-  ctx.fillRect(x + 6, y + 10 + bob, 20, 18);
+  if (isFemale) {
+    // Female: long hair behind head (draw before head)
+    ctx.fillStyle = COLORS.playerHairFemale;
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 8 + bob, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // Hair strands extending down
+    ctx.fillRect(x + 7, y + 10 + bob, 4, 14);
+    ctx.fillRect(x + 21, y + 10 + bob, 4, 14);
 
-  // Body outline
-  ctx.strokeStyle = COLORS.playerOutline;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 6, y + 10 + bob, 20, 18);
+    // Body (tunic)
+    ctx.fillStyle = COLORS.playerBodyFemale;
+    ctx.fillRect(x + 7, y + 10 + bob, 18, 14);
 
-  // Head
-  ctx.fillStyle = COLORS.playerHead;
-  ctx.beginPath();
-  ctx.arc(x + 16, y + 8 + bob, 7, 0, Math.PI * 2);
-  ctx.fill();
+    // Dress/skirt — wider trapezoid at bottom
+    ctx.fillStyle = COLORS.playerDress;
+    ctx.beginPath();
+    ctx.moveTo(x + 7,  y + 24 + bob);
+    ctx.lineTo(x + 25, y + 24 + bob);
+    ctx.lineTo(x + 28, y + 32 + bob);
+    ctx.lineTo(x + 4,  y + 32 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // Body outline
+    ctx.strokeStyle = COLORS.playerOutline;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 7, y + 10 + bob, 18, 14);
+
+    // Head (over hair)
+    ctx.fillStyle = COLORS.playerHead;
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 8 + bob, 6, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Male: original body
+    ctx.fillStyle = COLORS.playerBody;
+    ctx.fillRect(x + 6, y + 10 + bob, 20, 18);
+
+    // Body outline
+    ctx.strokeStyle = COLORS.playerOutline;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 6, y + 10 + bob, 20, 18);
+
+    // Head
+    ctx.fillStyle = COLORS.playerHead;
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 8 + bob, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Eyes based on facing
   ctx.fillStyle = COLORS.textDark;
@@ -424,11 +466,13 @@ export function drawPlayer(
     ctx.fillRect(x + 19, y + 7 + bob, 2, 2);
   }
 
-  // Legs
-  ctx.fillStyle = COLORS.woodDark;
-  const legOffset = Math.sin(frame * 0.3) * 2;
-  ctx.fillRect(x + 8, y + 26 + bob, 6, 6 + legOffset);
-  ctx.fillRect(x + 18, y + 26 + bob, 6, 6 - legOffset);
+  if (!isFemale) {
+    // Legs (male only — female has dress)
+    ctx.fillStyle = COLORS.woodDark;
+    const legOffset = Math.sin(frame * 0.3) * 2;
+    ctx.fillRect(x + 8, y + 26 + bob, 6, 6 + legOffset);
+    ctx.fillRect(x + 18, y + 26 + bob, 6, 6 - legOffset);
+  }
 
   // Draw weapon in front of player when facing down/left/right
   if (weaponSpeed !== undefined && facing !== 'up') {
@@ -658,9 +702,10 @@ export function drawCombatPlayer(
   y: number,
   frame: number,
   weaponSpeed: WeaponSpeed,
-  attackProgress: number  // -1 = idle, 0..1 = attack animation
+  attackProgress: number,  // -1 = idle, 0..1 = attack animation
+  gender: 'male' | 'female' = 'male'
 ): void {
-  drawPlayer(ctx, x, y, frame, 'right');
+  drawPlayer(ctx, x, y, frame, 'right', undefined, gender);
 
   const bob = Math.sin(frame * 0.2);
 

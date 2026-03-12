@@ -1,6 +1,7 @@
 // Game state machine states
 export enum GameState {
   TITLE = 'TITLE',
+  CHARACTER_SELECT = 'CHARACTER_SELECT',
   OVERWORLD = 'OVERWORLD',
   DIALOG = 'DIALOG',
   SHOP = 'SHOP',
@@ -190,6 +191,7 @@ export interface PlayerState {
   tileY: number;
   currentMap: string;
   facing: 'up' | 'down' | 'left' | 'right';
+  gender: 'male' | 'female';
 }
 
 // Quest state tracking (generic per-quest progress counter)
@@ -278,10 +280,10 @@ export const MAX_POTIONS = 10;
 export const POTION_HEAL = 20;
 export const POTION_COST = 5;
 export const MAX_LEVEL = 10;
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // Default player state factory
-export function createDefaultPlayer(): PlayerState {
+export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerState {
   return {
     hp: 40,
     maxHp: 40,
@@ -297,7 +299,8 @@ export function createDefaultPlayer(): PlayerState {
     tileX: 5,
     tileY: 5,
     currentMap: 'village',
-    facing: 'down'
+    facing: 'down',
+    gender
   };
 }
 

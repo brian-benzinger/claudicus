@@ -68,6 +68,14 @@ export class InputManager {
     return this.wasJustPressed('s') || this.wasJustPressed('arrowdown');
   }
 
+  menuLeft(): boolean {
+    return this.wasJustPressed('a') || this.wasJustPressed('arrowleft');
+  }
+
+  menuRight(): boolean {
+    return this.wasJustPressed('d') || this.wasJustPressed('arrowright');
+  }
+
   interact(): boolean {
     return this.wasJustPressed(' ') || this.wasJustPressed('enter');
   }
