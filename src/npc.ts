@@ -7,6 +7,7 @@ import {
 } from './types';
 import { PlayerManager } from './player';
 import { getShopWeapons, getWeapon, WEAPONS } from './data/weapons';
+import { getShopArmors, getArmor } from './data/armors';
 import { QUESTS, QuestDef } from './data/quests';
 
 export class NpcManager {
@@ -53,7 +54,7 @@ export class NpcManager {
     if (this.dialogState.currentLine >= this.dialogState.lines.length) {
       const role = this.dialogState.npc.role;
 
-      if (role === NpcRole.SHOP_WEAPONS || role === NpcRole.SHOP_POTIONS) {
+      if (role === NpcRole.SHOP_WEAPONS || role === NpcRole.SHOP_POTIONS || role === NpcRole.SHOP_ARMOR) {
         this.openShop(role);
         return 'shop';
       }
@@ -96,6 +97,14 @@ export class NpcManager {
         cost: 5,
         type: 'potion' as const
       }];
+    } else if (role === NpcRole.SHOP_ARMOR) {
+      const armors = getShopArmors();
+      this.shopItems = armors.map(a => ({
+        armorId: a.id,
+        name: a.name,
+        cost: a.cost,
+        type: 'armor' as const
+      }));
     }
   }
 
@@ -118,7 +127,11 @@ export class NpcManager {
   getShopItemsWithOwnership(player: PlayerManager): ShopItem[] {
     return this.shopItems.map(item => ({
       ...item,
-      owned: item.weaponId ? player.ownsWeapon(item.weaponId) : false
+      owned: item.weaponId
+        ? player.ownsWeapon(item.weaponId)
+        : item.armorId
+          ? player.ownsArmor(item.armorId)
+          : false
     }));
   }
 
@@ -149,6 +162,14 @@ export class NpcManager {
       player.removeGold(item.cost);
       player.addPotions(1);
       return { success: true, message: 'Purchased Health Potion!' };
+    } else if (item.type === 'armor') {
+      if (player.ownsArmor(item.armorId!)) {
+        return { success: false, message: 'You already own this armor.' };
+      }
+
+      player.removeGold(item.cost);
+      player.equipArmor(item.armorId!);
+      return { success: true, message: `Purchased ${item.name}!` };
     }
 
     return { success: false, message: 'Unknown item.' };

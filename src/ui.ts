@@ -11,6 +11,7 @@ import {
   MAX_LEVEL
 } from './types';
 import { getWeapon } from './data/weapons';
+import { getArmor } from './data/armors';
 import { drawPlayer, drawEnemy, drawCombatPlayer } from './renderer';
 
 const COLORS = {
@@ -653,9 +654,14 @@ export class UIRenderer {
     ctx.lineTo(panelX + panelW - 10, panelY + 44);
     ctx.stroke();
 
-    // Build item list: weapons first, then potions entry
-    const items: Array<{ type: 'weapon'; id: string } | { type: 'potions' }> = [
+    // Build item list: weapons, then armors, then potions
+    const items: Array<
+      | { type: 'weapon'; id: string }
+      | { type: 'armor'; id: string }
+      | { type: 'potions' }
+    > = [
       ...player.weapons.map(id => ({ type: 'weapon' as const, id })),
+      ...(player.armors ?? []).map(id => ({ type: 'armor' as const, id })),
       { type: 'potions' as const }
     ];
 
@@ -680,6 +686,13 @@ export class UIRenderer {
 
         ctx.fillStyle = isEquipped ? COLORS.textGold : COLORS.text;
         const label = isEquipped ? `[E] ${weapon.name}` : `    ${weapon.name}`;
+        ctx.fillText(label, listX, rowY);
+      } else if (item.type === 'armor') {
+        const armor = getArmor(item.id);
+        const isEquipped = player.armorId === item.id;
+
+        ctx.fillStyle = isEquipped ? COLORS.textGold : COLORS.text;
+        const label = isEquipped ? `[E] ${armor.name}` : `    ${armor.name}`;
         ctx.fillText(label, listX, rowY);
       } else {
         ctx.fillStyle = player.potions > 0 ? COLORS.text : COLORS.textDark;
@@ -735,6 +748,28 @@ export class UIRenderer {
       }
 
       // Action hint
+      if (!isEquipped) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.font = '13px monospace';
+        ctx.fillText('[SPACE] Equip', detailX, detailY + 200);
+      }
+    } else if (selectedItem?.type === 'armor') {
+      const armor = getArmor(selectedItem.id);
+      const isEquipped = player.armorId === selectedItem.id;
+
+      ctx.fillStyle = COLORS.textGold;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(armor.name, detailX, detailY);
+
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = '12px monospace';
+      ctx.fillText(isEquipped ? 'Currently Equipped' : '', detailX, detailY + 20);
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '14px monospace';
+      ctx.fillText('Slot:    Body', detailX, detailY + 55);
+      ctx.fillText(`Defense: +${armor.defBonus}`, detailX, detailY + 80);
+
       if (!isEquipped) {
         ctx.fillStyle = COLORS.textGold;
         ctx.font = '13px monospace';
