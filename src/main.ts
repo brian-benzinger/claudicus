@@ -274,7 +274,7 @@ class Game {
       this.initVisualPosition();
       this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
       this.music.init();
-      this.music.play(data.player.currentMap === 'forest' ? 'forest' : 'village');
+      this.music.play(data.player.currentMap === 'village' ? 'village' : 'forest');
       this.state = GameState.OVERWORLD;
     } else {
       this.startNewGame();
@@ -452,7 +452,7 @@ class Game {
     this.mapManager.loadMap(targetMap);
     this.initVisualPosition();
     this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
-    this.music.play(targetMap === 'forest' ? 'forest' : 'village');
+    this.music.play(targetMap === 'village' ? 'village' : 'forest');
   }
 
   // --- DIALOG ---

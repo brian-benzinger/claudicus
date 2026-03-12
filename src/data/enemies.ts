@@ -50,6 +50,16 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     agi: 2,
     xp: 10,
     gold: 0
+  },
+  [EnemyType.REVENANT_KNIGHT]: {
+    type: EnemyType.REVENANT_KNIGHT,
+    name: 'Revenant Knight',
+    hp: 60,
+    atk: 10,
+    def: 6,
+    agi: 4,
+    xp: 80,
+    gold: 50
   }
 };
 

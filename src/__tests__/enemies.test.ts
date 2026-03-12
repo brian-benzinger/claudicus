@@ -49,7 +49,7 @@ describe('createEnemy', () => {
 
 describe('ENEMY_DEFS', () => {
   it('defines all enemy types', () => {
-    const types = [EnemyType.WOLF, EnemyType.BANDIT, EnemyType.BANDIT_ARCHER, EnemyType.SKELETON, EnemyType.WILD_BOAR];
+    const types = [EnemyType.WOLF, EnemyType.BANDIT, EnemyType.BANDIT_ARCHER, EnemyType.SKELETON, EnemyType.WILD_BOAR, EnemyType.REVENANT_KNIGHT];
     for (const type of types) {
       expect(ENEMY_DEFS[type]).toBeDefined();
     }

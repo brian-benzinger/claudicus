@@ -73,7 +73,7 @@ const FOREST_TILES: number[][] = [
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,O,L,L,T,K,K,D,T,T,T,T], // 22
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,D,T,T,K,D,D,T,T,T,T], // 23
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,D,T,K,K,D,T,T,T,T,T], // 24
-  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,D,D,D,D,T,T,T,T,T], // 25
+  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,D,D,D,A,T,T,T,T,T], // 25
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,K,K,T,T,T,T,T,T], // 26
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,T,T,T,T,T,T,T], // 27
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,T,T,T,T,T,T,T,T], // 28
@@ -187,6 +187,103 @@ export function createForestMap(): MapDef {
         targetMap: 'village',
         spawnX: 27,
         spawnY: 17
+      },
+      {
+        tileX: 34,
+        tileY: 25,
+        width: 1,
+        height: 1,
+        targetMap: 'dungeon',
+        spawnX: 3,
+        spawnY: 2
+      }
+    ]
+  };
+}
+
+// Dungeon "Greymoor Crypt" - 30x20 tiles
+// Features: Entry antechamber, winding corridor, boss chamber with Revenant Knight
+const DUNGEON_TILES: number[][] = [
+  //0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9
+  [L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 0
+  [L,C,C,A,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 1 - exit gate
+  [L,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 2
+  [L,C,C,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 3
+  [L,C,R,C,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 4
+  [L,C,C,C,C,C,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 5
+  [L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 6
+  [L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,L,L,L,L,L,L,L,L,L,L,L,L,L], // 7
+  [L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 8
+  [L,L,L,L,L,L,L,L,C,C,R,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 9
+  [L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 10
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 11
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 12
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 13
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 14
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,R,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 15
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 16
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 17
+  [L,L,L,L,L,L,L,L,L,L,L,L,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,L,L], // 18
+  [L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L,L], // 19
+];
+
+export function createDungeonMap(): MapDef {
+  resetEnemyIdCounter();
+
+  return {
+    id: 'dungeon',
+    name: 'Greymoor Crypt',
+    width: 30,
+    height: 20,
+    tiles: DUNGEON_TILES,
+    spawnX: 3,
+    spawnY: 2,
+    enemies: [
+      // Antechamber guards
+      createEnemy(EnemyType.SKELETON, 7, 3),
+      createEnemy(EnemyType.SKELETON, 5, 5),
+
+      // Corridor patrol
+      createEnemy(EnemyType.SKELETON, 12, 9),
+      createEnemy(EnemyType.SKELETON, 22, 9),
+
+      // Boss chamber sentinels
+      createEnemy(EnemyType.SKELETON, 14, 14),
+      createEnemy(EnemyType.SKELETON, 25, 13),
+
+      // The Revenant Knight - dungeon boss
+      createEnemy(EnemyType.REVENANT_KNIGHT, 20, 15),
+    ],
+    npcs: [],
+    chests: [
+      {
+        id: 'dungeon_chest_antechamber',
+        tileX: 9,
+        tileY: 4,
+        loot: [
+          { type: 'potion', amount: 2 },
+          { type: 'gold', amount: 20 }
+        ]
+      },
+      {
+        id: 'dungeon_chest_boss',
+        tileX: 26,
+        tileY: 16,
+        loot: [
+          { type: 'gold', amount: 80 },
+          { type: 'potion', amount: 3 }
+        ]
+      }
+    ],
+    transitions: [
+      {
+        tileX: 3,
+        tileY: 1,
+        width: 1,
+        height: 1,
+        targetMap: 'forest',
+        spawnX: 34,
+        spawnY: 25
       }
     ]
   };
@@ -197,6 +294,8 @@ export function getMap(id: string): MapDef {
     return createVillageMap();
   } else if (id === 'forest') {
     return createForestMap();
+  } else if (id === 'dungeon') {
+    return createDungeonMap();
   }
   return createVillageMap();
 }

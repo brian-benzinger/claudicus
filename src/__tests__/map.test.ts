@@ -247,4 +247,28 @@ describe('Entity spawn placement - no blocking tiles', () => {
       ).toBe(true);
     }
   });
+
+  it('all dungeon enemies are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    for (const enemy of mgr.currentMap.enemies) {
+      expect(
+        mgr.isWalkable(enemy.tileX, enemy.tileY),
+        `Enemy "${enemy.id}" (${enemy.type}) at (${enemy.tileX}, ${enemy.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('all dungeon chests are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    for (const chest of mgr.currentMap.chests) {
+      expect(
+        mgr.isWalkable(chest.tileX, chest.tileY),
+        `Chest "${chest.id}" at (${chest.tileX}, ${chest.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
 });
