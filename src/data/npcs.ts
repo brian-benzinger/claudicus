@@ -9,6 +9,9 @@ export const VILLAGE_NPCS: NpcDef[] = [
     role: NpcRole.QUEST,
     questId: 'forest_menace',
     color: '#4a3728',
+    hatColor: '#1a0f08',
+    hatStyle: 'tall',
+    hairColor: '#b8b8b8',
     dialogs: {
       default: [
         'Welcome, young one.',
@@ -64,6 +67,7 @@ export const VILLAGE_NPCS: NpcDef[] = [
     role: NpcRole.SHOP_WEAPONS,
     questId: 'bandit_steel',
     color: '#8b4513',
+    apronColor: '#2a1a0a',
     dialogs: {
       default: [
         'Welcome to my forge, traveler.',
@@ -119,6 +123,9 @@ export const VILLAGE_NPCS: NpcDef[] = [
     role: NpcRole.SHOP_POTIONS,
     questId: 'boar_problem',
     color: '#6b4423',
+    hatColor: '#4a6b20',
+    hatStyle: 'wide',
+    hairColor: '#e0e0e0',
     dialogs: {
       default: [
         'Herbs and remedies, traveler!',
@@ -176,6 +183,8 @@ export const VILLAGE_NPCS: NpcDef[] = [
     role: NpcRole.DIALOG,
     questId: 'quiet_dead',
     color: '#2f2f2f',
+    hatColor: '#1a1a2a',
+    hatStyle: 'hood',
     dialogs: {
       default: [
         'Blessings upon you, child.',
@@ -238,6 +247,9 @@ export const VILLAGE_NPCS: NpcDef[] = [
     role: NpcRole.DIALOG,
     questId: 'wolves_gate',
     color: '#5d4e37',
+    hatColor: '#c8a84a',
+    hatStyle: 'wide',
+    legColor: '#3d5a28',
     dialogs: {
       default: [
         'Ho there, stranger.',

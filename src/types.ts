@@ -129,7 +129,12 @@ export interface NpcDef {
     questComplete?: string[];
     questDone?: string[];
   };
-  color: string;  // body color for rendering
+  color: string;           // body color for rendering
+  hatColor?: string;       // optional hat fill color
+  hatStyle?: 'tall' | 'wide' | 'hood';  // shape of the hat
+  hairColor?: string;      // optional beard/hair tuft color
+  apronColor?: string;     // optional apron overlay color
+  legColor?: string;       // optional pants color (overrides default)
 }
 
 // Chest loot item
