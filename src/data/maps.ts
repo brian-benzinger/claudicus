@@ -1,6 +1,6 @@
 import { MapDef, TileType, EnemyType, NpcRole } from '../types';
 import { createEnemy, resetEnemyIdCounter } from './enemies';
-import { VILLAGE_NPCS } from './npcs';
+import { VILLAGE_NPCS, FOREST_NPCS } from './npcs';
 
 // Tile type shortcuts for readability
 const G = TileType.GRASS;
@@ -142,7 +142,7 @@ export function createForestMap(): MapDef {
       createEnemy(EnemyType.SKELETON, 30, 20),
       createEnemy(EnemyType.SKELETON, 27, 22),
     ],
-    npcs: [],
+    npcs: [...FOREST_NPCS],
     chests: [
       {
         id: 'forest_chest_1',

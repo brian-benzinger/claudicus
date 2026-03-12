@@ -97,9 +97,9 @@ describe('createNewGameData', () => {
     expect(data.world.openedChests).toEqual([]);
   });
 
-  it('initialises all five quests', () => {
+  it('initialises all six quests', () => {
     const data = createNewGameData();
-    expect(Object.keys(data.quests)).toHaveLength(5);
+    expect(Object.keys(data.quests)).toHaveLength(6);
     for (const q of Object.values(data.quests)) {
       expect(q.started).toBe(false);
       expect(q.count).toBe(0);

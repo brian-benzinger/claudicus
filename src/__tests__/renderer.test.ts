@@ -204,4 +204,45 @@ describe('drawEnemy — all enemy types render without throwing', () => {
     const { ctx } = makeCtx();
     expect(() => drawEnemy(ctx, EnemyType.WILD_BOAR, 0, 0)).not.toThrow();
   });
+  it('REVENANT_KNIGHT renders without error', () => {
+    const { ctx } = makeCtx();
+    expect(() => drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0)).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// drawEnemy — REVENANT_KNIGHT visual characteristics
+// ---------------------------------------------------------------------------
+describe('drawEnemy — REVENANT_KNIGHT visual details', () => {
+  it('draws more elements than a regular skeleton (armoured boss)', () => {
+    const { ctx: skCtx, calls: skCalls } = makeCtx();
+    const { ctx: rkCtx, calls: rkCalls } = makeCtx();
+
+    drawEnemy(skCtx, EnemyType.SKELETON, 0, 0);
+    drawEnemy(rkCtx, EnemyType.REVENANT_KNIGHT, 0, 0);
+
+    // Revenant Knight has sword, shield, pauldrons, outline — more draw calls
+    expect(rkCalls.length).toBeGreaterThan(skCalls.length);
+  });
+
+  it('draws an arc (glowing emblem on shield)', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
+    expect(calls.some(c => c.method === 'arc')).toBe(true);
+  });
+
+  it('uses strokeRect (armour outline)', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
+    expect(calls.some(c => c.method === 'strokeRect')).toBe(true);
+  });
+
+  it('renders consistently at different positions', () => {
+    const { ctx: c1, calls: calls1 } = makeCtx();
+    const { ctx: c2, calls: calls2 } = makeCtx();
+    drawEnemy(c1, EnemyType.REVENANT_KNIGHT, 0, 0);
+    drawEnemy(c2, EnemyType.REVENANT_KNIGHT, 64, 96);
+    // Same number of draw operations regardless of position
+    expect(calls1.length).toBe(calls2.length);
+  });
 });

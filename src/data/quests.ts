@@ -73,6 +73,18 @@ export const QUESTS: Record<string, QuestDef> = {
     goalCount: 3,
     rewardGold: 20,
     rewardWeaponId: 'dagger'
+  },
+  revenant_threat: {
+    id: 'revenant_threat',
+    name: 'The Revenant Threat',
+    description: 'Defeat the Revenant Knight in Greymoor Crypt',
+    npcId: 'duvain_wanderer',
+    npcName: 'Duvain the Wanderer',
+    goalType: 'kill_type',
+    goalEnemyTypes: [EnemyType.REVENANT_KNIGHT],
+    goalCount: 1,
+    rewardGold: 30,
+    rewardPotions: 2
   }
 };
 

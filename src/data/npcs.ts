@@ -35,6 +35,12 @@ export const VILLAGE_NPCS: NpcDef[] = [
       questDone: [
         'The village sleeps easier thanks to you.',
         'You are always welcome in Brannford, hero.'
+      ],
+      bossNews: [
+        'Word has reached us from the forest — the Revenant Knight is no more?',
+        'By the Light... that ancient horror has plagued this region for generations.',
+        'Brannford will celebrate this night. You have done something truly historic.',
+        'You are always welcome here, hero. Always.'
       ]
     }
   },
@@ -72,6 +78,11 @@ export const VILLAGE_NPCS: NpcDef[] = [
       questDone: [
         'Business is flowing smoothly now, thanks to you.',
         'See anything you like?'
+      ],
+      bossNews: [
+        'The wanderer rode in shouting about you — you felled the Revenant Knight!',
+        'Even I wouldn\'t face that cursed armour for all the steel in the realm.',
+        'Finest hero this village has ever seen. Now, browse the shop — you\'ve earned it.'
       ]
     }
   },
@@ -109,6 +120,11 @@ export const VILLAGE_NPCS: NpcDef[] = [
       questDone: [
         'My garden is growing nicely again. Thank you, dear.',
         'Anything else I can get you?'
+      ],
+      bossNews: [
+        'The Revenant Knight, slain! Can you believe it, dearie?',
+        'I brewed an extra batch of potions this morning in your honour.',
+        'Take one on the house. You\'ve earned far more than that.'
       ]
     }
   },
@@ -146,6 +162,11 @@ export const VILLAGE_NPCS: NpcDef[] = [
       questDone: [
         'The chapel rests quietly now.',
         'May it remain so. Blessings upon you, hero.'
+      ],
+      bossNews: [
+        'News of your victory spreads like dawn breaking after the darkest night.',
+        'The Revenant Knight\'s curse is broken. The crypt can finally rest.',
+        'You have done something truly holy this day. The Light is with you.'
       ]
     }
   },
@@ -185,11 +206,58 @@ export const VILLAGE_NPCS: NpcDef[] = [
       questDone: [
         'The farm\'s been peaceful since. Much appreciated, friend.',
         'You\'re welcome at my hearth any time.'
+      ],
+      bossNews: [
+        'The wanderer came galloping through the village shouting about you!',
+        'Said you walked into Greymoor Crypt and put that Revenant Knight to rest.',
+        'Ha! There\'ll be songs about you in every tavern from here to the capital.'
+      ]
+    }
+  }
+];
+
+// Forest NPCs — placed in Thornwood
+export const FOREST_NPCS: NpcDef[] = [
+  {
+    id: 'duvain_wanderer',
+    name: 'Duvain the Wanderer',
+    tileX: 33,
+    tileY: 24,
+    role: NpcRole.DIALOG,
+    questId: 'revenant_threat',
+    color: '#7a5a3a',
+    dialogs: {
+      default: [
+        'A wanderer, passing through.',
+        'These forests are more dangerous than they look.'
+      ],
+      questNotStarted: [
+        'Halt! Whatever you do, don\'t go into that crypt beyond the arch to the east.',
+        'Something ancient has awoken in Greymoor Crypt — a Revenant Knight.',
+        'Cursed armour walking on its own, blade swinging without a hand to guide it.',
+        'It cut down two of my companions before I managed to flee.',
+        'If you\'re brave — or foolish — enough to face it, the gate is just east of here.'
+      ],
+      questInProgress: [
+        'The Revenant Knight is still out there.',
+        'It won\'t stay dead by accident — you\'ll need real steel and real courage.',
+        'Come back when the deed is done.'
+      ],
+      questComplete: [
+        'You slew the Revenant Knight?! By all the saints — you actually did it!',
+        'I must ride straight to Brannford and spread the word.',
+        'The folk there will sleep far easier tonight.',
+        'Take this for your trouble. You\'ve done something the whole region will remember.'
+      ],
+      questDone: [
+        'I\'ve spread the word throughout Brannford.',
+        'They\'re already calling you the Crypt\'s End.',
+        'Stay safe out there, friend — though I doubt anything will trouble you now.'
       ]
     }
   }
 ];
 
 export function getNpc(id: string): NpcDef | undefined {
-  return VILLAGE_NPCS.find(npc => npc.id === id);
+  return [...VILLAGE_NPCS, ...FOREST_NPCS].find(npc => npc.id === id);
 }

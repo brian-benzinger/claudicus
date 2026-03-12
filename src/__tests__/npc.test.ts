@@ -241,6 +241,118 @@ describe('NpcManager.startQuest / recordEnemyDefeated', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Boss news dialog override
+// ---------------------------------------------------------------------------
+describe('NpcManager.startDialog — bossNews override', () => {
+  function makeQuestsWithBossDefeated(npcQuestOverrides: Partial<QuestState> = {}): Record<string, QuestState> {
+    return {
+      test_quest: makeQuestState(npcQuestOverrides),
+      revenant_threat: makeQuestState({ started: true, completed: true, rewardClaimed: true }),
+    };
+  }
+
+  function makeNpcWithBossNews() {
+    return {
+      ...makeQuestNpc(),
+      dialogs: {
+        default: ['Hello.'],
+        questNotStarted: ['Please help us!'],
+        questInProgress: ['Keep fighting!'],
+        questComplete: ['Well done!'],
+        questDone: ['Thank you, hero.'],
+        bossNews: ['The Revenant Knight is slain! A legend walks among us!'],
+      },
+    };
+  }
+
+  it('shows bossNews when revenant_threat reward is claimed (questDone state)', () => {
+    const mgr = new NpcManager();
+    mgr.startDialog(makeNpcWithBossNews(), makeQuestsWithBossDefeated({ started: true, completed: true, rewardClaimed: true }));
+    expect(mgr.getCurrentLine()).toBe('The Revenant Knight is slain! A legend walks among us!');
+  });
+
+  it('shows bossNews for an NPC with no questId when revenant defeated', () => {
+    const mgr = new NpcManager();
+    const npc = {
+      id: 'guard',
+      name: 'Guard',
+      tileX: 1,
+      tileY: 1,
+      role: NpcRole.DIALOG,
+      color: '#888',
+      dialogs: {
+        default: ['Halt.'],
+        bossNews: ['I heard you slew the Revenant Knight!'],
+      },
+    };
+    mgr.startDialog(npc, { revenant_threat: makeQuestState({ started: true, completed: true, rewardClaimed: true }) });
+    expect(mgr.getCurrentLine()).toBe('I heard you slew the Revenant Knight!');
+  });
+
+  it('does NOT show bossNews when revenant_threat reward is not yet claimed', () => {
+    const mgr = new NpcManager();
+    mgr.startDialog(makeNpcWithBossNews(), makeQuestsWithBossDefeated({ started: true, completed: true, rewardClaimed: true }));
+    // Reset revenant quest to not-claimed
+    const quests = {
+      test_quest: makeQuestState({ started: true, completed: true, rewardClaimed: true }),
+      revenant_threat: makeQuestState({ started: true, completed: true, rewardClaimed: false }),
+    };
+    mgr.startDialog(makeNpcWithBossNews(), quests);
+    // Should show questDone since own quest is claimed but boss news not active
+    expect(mgr.getCurrentLine()).toBe('Thank you, hero.');
+  });
+
+  it('still shows questComplete (pending reward) even when revenant defeated', () => {
+    const mgr = new NpcManager();
+    const quests = {
+      test_quest: makeQuestState({ started: true, completed: true, rewardClaimed: false }),
+      revenant_threat: makeQuestState({ started: true, completed: true, rewardClaimed: true }),
+    };
+    mgr.startDialog(makeNpcWithBossNews(), quests);
+    // Pending reward takes priority so player can claim it
+    expect(mgr.getCurrentLine()).toBe('Well done!');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Adventurer NPC and revenant_threat quest
+// ---------------------------------------------------------------------------
+describe('Duvain the Wanderer NPC placement', () => {
+  it('is defined in FOREST_NPCS', async () => {
+    const { FOREST_NPCS } = await import('../data/npcs');
+    const duvain = FOREST_NPCS.find(n => n.id === 'duvain_wanderer');
+    expect(duvain).toBeDefined();
+    expect(duvain!.questId).toBe('revenant_threat');
+  });
+
+  it('has all required dialog states', async () => {
+    const { FOREST_NPCS } = await import('../data/npcs');
+    const duvain = FOREST_NPCS.find(n => n.id === 'duvain_wanderer')!;
+    expect(duvain.dialogs.questNotStarted?.length).toBeGreaterThan(0);
+    expect(duvain.dialogs.questInProgress?.length).toBeGreaterThan(0);
+    expect(duvain.dialogs.questComplete?.length).toBeGreaterThan(0);
+    expect(duvain.dialogs.questDone?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('revenant_threat quest definition', () => {
+  it('targets REVENANT_KNIGHT enemy type', async () => {
+    const { QUESTS } = await import('../data/quests');
+    const { EnemyType } = await import('../types');
+    const q = QUESTS.revenant_threat;
+    expect(q).toBeDefined();
+    expect(q.goalEnemyTypes).toContain(EnemyType.REVENANT_KNIGHT);
+    expect(q.goalCount).toBe(1);
+  });
+
+  it('has a potion reward', async () => {
+    const { QUESTS } = await import('../data/quests');
+    const q = QUESTS.revenant_threat;
+    expect(q.rewardPotions).toBeGreaterThan(0);
+  });
+});
+
 describe('NpcManager.claimQuestReward', () => {
   const testQuestDef = QUESTS.forest_menace;
 

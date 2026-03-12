@@ -22,7 +22,7 @@ import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
 import { QUESTS, createDefaultQuests } from './data/quests';
-import { MusicEngine } from './music';
+import { MusicEngine, TrackName } from './music';
 
 class Game {
   private canvas: HTMLCanvasElement;
@@ -36,6 +36,7 @@ class Game {
   private npcManager: NpcManager;
   private ui: UIRenderer;
   private music: MusicEngine;
+  private mapMusicTrack: TrackName = 'village'; // track to restore after combat
 
   private quests: Record<string, QuestState>;
   private world: WorldState;
@@ -259,6 +260,7 @@ class Game {
     this.initVisualPosition();
     this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
     this.music.init();
+    this.mapMusicTrack = 'village';
     this.music.play('village');
     this.state = GameState.OVERWORLD;
   }
@@ -274,7 +276,11 @@ class Game {
       this.initVisualPosition();
       this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
       this.music.init();
-      this.music.play(data.player.currentMap === 'village' ? 'village' : 'forest');
+      const loadTrack: TrackName = data.player.currentMap === 'village' ? 'village'
+                                 : data.player.currentMap === 'dungeon' ? 'dungeon'
+                                 : 'forest';
+      this.mapMusicTrack = loadTrack;
+      this.music.play(loadTrack);
       this.state = GameState.OVERWORLD;
     } else {
       this.startNewGame();
@@ -452,7 +458,20 @@ class Game {
     this.mapManager.loadMap(targetMap);
     this.initVisualPosition();
     this.mapManager.updateCameraToPixel(this.visualX, this.visualY);
-    this.music.play(targetMap === 'village' ? 'village' : 'forest');
+
+    // Auto-start revenant quest when the player first enters the dungeon
+    if (targetMap === 'dungeon') {
+      const revenantQuest = this.quests['revenant_threat'];
+      if (revenantQuest && !revenantQuest.started) {
+        revenantQuest.started = true;
+      }
+    }
+
+    const track: TrackName = targetMap === 'village' ? 'village'
+                           : targetMap === 'dungeon' ? 'dungeon'
+                           : 'forest';
+    this.mapMusicTrack = track;
+    this.music.play(track);
   }
 
   // --- DIALOG ---
@@ -543,6 +562,7 @@ class Game {
 
   private startCombat(enemy: { id: string; type: any; name: string; hp: number; maxHp: number; atk: number; def: number; agi: number; xp: number; gold: number; tileX: number; tileY: number; alive: boolean }): void {
     this.combat = new CombatEngine(this.player, enemy);
+    this.music.play('combat');
     this.state = GameState.COMBAT;
   }
 
@@ -591,7 +611,7 @@ class Game {
 
         // Remove enemy and track quest progress before switching state
         this.mapManager.removeEnemy(this.combat.state.enemy.id);
-        if (this.player.state.currentMap === 'forest') {
+        if (this.player.state.currentMap === 'forest' || this.player.state.currentMap === 'dungeon') {
           this.checkQuestProgress(this.combat.state.enemy.type);
         }
         this.autoSave();
@@ -602,8 +622,9 @@ class Game {
         this.defeatGoldLost = Math.floor(this.player.state.gold * 0.1);
         this.state = GameState.COMBAT_DEFEAT;
       } else if (result === 'fled') {
-        this.state = GameState.OVERWORLD;
         this.combat = null;
+        this.music.play(this.mapMusicTrack);
+        this.state = GameState.OVERWORLD;
       }
     }
   }
@@ -613,6 +634,7 @@ class Game {
     // Allow early dismiss with interact key
     if (this.victoryTimer <= 0 || this.input.interact()) {
       this.combat = null;
+      this.music.play(this.mapMusicTrack);
       this.state = GameState.OVERWORLD;
     }
   }
@@ -630,6 +652,8 @@ class Game {
 
       this.autoSave();
       this.combat = null;
+      this.mapMusicTrack = 'village';
+      this.music.play('village');
       this.state = GameState.OVERWORLD;
     }
   }
