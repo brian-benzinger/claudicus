@@ -199,6 +199,7 @@ export interface PlayerState {
   armorId: string;     // equipped armor ID
   armors: string[];    // all owned armor IDs
   potions: number;
+  gender: 'male' | 'female';
   tileX: number;
   tileY: number;
   currentMap: string;
@@ -310,6 +311,7 @@ export function createDefaultPlayer(): PlayerState {
     armorId: 'leather_vest',
     armors: ['leather_vest'],
     potions: 3,
+    gender: 'male',
     tileX: 5,
     tileY: 5,
     currentMap: 'village',

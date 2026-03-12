@@ -380,6 +380,177 @@ function drawOverworldWeapon(
   ctx.restore();
 }
 
+// Draw armor overlay on the player body
+// Body torso region: (x+6, y+10+bob, 20, 18)
+function drawArmorLayer(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  bob: number,
+  armorId: string,
+  gender: 'male' | 'female'
+): void {
+  ctx.save();
+
+  const bx = x + 6;       // body left edge
+  const by = y + 10 + bob; // body top edge
+  const bw = 20;            // body width
+  const bh = 18;            // body height
+
+  switch (armorId) {
+
+    case 'leather_vest': {
+      // Leather-colored vest over the torso
+      ctx.fillStyle = '#9b6435';
+      ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+
+      // Shoulder stitching
+      ctx.fillStyle = '#6b3d1a';
+      ctx.fillRect(bx + 1, by + 1, bw - 2, 3);  // shoulder band
+
+      // Belt line at the base
+      ctx.fillStyle = '#5c3010';
+      ctx.fillRect(bx + 1, by + bh - 5, bw - 2, 2);
+
+      // Center seam
+      ctx.fillStyle = '#7a4a20';
+      ctx.fillRect(bx + 9, by + 4, 2, bh - 8);
+
+      // Female: waist-taper side panels (darker strips at sides near waist)
+      if (gender === 'female') {
+        ctx.fillStyle = '#7a4a20';
+        ctx.fillRect(bx + 1, by + 7, 3, 6);  // left taper
+        ctx.fillRect(bx + bw - 4, by + 7, 3, 6);  // right taper
+      }
+      break;
+    }
+
+    case 'chain_mail': {
+      // Chain mail — gray base with horizontal chain rows
+      ctx.fillStyle = '#8a8a9a';
+      ctx.fillRect(bx, by, bw, bh);
+
+      // Chain row lines (horizontal)
+      ctx.fillStyle = '#6a6a7a';
+      for (let row = 0; row < 5; row++) {
+        const ry = by + 2 + row * 3;
+        ctx.fillRect(bx + 1, ry, bw - 2, 1);
+      }
+
+      // Small link squares alternating per row
+      ctx.fillStyle = '#9a9aaa';
+      for (let row = 0; row < 5; row++) {
+        const ry = by + 2 + row * 3;
+        const offset = (row % 2) * 3;
+        for (let col = offset; col < bw - 2; col += 6) {
+          ctx.fillRect(bx + 1 + col, ry - 1, 3, 2);
+        }
+      }
+
+      // Collar at top
+      ctx.fillStyle = '#5a5a6a';
+      ctx.fillRect(bx + 4, by, bw - 8, 3);
+
+      // Female: subtle waist narrowing indicator — darker bands at sides
+      if (gender === 'female') {
+        ctx.fillStyle = '#5a5a6a';
+        ctx.fillRect(bx, by + 8, 2, 5);
+        ctx.fillRect(bx + bw - 2, by + 8, 2, 5);
+      }
+      // Male: wide shoulder pauldrons
+      if (gender === 'male') {
+        ctx.fillStyle = '#7a7a8a';
+        ctx.fillRect(bx - 2, by, 4, 5);          // left pauldron
+        ctx.fillRect(bx + bw - 2, by, 4, 5);     // right pauldron
+      }
+      break;
+    }
+
+    case 'iron_plate': {
+      // Plate armor — silver chest plate
+      ctx.fillStyle = '#b8b8c8';
+      ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 3);
+
+      // Outline highlight (top-left) and shadow (bottom-right)
+      ctx.fillStyle = '#dcdce8';
+      ctx.fillRect(bx + 1, by + 1, bw - 2, 2);  // top highlight
+      ctx.fillRect(bx + 1, by + 1, 2, bh - 4);  // left highlight
+      ctx.fillStyle = '#7a7a88';
+      ctx.fillRect(bx + 1, by + bh - 4, bw - 2, 2);  // bottom shadow
+      ctx.fillRect(bx + bw - 3, by + 1, 2, bh - 4);  // right shadow
+
+      // Center breastplate ridge
+      ctx.fillStyle = '#9090a0';
+      ctx.fillRect(bx + 9, by + 3, 2, bh - 6);
+
+      if (gender === 'male') {
+        // Wide square pauldrons with rivets
+        ctx.fillStyle = '#a0a0b0';
+        ctx.fillRect(bx - 3, by, 5, 7);          // left pauldron
+        ctx.fillRect(bx + bw - 2, by, 5, 7);     // right pauldron
+        // Rivets
+        ctx.fillStyle = '#c8c8d8';
+        ctx.fillRect(bx - 2, by + 1, 2, 2);
+        ctx.fillRect(bx + bw - 1, by + 1, 2, 2);
+        // Gorget (neck guard)
+        ctx.fillStyle = '#9090a0';
+        ctx.fillRect(bx + 5, by, bw - 10, 3);
+      } else {
+        // Female: elegant narrower pauldrons and formed breastplate curves
+        ctx.fillStyle = '#a0a0b0';
+        ctx.fillRect(bx - 1, by + 1, 4, 5);      // left pauldron (smaller)
+        ctx.fillRect(bx + bw - 3, by + 1, 4, 5); // right pauldron (smaller)
+        // Waist definition — slightly narrowed plate at waist
+        ctx.fillStyle = '#9090a0';
+        ctx.fillRect(bx + 1, by + 9, 3, 4);      // left waist indent
+        ctx.fillRect(bx + bw - 4, by + 9, 3, 4); // right waist indent
+        // Decorative chest curve lines
+        ctx.fillStyle = '#c8c8d8';
+        ctx.fillRect(bx + 5, by + 4, 3, 1);
+        ctx.fillRect(bx + 12, by + 4, 3, 1);
+      }
+      break;
+    }
+
+    case 'shadow_cloak': {
+      // Dark cloak — slightly wider than body to show draping
+      ctx.fillStyle = 'rgba(30, 28, 50, 0.88)';
+      ctx.fillRect(bx - 2, by - 1, bw + 4, bh + 2);
+
+      // Lighter inner lining
+      ctx.fillStyle = 'rgba(60, 55, 90, 0.6)';
+      ctx.fillRect(bx + 3, by + 2, bw - 6, bh - 4);
+
+      // Hood shadow above head (cloak drapes up)
+      ctx.fillStyle = 'rgba(20, 18, 36, 0.7)';
+      ctx.fillRect(bx + 2, by - 3, bw - 4, 4);
+
+      // Clasp / brooch at center top
+      if (gender === 'male') {
+        // Simple rectangular clasp
+        ctx.fillStyle = '#8888aa';
+        ctx.fillRect(bx + 8, by + 1, 4, 3);
+      } else {
+        // Gem-style round clasp
+        ctx.fillStyle = '#aa88cc';
+        ctx.beginPath();
+        ctx.arc(bx + 10, by + 3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cc99ee';
+        ctx.beginPath();
+        ctx.arc(bx + 10, by + 2, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    default:
+      break; // no armor overlay for unknown / unarmored
+  }
+
+  ctx.restore();
+}
+
 // Draw player sprite
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
@@ -387,7 +558,9 @@ export function drawPlayer(
   y: number,
   frame: number,
   facing: 'up' | 'down' | 'left' | 'right',
-  weaponSpeed?: WeaponSpeed
+  weaponSpeed?: WeaponSpeed,
+  armorId?: string,
+  gender: 'male' | 'female' = 'male'
 ): void {
   const bob = Math.sin(frame * 0.2) * 1;
 
@@ -405,11 +578,28 @@ export function drawPlayer(
   ctx.lineWidth = 1;
   ctx.strokeRect(x + 6, y + 10 + bob, 20, 18);
 
+  // Armor layer drawn over body
+  if (armorId) {
+    drawArmorLayer(ctx, x, y, bob, armorId, gender);
+  }
+
   // Head
   ctx.fillStyle = COLORS.playerHead;
   ctx.beginPath();
   ctx.arc(x + 16, y + 8 + bob, 7, 0, Math.PI * 2);
   ctx.fill();
+
+  // Female: hair tuft (small dark shape at back of head)
+  if (gender === 'female') {
+    ctx.fillStyle = '#3a2510';
+    if (facing === 'down' || facing === 'up') {
+      ctx.fillRect(x + 11, y + 2 + bob, 10, 4);  // top of head hair
+    } else if (facing === 'right') {
+      ctx.fillRect(x + 10, y + 2 + bob, 5, 4);   // back of head hair
+    } else {
+      ctx.fillRect(x + 17, y + 2 + bob, 5, 4);   // back of head hair
+    }
+  }
 
   // Eyes based on facing
   ctx.fillStyle = COLORS.textDark;
@@ -658,9 +848,11 @@ export function drawCombatPlayer(
   y: number,
   frame: number,
   weaponSpeed: WeaponSpeed,
-  attackProgress: number  // -1 = idle, 0..1 = attack animation
+  attackProgress: number,  // -1 = idle, 0..1 = attack animation
+  armorId?: string,
+  gender: 'male' | 'female' = 'male'
 ): void {
-  drawPlayer(ctx, x, y, frame, 'right');
+  drawPlayer(ctx, x, y, frame, 'right', undefined, armorId, gender);
 
   const bob = Math.sin(frame * 0.2);
 

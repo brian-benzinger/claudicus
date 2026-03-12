@@ -287,7 +287,7 @@ export class UIRenderer {
     ctx.save();
     ctx.translate(playerX + playerOffset, combatY);
     ctx.scale(2, 2);
-    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress);
+    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress, player.armorId, player.gender);
     ctx.restore();
 
     // Draw arrow projectile for ranged attack (in screen space, after player draw)

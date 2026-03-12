@@ -426,7 +426,7 @@ class Game {
     // Render player at smooth visual position
     const screenX = this.visualX - this.mapManager.camera.x;
     const screenY = this.visualY - this.mapManager.camera.y;
-    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed);
+    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed, this.player.state.armorId, this.player.state.gender);
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);
