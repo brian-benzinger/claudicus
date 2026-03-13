@@ -8,11 +8,13 @@ import {
   EnemyInstance,
   WeaponSpeed,
   xpForLevel,
-  MAX_LEVEL
+  MAX_LEVEL,
+  QuestState
 } from './types';
 import { getWeapon } from './data/weapons';
 import { getArmor } from './data/armors';
 import { drawPlayer, drawEnemy, drawCombatPlayer } from './renderer';
+import { QUESTS } from './data/quests';
 
 const COLORS = {
   bgDark: 'rgba(20, 20, 30, 0.95)',
@@ -122,7 +124,7 @@ export class UIRenderer {
   }
 
   // Draw dialog box
-  drawDialogBox(ctx: CanvasRenderingContext2D, speaker: string, text: string): void {
+  drawDialogBox(ctx: CanvasRenderingContext2D, speaker: string, text: string, revealFrame?: number): void {
     const boxHeight = 120;
     const boxY = CANVAS_HEIGHT - boxHeight - 10;
 
@@ -138,33 +140,44 @@ export class UIRenderer {
     ctx.font = 'bold 16px monospace';
     ctx.fillText(speaker, 30, boxY + 30);
 
-    // Dialog text
-    ctx.fillStyle = COLORS.text;
+    // Dialog text — word-wrap into lines first, then reveal left-to-right
     ctx.font = '14px monospace';
-
-    // Word wrap
     const maxWidth = CANVAS_WIDTH - 60;
     const words = text.split(' ');
-    let line = '';
-    let lineY = boxY + 55;
+    const lines: string[] = [];
+    let current = '';
 
     for (const word of words) {
-      const testLine = line + word + ' ';
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && line !== '') {
-        ctx.fillText(line, 30, lineY);
-        line = word + ' ';
-        lineY += 20;
+      const test = current + word + ' ';
+      if (ctx.measureText(test).width > maxWidth && current !== '') {
+        lines.push(current.trimEnd());
+        current = word + ' ';
       } else {
-        line = testLine;
+        current = test;
       }
     }
-    ctx.fillText(line, 30, lineY);
+    if (current.trimEnd()) lines.push(current.trimEnd());
 
-    // Continue prompt
-    ctx.fillStyle = COLORS.textDark;
-    ctx.font = '12px monospace';
-    ctx.fillText('[SPACE] to continue', CANVAS_WIDTH - 180, boxY + boxHeight - 15);
+    // 2 characters revealed per frame; undefined = instant (fully revealed)
+    const charsToShow = revealFrame === undefined ? Infinity : Math.floor(revealFrame * 2);
+    let charsRemaining = charsToShow;
+
+    ctx.fillStyle = COLORS.text;
+    lines.forEach((ln, i) => {
+      const lineY = boxY + 55 + i * 20;
+      if (charsRemaining <= 0) return;
+      const visible = ln.slice(0, charsRemaining);
+      ctx.fillText(visible, 30, lineY);
+      charsRemaining -= ln.length;
+    });
+
+    // Continue prompt — only show once text is fully revealed
+    const totalChars = lines.reduce((s, l) => s + l.length, 0);
+    if (charsToShow >= totalChars) {
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = '12px monospace';
+      ctx.fillText('[SPACE] to continue', CANVAS_WIDTH - 180, boxY + boxHeight - 15);
+    }
   }
 
   // Draw shop menu
@@ -824,6 +837,162 @@ export class UIRenderer {
     messages.forEach((msg, i) => {
       ctx.fillText(msg, boxX + 20, boxY + 25 + i * 25);
     });
+  }
+
+  drawQuestLog(
+    ctx: CanvasRenderingContext2D,
+    quests: Record<string, QuestState>
+  ): void {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const panelW = 640;
+    const panelH = 440;
+    const panelX = (CANVAS_WIDTH - panelW) / 2;
+    const panelY = (CANVAS_HEIGHT - panelH) / 2;
+
+    ctx.fillStyle = COLORS.bgDark;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('QUEST LOG', CANVAS_WIDTH / 2, panelY + 32);
+    ctx.textAlign = 'left';
+
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 10, panelY + 44);
+    ctx.lineTo(panelX + panelW - 10, panelY + 44);
+    ctx.stroke();
+
+    const startY = panelY + 60;
+    const rowH = 62;
+    let row = 0;
+
+    for (const [questId, state] of Object.entries(quests)) {
+      if (!state.started) continue;
+      const def = QUESTS[questId];
+      if (!def) continue;
+
+      const ry = startY + row * rowH;
+
+      // Status badge
+      if (state.rewardClaimed) {
+        ctx.fillStyle = '#447744';
+        ctx.fillText('✓', panelX + 20, ry + 16);
+        ctx.fillStyle = COLORS.textDark;
+      } else if (state.completed) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.fillText('!', panelX + 20, ry + 16);
+        ctx.fillStyle = COLORS.textGold;
+      } else {
+        ctx.fillStyle = '#4488cc';
+        ctx.fillText('◆', panelX + 20, ry + 16);
+        ctx.fillStyle = COLORS.text;
+      }
+
+      // Quest name
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(def.name, panelX + 36, ry + 16);
+
+      // Description
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = '12px monospace';
+      ctx.fillText(def.description, panelX + 36, ry + 32);
+
+      // Progress / status
+      if (state.rewardClaimed) {
+        ctx.fillStyle = '#447744';
+        ctx.fillText('Complete', panelX + 36, ry + 48);
+      } else if (state.completed) {
+        ctx.fillStyle = COLORS.textGold;
+        ctx.fillText('Return to ' + def.npcName, panelX + 36, ry + 48);
+      } else {
+        ctx.fillStyle = COLORS.text;
+        ctx.fillText(`Progress: ${state.count} / ${def.goalCount}`, panelX + 36, ry + 48);
+      }
+
+      // Divider
+      if (row > 0) {
+        ctx.strokeStyle = 'rgba(90, 74, 58, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(panelX + 10, ry - 4);
+        ctx.lineTo(panelX + panelW - 10, ry - 4);
+        ctx.stroke();
+      }
+
+      row++;
+    }
+
+    if (row === 0) {
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('No active quests.', CANVAS_WIDTH / 2, panelY + panelH / 2);
+      ctx.textAlign = 'left';
+    }
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[Q / ESC] Close', CANVAS_WIDTH / 2, panelY + panelH - 12);
+    ctx.textAlign = 'left';
+  }
+
+  drawQuestRewardPanel(
+    ctx: CanvasRenderingContext2D,
+    questName: string,
+    rewards: string[],
+    timer: number,
+    totalFrames: number
+  ): void {
+    const fadeFrames = 30;
+    const alpha = timer <= fadeFrames ? timer / fadeFrames : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const panelW = 380;
+    const panelH = 50 + rewards.length * 24 + 20;
+    const panelX = CANVAS_WIDTH / 2 - panelW / 2;
+    const panelY = CANVAS_HEIGHT / 2 - panelH / 2 - 40;
+
+    ctx.fillStyle = 'rgba(10, 25, 10, 0.92)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = '#55aa55';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    ctx.fillStyle = '#66ee66';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('QUEST COMPLETE', CANVAS_WIDTH / 2, panelY + 22);
+
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(questName, CANVAS_WIDTH / 2, panelY + 40);
+
+    ctx.strokeStyle = '#336633';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 20, panelY + 48);
+    ctx.lineTo(panelX + panelW - 20, panelY + 48);
+    ctx.stroke();
+
+    ctx.font = '13px monospace';
+    rewards.forEach((r, i) => {
+      ctx.fillStyle = COLORS.textGold;
+      ctx.fillText(r, CANVAS_WIDTH / 2, panelY + 64 + i * 24);
+    });
+
+    ctx.textAlign = 'left';
+    ctx.restore();
   }
 
   drawCharacterSelectScreen(ctx: CanvasRenderingContext2D, cursor: number): void {

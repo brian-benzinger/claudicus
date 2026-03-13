@@ -624,15 +624,31 @@ export function drawPlayer(
   ctx.arc(x + 16, y + 8 + bob, isFemale ? 6 : 7, 0, Math.PI * 2);
   ctx.fill();
 
-  // Female: hair tuft (small dark shape at back of head)
+  // Female: pronounced ponytail
   if (gender === 'female') {
-    ctx.fillStyle = '#3a2510';
-    if (facing === 'down' || facing === 'up') {
-      ctx.fillRect(x + 11, y + 2 + bob, 10, 4);  // top of head hair
+    ctx.fillStyle = COLORS.playerHairFemale;
+    if (facing === 'up') {
+      // Back view — ponytail hangs straight down, most visible
+      ctx.fillRect(x + 12, y + 13 + bob, 8, 2);  // band at base of head
+      ctx.fillRect(x + 13, y + 15 + bob, 6, 9);  // main shaft
+      ctx.fillRect(x + 14, y + 24 + bob, 4, 4);  // fuller tip
+      ctx.fillRect(x + 15, y + 28 + bob, 2, 3);  // taper
     } else if (facing === 'right') {
-      ctx.fillRect(x + 10, y + 2 + bob, 5, 4);   // back of head hair
+      // Facing right — ponytail trails to the left (behind)
+      ctx.fillRect(x + 6,  y + 7  + bob, 5, 3);  // attachment at back of head
+      ctx.fillRect(x + 4,  y + 10 + bob, 5, 3);  // shaft curving back/down
+      ctx.fillRect(x + 3,  y + 13 + bob, 4, 4);  // lower shaft
+      ctx.fillRect(x + 4,  y + 17 + bob, 3, 3);  // tip
+    } else if (facing === 'left') {
+      // Facing left — ponytail trails to the right (behind)
+      ctx.fillRect(x + 21, y + 7  + bob, 5, 3);  // attachment at back of head
+      ctx.fillRect(x + 23, y + 10 + bob, 5, 3);  // shaft curving back/down
+      ctx.fillRect(x + 25, y + 13 + bob, 4, 4);  // lower shaft
+      ctx.fillRect(x + 25, y + 17 + bob, 3, 3);  // tip
     } else {
-      ctx.fillRect(x + 17, y + 2 + bob, 5, 4);   // back of head hair
+      // Down / front view — ponytail peeks as a bun above the head
+      ctx.fillRect(x + 13, y + 1  + bob, 6, 3);  // bun base
+      ctx.fillRect(x + 14, y - 1  + bob, 4, 3);  // bun top
     }
   }
 

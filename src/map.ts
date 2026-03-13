@@ -64,7 +64,11 @@ export class MapManager {
       TileType.GATE,
       TileType.BED
     ];
-    return walkableTiles.includes(tile);
+    if (!walkableTiles.includes(tile)) return false;
+    // Unopened chests block movement
+    const chest = this.getChestAt(tileX, tileY);
+    if (chest && !this.isChestOpened(chest.id)) return false;
+    return true;
   }
 
   // Get transition at position

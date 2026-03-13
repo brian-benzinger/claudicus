@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MusicEngine } from '../music';
-import type { TrackName } from '../music';
+import type { TrackName, SfxType } from '../music';
 
 // ---------------------------------------------------------------------------
 // MusicEngine unit tests (no AudioContext available in test env)
@@ -51,5 +51,15 @@ describe('MusicEngine — track name type coverage', () => {
   it('combat track is a valid TrackName', () => {
     const track: TrackName = 'combat';
     expect(track).toBe('combat');
+  });
+});
+
+describe('MusicEngine — playSfx', () => {
+  it('playSfx does not throw when AudioContext is not initialized', () => {
+    const engine = new MusicEngine();
+    expect(() => engine.playSfx('levelup')).not.toThrow();
+    expect(() => engine.playSfx('quest_complete')).not.toThrow();
+    expect(() => engine.playSfx('death')).not.toThrow();
+    expect(() => engine.playSfx('chest')).not.toThrow();
   });
 });

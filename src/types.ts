@@ -10,7 +10,8 @@ export enum GameState {
   COMBAT_DEFEAT = 'COMBAT_DEFEAT',
   PAUSE = 'PAUSE',
   VICTORY = 'VICTORY',
-  INVENTORY = 'INVENTORY'
+  INVENTORY = 'INVENTORY',
+  QUEST_LOG = 'QUEST_LOG'
 }
 
 // Tile types for map rendering

@@ -22,7 +22,7 @@ import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
 import { QUESTS, createDefaultQuests } from './data/quests';
-import { MusicEngine, TrackName } from './music';
+import { MusicEngine, TrackName, SfxType } from './music';
 
 class Game {
   private canvas: HTMLCanvasElement;
@@ -47,6 +47,13 @@ class Game {
   private pauseCursor: number = 0;
   private inventoryCursor: number = 0;
   private inventoryReturnState: GameState = GameState.OVERWORLD;
+
+  private dialogLineStartFrame: number = 0;
+
+  private questRewardTimer: number = 0;
+  private questRewardName: string = '';
+  private questRewardItems: string[] = [];
+  private readonly QUEST_REWARD_FRAMES = 300;
 
   private levelUpTimer: number = 0;
   private newLevel: number = 0;
@@ -162,6 +169,9 @@ class Game {
       case GameState.INVENTORY:
         this.updateInventory();
         break;
+      case GameState.QUEST_LOG:
+        this.updateQuestLog();
+        break;
     }
 
     // Update timers
@@ -173,6 +183,9 @@ class Game {
       if (this.notificationTimer === 0) {
         this.notificationMessages = [];
       }
+    }
+    if (this.questRewardTimer > 0) {
+      this.questRewardTimer--;
     }
   }
 
@@ -193,6 +206,7 @@ class Game {
       case GameState.SHOP:
       case GameState.PAUSE:
       case GameState.INVENTORY:
+      case GameState.QUEST_LOG:
         this.renderOverworld();
         if (this.state === GameState.DIALOG) {
           this.renderDialog();
@@ -202,6 +216,8 @@ class Game {
           this.ui.drawPauseMenu(this.ctx, this.pauseCursor);
         } else if (this.state === GameState.INVENTORY) {
           this.ui.drawInventoryScreen(this.ctx, this.player.state, this.inventoryCursor);
+        } else if (this.state === GameState.QUEST_LOG) {
+          this.ui.drawQuestLog(this.ctx, this.quests);
         }
         break;
       case GameState.COMBAT:
@@ -227,6 +243,11 @@ class Game {
 
     if (this.notificationTimer > 0 && this.notificationMessages.length > 0) {
       this.ui.drawNotification(this.ctx, this.notificationMessages);
+    }
+
+    // Quest reward overlay
+    if (this.questRewardTimer > 0) {
+      this.ui.drawQuestRewardPanel(this.ctx, this.questRewardName, this.questRewardItems, this.questRewardTimer, this.QUEST_REWARD_FRAMES);
     }
   }
 
@@ -335,6 +356,12 @@ class Game {
       return;
     }
 
+    // Quest Log
+    if (this.input.openQuestLog()) {
+      this.state = GameState.QUEST_LOG;
+      return;
+    }
+
     // Movement — only when previous move animation is complete
     let dx = 0;
     let dy = 0;
@@ -413,6 +440,7 @@ class Game {
       if (chest && !this.mapManager.isChestOpened(chest.id)) {
         const result = openChest(chest, this.player);
         this.mapManager.openChest(chest.id);
+        this.music.playSfx('chest');
         this.showNotification(result.messages);
         this.autoSave();
         return;
@@ -499,6 +527,7 @@ class Game {
 
   private startDialog(npc: { id: string; name: string; tileX: number; tileY: number; role: NpcRole; questId?: string; dialogs: any; color: string }): void {
     this.npcManager.startDialog(npc, this.quests);
+    this.dialogLineStartFrame = this.frame;
 
     // Start this NPC's quest on first encounter
     if (npc.questId) {
@@ -513,6 +542,7 @@ class Game {
 
   private updateDialog(): void {
     if (this.input.interact()) {
+      this.dialogLineStartFrame = this.frame;
       const result = this.npcManager.advanceDialog();
 
       if (result === 'done' || result === 'shop') {
@@ -524,7 +554,10 @@ class Game {
           if (questState?.completed && !questState.rewardClaimed) {
             const reward = this.npcManager.claimQuestReward(questState, this.player, questDef);
             if (reward.success) {
-              this.showNotification(reward.rewards);
+              this.questRewardName = questDef.name;
+              this.questRewardItems = reward.rewards;
+              this.questRewardTimer = this.QUEST_REWARD_FRAMES;
+              this.music.playSfx('quest_complete');
             }
           }
         }
@@ -549,7 +582,7 @@ class Game {
     const line = this.npcManager.getCurrentLine();
 
     if (speaker && line) {
-      this.ui.drawDialogBox(this.ctx, speaker, line);
+      this.ui.drawDialogBox(this.ctx, speaker, line, this.frame - this.dialogLineStartFrame);
     }
   }
 
@@ -628,6 +661,7 @@ class Game {
           this.newLevel = this.player.state.level;
           this.levelUpRewardLabel = levelReward.label;
           this.levelUpTimer = 120;
+          this.music.playSfx('levelup');
         }
 
         // Remove enemy and track quest progress before switching state
@@ -640,6 +674,7 @@ class Game {
         this.victoryTimer = 360; // 6 seconds at 60fps
         this.state = GameState.COMBAT_VICTORY;
       } else if (result === 'defeat') {
+        this.music.playSfx('death');
         this.defeatGoldLost = Math.floor(this.player.state.gold * 0.1);
         this.state = GameState.COMBAT_DEFEAT;
       } else if (result === 'fled') {
@@ -778,6 +813,14 @@ class Game {
 
   private updateVictory(): void {
     if (this.input.interact()) {
+      this.state = GameState.OVERWORLD;
+    }
+  }
+
+  // --- QUEST LOG ---
+
+  private updateQuestLog(): void {
+    if (this.input.cancel() || this.input.openQuestLog()) {
       this.state = GameState.OVERWORLD;
     }
   }

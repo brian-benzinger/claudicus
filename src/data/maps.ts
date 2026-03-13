@@ -71,8 +71,8 @@ const FOREST_TILES: number[][] = [
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,T,L,K,K,L,T,T,K,K,D,T,T,T], // 20
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,T,L,K,K,L,T,T,K,D,D,T,T,T], // 21
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,O,L,L,T,K,K,D,T,T,T,T], // 22
-  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,D,T,T,K,D,D,T,T,T,T], // 23
-  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,D,T,K,K,D,T,T,T,T,T], // 24
+  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,D,D,D,D,T,T,R,D,R,T,T,T,T], // 23
+  [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,D,T,K,R,D,R,T,T,T,T], // 24
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,D,D,D,D,A,T,T,T,T,T], // 25
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,K,K,K,T,T,T,T,T,T], // 26
   [T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,K,K,K,K,K,K,K,K,T,T,T,T,T,T,T], // 27

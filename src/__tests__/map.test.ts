@@ -240,6 +240,9 @@ describe('Entity spawn placement - no blocking tiles', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
     mgr.loadMap('forest');
+    // Open all chests first — chests themselves block movement by design,
+    // so we verify the underlying tile is a valid (walkable) location.
+    for (const chest of mgr.currentMap.chests) mgr.openChest(chest.id);
     for (const chest of mgr.currentMap.chests) {
       expect(
         mgr.isWalkable(chest.tileX, chest.tileY),
@@ -264,6 +267,7 @@ describe('Entity spawn placement - no blocking tiles', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
     mgr.loadMap('dungeon');
+    for (const chest of mgr.currentMap.chests) mgr.openChest(chest.id);
     for (const chest of mgr.currentMap.chests) {
       expect(
         mgr.isWalkable(chest.tileX, chest.tileY),

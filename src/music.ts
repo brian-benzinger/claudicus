@@ -76,6 +76,7 @@ const COMBAT: Song = {
 };
 
 export type TrackName = 'village' | 'forest' | 'dungeon' | 'combat';
+export type SfxType = 'levelup' | 'quest_complete' | 'death' | 'chest';
 
 const SONGS: Record<TrackName, Song> = { village: VILLAGE, forest: FOREST, dungeon: DUNGEON, combat: COMBAT };
 
@@ -162,6 +163,44 @@ export class MusicEngine {
     if (song.melody[i]  !== null) this.playNote(song.melody[i]!,  t, dur * 0.80, 'square',   0.15);
     if (song.bass[i]    !== null) this.playNote(song.bass[i]!,    t, dur * 1.90, 'triangle', 0.22);
     if (song.harmony[i] !== null) this.playNote(song.harmony[i]!, t, dur * 1.90, 'triangle', 0.07);
+  }
+
+  playSfx(type: 'levelup' | 'quest_complete' | 'death' | 'chest'): void {
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime;
+    switch (type) {
+      case 'levelup':
+        // Bright ascending arpeggio
+        this.playNote(HZ.C4, t,        0.08, 'square',   0.20);
+        this.playNote(HZ.E4, t + 0.09, 0.08, 'square',   0.20);
+        this.playNote(HZ.G4, t + 0.18, 0.08, 'square',   0.20);
+        this.playNote(HZ.C5, t + 0.27, 0.30, 'square',   0.25);
+        this.playNote(HZ.G3, t,        0.35, 'triangle', 0.12);
+        break;
+      case 'quest_complete':
+        // Triumphant fanfare
+        this.playNote(HZ.G4, t,        0.12, 'square',   0.18);
+        this.playNote(HZ.G4, t + 0.13, 0.12, 'square',   0.18);
+        this.playNote(HZ.G4, t + 0.26, 0.12, 'square',   0.18);
+        this.playNote(HZ.D5, t + 0.39, 0.50, 'square',   0.22);
+        this.playNote(HZ.G3, t + 0.39, 0.50, 'triangle', 0.14);
+        this.playNote(HZ.B3, t + 0.39, 0.50, 'triangle', 0.10);
+        break;
+      case 'death':
+        // Sad descending tones
+        this.playNote(HZ.A4, t,        0.20, 'triangle', 0.18);
+        this.playNote(HZ.G4, t + 0.22, 0.20, 'triangle', 0.15);
+        this.playNote(HZ.F4, t + 0.44, 0.20, 'triangle', 0.12);
+        this.playNote(HZ.D4, t + 0.66, 0.40, 'triangle', 0.10);
+        this.playNote(HZ.A2, t + 0.66, 0.40, 'triangle', 0.08);
+        break;
+      case 'chest':
+        // Quick sparkle
+        this.playNote(HZ.E5, t,        0.06, 'square', 0.15);
+        this.playNote(HZ.G4, t + 0.07, 0.06, 'square', 0.12);
+        this.playNote(HZ.C5, t + 0.14, 0.10, 'square', 0.18);
+        break;
+    }
   }
 
   private playNote(

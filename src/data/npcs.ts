@@ -338,7 +338,7 @@ export const FOREST_NPCS: NpcDef[] = [
   {
     id: 'duvain_wanderer',
     name: 'Duvain the Wanderer',
-    tileX: 33,
+    tileX: 26,
     tileY: 24,
     role: NpcRole.DIALOG,
     questId: 'revenant_threat',
