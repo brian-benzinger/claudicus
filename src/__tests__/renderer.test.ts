@@ -186,19 +186,19 @@ describe('drawPlayer — with weaponSpeed', () => {
 describe('drawPlayer — gender', () => {
   it('male avatar renders without throwing', () => {
     const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, 'male')).not.toThrow();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'male')).not.toThrow();
   });
 
   it('female avatar renders without throwing', () => {
     const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, 'female')).not.toThrow();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'female')).not.toThrow();
   });
 
   it('female avatar produces more arc calls (hair)', () => {
     const { ctx: maleCtx, calls: maleCalls } = makeCtx();
     const { ctx: femaleCtx, calls: femaleCalls } = makeCtx();
-    drawPlayer(maleCtx,   0, 0, 0, 'down', undefined, 'male');
-    drawPlayer(femaleCtx, 0, 0, 0, 'down', undefined, 'female');
+    drawPlayer(maleCtx,   0, 0, 0, 'down', undefined, undefined, 'male');
+    drawPlayer(femaleCtx, 0, 0, 0, 'down', undefined, undefined, 'female');
     const maleArcs   = maleCalls.filter(c => c.method === 'arc').length;
     const femaleArcs = femaleCalls.filter(c => c.method === 'arc').length;
     expect(femaleArcs).toBeGreaterThan(maleArcs);
@@ -206,7 +206,7 @@ describe('drawPlayer — gender', () => {
 
   it('female avatar with weapon renders without throwing', () => {
     const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.NORMAL, 'female')).not.toThrow();
+    expect(() => drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.NORMAL, undefined, 'female')).not.toThrow();
   });
 });
 

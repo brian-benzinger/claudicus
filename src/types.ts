@@ -320,7 +320,6 @@ export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerS
     armorId: 'leather_vest',
     armors: ['leather_vest'],
     potions: 3,
-    gender: 'male',
     tileX: 5,
     tileY: 5,
     currentMap: 'village',
