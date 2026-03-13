@@ -19,19 +19,26 @@ export class NpcManager {
   // Start dialog with an NPC
   startDialog(npc: NpcDef, quests: Record<string, QuestState>): string[] {
     const quest = npc.questId ? quests[npc.questId] : null;
+    const revenantDefeated = quests['revenant_threat']?.rewardClaimed ?? false;
     let lines: string[];
 
     if (quest) {
-      // Any NPC with a questId shows quest-aware dialog
-      if (quest.rewardClaimed) {
-        lines = npc.dialogs.questDone || npc.dialogs.default;
-      } else if (quest.completed) {
+      // Quest-aware dialog — check states in priority order
+      if (quest.completed && !quest.rewardClaimed) {
+        // Reward pending — always show completion dialog so player can claim it
         lines = npc.dialogs.questComplete || npc.dialogs.default;
+      } else if (revenantDefeated && npc.dialogs.bossNews) {
+        // Boss news overrides questDone / default once the adventurer has spread word
+        lines = npc.dialogs.bossNews;
+      } else if (quest.rewardClaimed) {
+        lines = npc.dialogs.questDone || npc.dialogs.default;
       } else if (quest.started) {
         lines = npc.dialogs.questInProgress || npc.dialogs.default;
       } else {
         lines = npc.dialogs.questNotStarted || npc.dialogs.default;
       }
+    } else if (revenantDefeated && npc.dialogs.bossNews) {
+      lines = npc.dialogs.bossNews;
     } else {
       lines = npc.dialogs.default;
     }

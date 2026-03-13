@@ -46,7 +46,8 @@ export enum EnemyType {
   BANDIT = 'BANDIT',
   BANDIT_ARCHER = 'BANDIT_ARCHER',
   SKELETON = 'SKELETON',
-  WILD_BOAR = 'WILD_BOAR'
+  WILD_BOAR = 'WILD_BOAR',
+  REVENANT_KNIGHT = 'REVENANT_KNIGHT'
 }
 
 // NPC role types
@@ -139,6 +140,7 @@ export interface NpcDef {
     questInProgress?: string[];
     questComplete?: string[];
     questDone?: string[];
+    bossNews?: string[];   // shown to all NPCs after revenant_threat is reward-claimed
   };
   color: string;           // body color for rendering
   hatColor?: string;       // optional hat fill color

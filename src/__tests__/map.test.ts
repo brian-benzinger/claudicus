@@ -247,4 +247,69 @@ describe('Entity spawn placement - no blocking tiles', () => {
       ).toBe(true);
     }
   });
+
+  it('all dungeon enemies are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    for (const enemy of mgr.currentMap.enemies) {
+      expect(
+        mgr.isWalkable(enemy.tileX, enemy.tileY),
+        `Enemy "${enemy.id}" (${enemy.type}) at (${enemy.tileX}, ${enemy.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('all dungeon chests are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    for (const chest of mgr.currentMap.chests) {
+      expect(
+        mgr.isWalkable(chest.tileX, chest.tileY),
+        `Chest "${chest.id}" at (${chest.tileX}, ${chest.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('all forest NPCs are on walkable tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    for (const npc of mgr.currentMap.npcs) {
+      expect(
+        mgr.isWalkable(npc.tileX, npc.tileY),
+        `NPC "${npc.id}" at (${npc.tileX}, ${npc.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('dungeon spawn point is on a walkable tile', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    const { spawnX, spawnY } = mgr.currentMap;
+    expect(mgr.isWalkable(spawnX, spawnY)).toBe(true);
+  });
+
+  it('dungeon exit transition is on a walkable tile', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    for (const t of mgr.currentMap.transitions) {
+      expect(
+        mgr.isWalkable(t.tileX, t.tileY),
+        `Dungeon transition at (${t.tileX}, ${t.tileY}) is on a blocking tile`
+      ).toBe(true);
+    }
+  });
+
+  it('forest dungeon entrance transition exists and points to dungeon', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const dungeonTransition = mgr.currentMap.transitions.find(t => t.targetMap === 'dungeon');
+    expect(dungeonTransition).toBeDefined();
+    expect(dungeonTransition!.targetMap).toBe('dungeon');
+  });
 });

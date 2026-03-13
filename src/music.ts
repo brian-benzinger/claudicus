@@ -47,7 +47,37 @@ const FOREST: Song = {
             HZ.C4,    _,         _,         _,         HZ.B3,    _,         _,         _],
 };
 
-const SONGS: Record<string, Song> = { village: VILLAGE, forest: FOREST };
+// Dungeon — D Minor, BPM 65, dark and foreboding
+const DUNGEON: Song = {
+  bpm: 65,
+  steps: 16,
+  //        1          2          3          4          5          6          7          8
+  melody:  [HZ.D4,    _,         HZ.F4,    _,         HZ.E4,    HZ.D4,    _,         HZ.C4,
+  //        9          10         11         12         13         14         15         16
+            HZ.Bb3,   _,         _,         HZ.D4,    HZ.C4,    _,         HZ.Bb3,   _],
+  bass:    [HZ.D3,    _,         _,         _,         HZ.A2,    _,         _,         _,
+            HZ.F3,    _,         _,         _,         HZ.A2,    _,         _,         _],
+  harmony: [HZ.F3,    _,         _,         _,         HZ.E3,    _,         _,         _,
+            HZ.D3,    _,         _,         _,         HZ.C3,    _,         _,         _],
+};
+
+// Combat — E Minor, BPM 150, urgent and driving
+const COMBAT: Song = {
+  bpm: 150,
+  steps: 16,
+  //        1          2          3          4          5          6          7          8
+  melody:  [HZ.E4,    HZ.G4,    HZ.A4,    _,         HZ.E4,    HZ.D4,    HZ.E4,    _,
+  //        9          10         11         12         13         14         15         16
+            HZ.F4,    HZ.G4,    HZ.A4,    HZ.Bb4,   HZ.A4,    _,         HZ.G4,    HZ.E4],
+  bass:    [HZ.E3,    _,         HZ.E3,    _,         HZ.A2,    _,         HZ.A2,    _,
+            HZ.D3,    _,         HZ.D3,    _,         HZ.E3,    _,         HZ.E3,    _],
+  harmony: [HZ.B3,    _,         HZ.B3,    _,         HZ.E3,    _,         HZ.E3,    _,
+            HZ.A3,    _,         HZ.A3,    _,         HZ.B3,    _,         HZ.B3,    _],
+};
+
+export type TrackName = 'village' | 'forest' | 'dungeon' | 'combat';
+
+const SONGS: Record<TrackName, Song> = { village: VILLAGE, forest: FOREST, dungeon: DUNGEON, combat: COMBAT };
 
 export class MusicEngine {
   private ctx: AudioContext | null = null;
@@ -75,7 +105,7 @@ export class MusicEngine {
     this.master.connect(this.ctx.destination);
   }
 
-  play(trackName: 'village' | 'forest'): void {
+  play(trackName: TrackName): void {
     if (!this.ctx || !this.master) return;
     if (trackName === this.currentTrackName) return; // already playing
 
@@ -104,6 +134,8 @@ export class MusicEngine {
 
   get isMuted(): boolean { return this.muted; }
 
+  get currentTrack(): string { return this.currentTrackName; }
+
   private stopScheduler(): void {
     if (this.timerId) {
       clearInterval(this.timerId);
@@ -113,7 +145,7 @@ export class MusicEngine {
 
   private tick(): void {
     if (!this.ctx) return;
-    const song = SONGS[this.currentTrackName];
+    const song = SONGS[this.currentTrackName as TrackName];
     if (!song) return;
 
     const stepDur = 60 / song.bpm / 2; // eighth-note duration in seconds

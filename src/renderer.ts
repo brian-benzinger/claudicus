@@ -778,6 +778,62 @@ export function drawSkeleton(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.fillRect(x + 18, y + 24, 4, 8);
 }
 
+// Draw revenant knight (armored undead boss)
+export function drawRevenantKnight(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  // Armored torso (dark steel plate)
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fillRect(x + 7, y + 9, 18, 16);
+  // Chest plate highlight
+  ctx.fillStyle = '#5a5a6a';
+  ctx.fillRect(x + 9, y + 10, 8, 5);
+
+  // Helmet
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fillRect(x + 9, y + 2, 14, 10);
+  // Visor slit
+  ctx.fillStyle = '#1a1a28';
+  ctx.fillRect(x + 11, y + 5, 10, 3);
+  // Glowing eyes through visor
+  ctx.fillStyle = '#cc2200';
+  ctx.fillRect(x + 12, y + 6, 3, 2);
+  ctx.fillRect(x + 17, y + 6, 3, 2);
+
+  // Pauldrons (shoulder guards)
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fillRect(x + 2, y + 9, 7, 8);
+  ctx.fillRect(x + 23, y + 9, 7, 8);
+
+  // Arms (armored gauntlets)
+  ctx.fillRect(x + 2, y + 17, 5, 9);
+  ctx.fillRect(x + 25, y + 17, 5, 9);
+
+  // Legs (greaves)
+  ctx.fillRect(x + 9, y + 25, 5, 7);
+  ctx.fillRect(x + 18, y + 25, 5, 7);
+
+  // Sword (right side, upright)
+  ctx.fillStyle = '#9090a0';
+  ctx.fillRect(x + 28, y + 8, 3, 20);
+  // Gold crossguard
+  ctx.fillStyle = '#c8a030';
+  ctx.fillRect(x + 24, y + 13, 11, 3);
+
+  // Shield (left side)
+  ctx.fillStyle = '#4a4a5a';
+  ctx.fillRect(x - 4, y + 10, 8, 14);
+  // Gold emblem on shield
+  ctx.fillStyle = '#c8a030';
+  ctx.beginPath();
+  ctx.arc(x, y + 17, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dark outline/shadow
+  ctx.strokeStyle = '#1a1a28';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 7, y + 9, 18, 16);
+  ctx.strokeRect(x + 9, y + 2, 14, 10);
+}
+
 // Draw wild boar
 export function drawWildBoar(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   // Body
@@ -828,6 +884,9 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, type: EnemyType, x: num
       break;
     case EnemyType.WILD_BOAR:
       drawWildBoar(ctx, x, y);
+      break;
+    case EnemyType.REVENANT_KNIGHT:
+      drawRevenantKnight(ctx, x, y);
       break;
   }
 }
