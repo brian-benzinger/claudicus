@@ -1,6 +1,7 @@
 import {
   PlayerState,
   Weapon,
+  Armor,
   LevelReward,
   LEVEL_REWARDS,
   createDefaultPlayer,
@@ -10,6 +11,7 @@ import {
   POTION_HEAL
 } from './types';
 import { getWeapon } from './data/weapons';
+import { getArmor } from './data/armors';
 
 export class PlayerManager {
   state: PlayerState;
@@ -41,6 +43,16 @@ export class PlayerManager {
   // Get current weapon
   getWeapon(): Weapon {
     return getWeapon(this.state.weaponId);
+  }
+
+  // Get current armor
+  getArmor(): Armor {
+    return getArmor(this.state.armorId);
+  }
+
+  // Effective DEF = base stat + equipped armor bonus
+  getEffectiveDef(): number {
+    return this.state.def + this.getArmor().defBonus;
   }
 
   // Compute weapon damage (STR + weapon bonus)
@@ -156,6 +168,26 @@ export class PlayerManager {
   // Check if player owns a weapon
   ownsWeapon(weaponId: string): boolean {
     return this.state.weapons.includes(weaponId);
+  }
+
+  // Equip an armor piece (adds to owned list if not already there)
+  equipArmor(armorId: string): void {
+    if (!this.state.armors.includes(armorId)) {
+      this.state.armors.push(armorId);
+    }
+    this.state.armorId = armorId;
+  }
+
+  // Add armor to inventory without equipping it
+  addArmorToInventory(armorId: string): void {
+    if (!this.state.armors.includes(armorId)) {
+      this.state.armors.push(armorId);
+    }
+  }
+
+  // Check if player owns an armor
+  ownsArmor(armorId: string): boolean {
+    return this.state.armors.includes(armorId);
   }
 
   // Respawn after death

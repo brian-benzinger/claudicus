@@ -212,7 +212,7 @@ export class CombatEngine {
 
     if (!defending) {
       const attackPower = Math.floor(enemy.atk * attackMultiplier);
-      const playerDef = this.player.state.def;
+      const playerDef = this.player.getEffectiveDef();
       const { damage } = this.calcDamage(attackPower, playerDef, 0, 0);
 
       const actualDamage = this.state.defendingThisTurn

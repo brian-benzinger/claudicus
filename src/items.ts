@@ -1,6 +1,7 @@
 import { ChestDef, LootItem } from './types';
 import { PlayerManager } from './player';
 import { getWeapon } from './data/weapons';
+import { getArmor } from './data/armors';
 
 export interface LootResult {
   messages: string[];
@@ -36,6 +37,14 @@ export function openChest(chest: ChestDef, player: PlayerManager): LootResult {
         player.addGold(15);
         messages.push('Found an Antique Coin! (+15 gold)');
         break;
+
+      case 'armor':
+        if (item.armorId) {
+          const armor = getArmor(item.armorId);
+          player.equipArmor(item.armorId);
+          messages.push(`Found ${armor.name}!`);
+        }
+        break;
     }
   }
 
@@ -60,6 +69,12 @@ export function getItemDescription(item: LootItem): string {
       return 'Unknown Weapon';
     case 'antique_coin':
       return 'Antique Coin';
+    case 'armor':
+      if (item.armorId) {
+        const armor = getArmor(item.armorId);
+        return armor.name;
+      }
+      return 'Unknown Armor';
     default:
       return 'Unknown Item';
   }

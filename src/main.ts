@@ -447,7 +447,7 @@ class Game {
     // Render player at smooth visual position
     const screenX = this.visualX - this.mapManager.camera.x;
     const screenY = this.visualY - this.mapManager.camera.y;
-    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed, this.player.state.gender);
+    drawPlayer(this.ctx, screenX, screenY, this.frame, this.player.state.facing, this.player.getWeapon().speed, this.player.state.armorId, this.player.state.gender);
 
     // Render HUD
     this.ui.drawHUD(this.ctx, this.player.state);
@@ -701,8 +701,10 @@ class Game {
   // --- INVENTORY ---
 
   private updateInventory(): void {
-    // items = weapons[] + potions entry
-    const itemCount = this.player.state.weapons.length + 1;
+    // items = weapons[] + armors[] + potions entry
+    const weaponCount = this.player.state.weapons.length;
+    const armorCount = (this.player.state.armors ?? []).length;
+    const itemCount = weaponCount + armorCount + 1;
 
     if (this.input.menuUp()) {
       this.inventoryCursor = (this.inventoryCursor - 1 + itemCount) % itemCount;
@@ -712,7 +714,8 @@ class Game {
     }
 
     if (this.input.interact()) {
-      const isPotion = this.inventoryCursor === this.player.state.weapons.length;
+      const isPotion = this.inventoryCursor === weaponCount + armorCount;
+      const isArmor = !isPotion && this.inventoryCursor >= weaponCount;
 
       if (isPotion) {
         const used = this.player.usePotion();
@@ -721,6 +724,15 @@ class Game {
           this.autoSave();
         } else {
           this.showNotification(['No potions remaining!']);
+        }
+      } else if (isArmor) {
+        const armorIndex = this.inventoryCursor - weaponCount;
+        const armorId = this.player.state.armors[armorIndex];
+        if (armorId && armorId !== this.player.state.armorId) {
+          this.player.equipArmor(armorId);
+          const armor = this.player.getArmor();
+          this.showNotification([`Equipped ${armor.name}.`]);
+          this.autoSave();
         }
       } else {
         const weaponId = this.player.state.weapons[this.inventoryCursor];

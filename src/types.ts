@@ -54,6 +54,7 @@ export enum NpcRole {
   DIALOG = 'DIALOG',
   SHOP_WEAPONS = 'SHOP_WEAPONS',
   SHOP_POTIONS = 'SHOP_POTIONS',
+  SHOP_ARMOR = 'SHOP_ARMOR',
   QUEST = 'QUEST'
 }
 
@@ -71,6 +72,15 @@ export enum CombatPhase {
 export interface Vec2 {
   x: number;
   y: number;
+}
+
+// Armor definition (body slot)
+export interface Armor {
+  id: string;
+  name: string;
+  defBonus: number;    // flat DEF added while equipped
+  cost: number;
+  source: 'shop' | 'chest' | 'start';
 }
 
 // Weapon definition
@@ -135,9 +145,10 @@ export interface NpcDef {
 
 // Chest loot item
 export interface LootItem {
-  type: 'potion' | 'gold' | 'weapon' | 'antique_coin';
+  type: 'potion' | 'gold' | 'weapon' | 'antique_coin' | 'armor';
   amount?: number;
   weaponId?: string;
+  armorId?: string;
 }
 
 // Chest definition
@@ -186,7 +197,10 @@ export interface PlayerState {
   gold: number;
   weaponId: string;
   weapons: string[];   // all owned weapon IDs
+  armorId: string;     // equipped armor ID
+  armors: string[];    // all owned armor IDs
   potions: number;
+  gender: 'male' | 'female';
   tileX: number;
   tileY: number;
   currentMap: string;
@@ -235,9 +249,10 @@ export interface CombatState {
 // Shop item for display
 export interface ShopItem {
   weaponId?: string;
+  armorId?: string;
   name: string;
   cost: number;
-  type: 'weapon' | 'potion';
+  type: 'weapon' | 'potion' | 'armor';
   owned?: boolean;
 }
 
@@ -295,7 +310,10 @@ export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerS
     gold: 10,
     weaponId: 'rusty_shortsword',
     weapons: ['rusty_shortsword'],
+    armorId: 'leather_vest',
+    armors: ['leather_vest'],
     potions: 3,
+    gender: 'male',
     tileX: 5,
     tileY: 5,
     currentMap: 'village',
