@@ -972,9 +972,32 @@ export function drawCombatPlayer(
 export function drawNpc(ctx: CanvasRenderingContext2D, npc: NpcDef, x: number, y: number, frame: number): void {
   const bob = Math.sin(frame * 0.1) * 0.5;
 
+  // Hood drawn first (behind head) for monk-style NPCs
+  if (npc.hatColor && npc.hatStyle === 'hood') {
+    ctx.fillStyle = npc.hatColor;
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 8 + bob, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // Hood point
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y + 4 + bob);
+    ctx.lineTo(x + 16, y - 4 + bob);
+    ctx.lineTo(x + 22, y + 4 + bob);
+    ctx.fill();
+  }
+
   // Body
   ctx.fillStyle = npc.color;
   ctx.fillRect(x + 6, y + 10 + bob, 20, 18);
+
+  // Apron overlay (over the body)
+  if (npc.apronColor) {
+    ctx.fillStyle = npc.apronColor;
+    ctx.fillRect(x + 9, y + 13 + bob, 14, 13);
+    // Apron strings at top
+    ctx.fillRect(x + 9, y + 11 + bob, 2, 3);
+    ctx.fillRect(x + 21, y + 11 + bob, 2, 3);
+  }
 
   // Head
   ctx.fillStyle = COLORS.playerHead;
@@ -982,13 +1005,39 @@ export function drawNpc(ctx: CanvasRenderingContext2D, npc: NpcDef, x: number, y
   ctx.arc(x + 16, y + 8 + bob, 7, 0, Math.PI * 2);
   ctx.fill();
 
+  // Beard / hair tufts below chin
+  if (npc.hairColor) {
+    ctx.fillStyle = npc.hairColor;
+    // Side tufts
+    ctx.fillRect(x + 9, y + 12 + bob, 3, 3);
+    ctx.fillRect(x + 20, y + 12 + bob, 3, 3);
+    // Chin
+    ctx.fillRect(x + 13, y + 14 + bob, 6, 2);
+  }
+
   // Eyes
   ctx.fillStyle = COLORS.textDark;
   ctx.fillRect(x + 13, y + 7 + bob, 2, 2);
   ctx.fillRect(x + 17, y + 7 + bob, 2, 2);
 
+  // Hat (drawn over head)
+  if (npc.hatColor && npc.hatStyle !== 'hood') {
+    ctx.fillStyle = npc.hatColor;
+    if (npc.hatStyle === 'tall') {
+      // Tall narrow hat (elder)
+      ctx.fillRect(x + 11, y - 1 + bob, 10, 8);
+      // Brim
+      ctx.fillRect(x + 8, y + 2 + bob, 16, 3);
+    } else if (npc.hatStyle === 'wide') {
+      // Wide brim hat (farmer / herbalist)
+      ctx.fillRect(x + 10, y + 1 + bob, 12, 5);
+      // Wide brim
+      ctx.fillRect(x + 5, y + 4 + bob, 22, 3);
+    }
+  }
+
   // Legs
-  ctx.fillStyle = COLORS.woodDark;
+  ctx.fillStyle = npc.legColor ?? COLORS.woodDark;
   ctx.fillRect(x + 8, y + 26 + bob, 6, 6);
   ctx.fillRect(x + 18, y + 26 + bob, 6, 6);
 }
