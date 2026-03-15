@@ -84,7 +84,8 @@ describe('NpcManager.startDialog', () => {
 describe('NpcManager.advanceDialog', () => {
   it('returns continue when more lines exist', () => {
     const mgr = new NpcManager();
-    const npc = { ...makeQuestNpc(), dialogs: { default: ['Line 1', 'Line 2'] } };
+    // dialog advances two lines at a time, so need 4+ lines to still have a 'continue'
+    const npc = { ...makeQuestNpc(), dialogs: { default: ['Line 1', 'Line 2', 'Line 3', 'Line 4'] } };
     mgr.startDialog(npc, makeQuests());
     expect(mgr.advanceDialog()).toBe('continue');
   });

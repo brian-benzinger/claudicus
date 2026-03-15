@@ -8,6 +8,7 @@ import {
   QuestState,
   WorldState,
   EnemyType,
+  ClassPath,
   createDefaultPlayer,
   createDefaultWorld,
   NpcRole
@@ -44,6 +45,7 @@ class Game {
   private frame: number = 0;
   private titleCursor: number = 0;
   private characterSelectCursor: number = 0;
+  private classCursor: number = 0;
   private pauseCursor: number = 0;
   private inventoryCursor: number = 0;
   private inventoryReturnState: GameState = GameState.OVERWORLD;
@@ -142,6 +144,9 @@ class Game {
       case GameState.CHARACTER_SELECT:
         this.updateCharacterSelect();
         break;
+      case GameState.CLASS_SELECT:
+        this.updateClassSelect();
+        break;
       case GameState.OVERWORLD:
         this.updateOverworld();
         break;
@@ -200,6 +205,9 @@ class Game {
         break;
       case GameState.CHARACTER_SELECT:
         this.ui.drawCharacterSelectScreen(this.ctx, this.characterSelectCursor);
+        break;
+      case GameState.CLASS_SELECT:
+        this.ui.drawClassSelectScreen(this.ctx, this.classCursor);
         break;
       case GameState.OVERWORLD:
       case GameState.DIALOG:
@@ -289,6 +297,21 @@ class Game {
     if (this.input.interact()) {
       const gender: 'male' | 'female' = this.characterSelectCursor === 0 ? 'male' : 'female';
       this.startNewGame(gender);
+    }
+  }
+
+  private updateClassSelect(): void {
+    if (this.input.menuLeft()) {
+      this.classCursor = (this.classCursor - 1 + 3) % 3;
+    }
+    if (this.input.menuRight()) {
+      this.classCursor = (this.classCursor + 1) % 3;
+    }
+    if (this.input.interact()) {
+      const paths = [ClassPath.WARRIOR, ClassPath.SCOUT, ClassPath.BRIGAND];
+      this.player.chooseClass(paths[this.classCursor]);
+      this.autoSave();
+      this.state = GameState.OVERWORLD;
     }
   }
 
@@ -635,6 +658,8 @@ class Game {
         this.combat.playerPotion();
       } else if (this.input.action4()) {
         this.combat.playerFlee();
+      } else if (this.input.action5()) {
+        this.combat.playerUseAbility();
       }
     }
 
@@ -687,11 +712,16 @@ class Game {
 
   private updateCombatVictory(): void {
     this.victoryTimer--;
-    // Allow early dismiss with interact key
     if (this.victoryTimer <= 0 || this.input.interact()) {
       this.combat = null;
       this.music.play(this.mapMusicTrack);
-      this.state = GameState.OVERWORLD;
+      // Redirect to class selection if player just reached level 3 with no class
+      if (this.player.state.level >= 3 && this.player.state.classPath === null) {
+        this.classCursor = 0;
+        this.state = GameState.CLASS_SELECT;
+      } else {
+        this.state = GameState.OVERWORLD;
+      }
     }
   }
 

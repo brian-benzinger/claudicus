@@ -13,7 +13,7 @@ export class InputManager {
 
     // Prevent default for game keys
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-         ' ', 'enter', 'escape', '1', '2', '3', '4', 'i', 'm', 'q'].includes(key)) {
+         ' ', 'enter', 'escape', '1', '2', '3', '4', '5', 'i', 'm', 'q'].includes(key)) {
       e.preventDefault();
     }
 
@@ -98,6 +98,10 @@ export class InputManager {
 
   action4(): boolean {
     return this.wasJustPressed('4');
+  }
+
+  action5(): boolean {
+    return this.wasJustPressed('5');
   }
 
   openInventory(): boolean {

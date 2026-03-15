@@ -75,7 +75,7 @@ describe('load edge cases', () => {
     expect(load()).toBeNull();
   });
 
-  it('returns null on version mismatch', () => {
+  it('returns null on version mismatch for unknown old version', () => {
     const data = createNewGameData();
     (data as any).version = -1;
     localStorage.setItem('claudicus_save', JSON.stringify(data));
@@ -85,6 +85,20 @@ describe('load edge cases', () => {
   it('returns null on malformed JSON', () => {
     localStorage.setItem('claudicus_save', 'not-json{{{');
     expect(load()).toBeNull();
+  });
+
+  it('migrates v4 save to current version by backfilling classPath', () => {
+    const data = createNewGameData();
+    // Simulate a v4 save: no classPath field
+    const v4player = { ...data.player };
+    delete (v4player as any).classPath;
+    const v4save = { ...data, player: v4player, version: 4 };
+    localStorage.setItem('claudicus_save', JSON.stringify(v4save));
+
+    const loaded = load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.version).toBe(SAVE_VERSION);
+    expect(loaded!.player.classPath).toBeNull();
   });
 });
 

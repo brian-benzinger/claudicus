@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PlayerManager } from '../player';
-import { createDefaultPlayer, MAX_POTIONS, MAX_LEVEL, LEVEL_REWARDS, POTION_HEAL, xpForLevel } from '../types';
+import { createDefaultPlayer, ClassPath, MAX_POTIONS, MAX_LEVEL, LEVEL_REWARDS, POTION_HEAL, xpForLevel } from '../types';
 
 function makePlayer() {
   return new PlayerManager(createDefaultPlayer());
@@ -396,5 +396,48 @@ describe('Level rewards', () => {
     for (const def of Object.values(LEVEL_REWARDS)) {
       expect(def.label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('PlayerManager.chooseClass', () => {
+  it('sets classPath on the player', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    p.chooseClass(ClassPath.WARRIOR);
+    expect(p.state.classPath).toBe(ClassPath.WARRIOR);
+  });
+
+  it('Warrior grants +2 DEF', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    const defBefore = p.state.def;
+    p.chooseClass(ClassPath.WARRIOR);
+    expect(p.state.def).toBe(defBefore + 2);
+  });
+
+  it('Scout grants +2 AGI', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    const agiBefore = p.state.agi;
+    p.chooseClass(ClassPath.SCOUT);
+    expect(p.state.agi).toBe(agiBefore + 2);
+  });
+
+  it('Brigand grants +2 STR', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    const strBefore = p.state.str;
+    p.chooseClass(ClassPath.BRIGAND);
+    expect(p.state.str).toBe(strBefore + 2);
+  });
+
+  it('cannot change class once chosen', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    p.chooseClass(ClassPath.WARRIOR);
+    const defAfterFirst = p.state.def;
+    p.chooseClass(ClassPath.SCOUT); // should be ignored
+    expect(p.state.classPath).toBe(ClassPath.WARRIOR);
+    expect(p.state.def).toBe(defAfterFirst); // no second bonus
+  });
+
+  it('new players start with classPath null', () => {
+    const p = new PlayerManager(createDefaultPlayer());
+    expect(p.state.classPath).toBeNull();
   });
 });

@@ -2,6 +2,7 @@
 export enum GameState {
   TITLE = 'TITLE',
   CHARACTER_SELECT = 'CHARACTER_SELECT',
+  CLASS_SELECT = 'CLASS_SELECT',
   OVERWORLD = 'OVERWORLD',
   DIALOG = 'DIALOG',
   SHOP = 'SHOP',
@@ -41,6 +42,20 @@ export enum WeaponSpeed {
   RANGED = 'RANGED'
 }
 
+// Status effect types applied during combat
+export enum StatusEffectType {
+  BLEED  = 'BLEED',   // 2 dmg/turn (applied to player by Revenant phase 2)
+  STUN   = 'STUN',    // skip one turn (applied to enemy by Pin / Shield Bash)
+  WEAKEN = 'WEAKEN'   // reduce ATK by magnitude (applied to enemy by Intimidate / Wolf howl)
+}
+
+// Player class paths chosen at level 3
+export enum ClassPath {
+  WARRIOR = 'WARRIOR',
+  SCOUT   = 'SCOUT',
+  BRIGAND = 'BRIGAND'
+}
+
 // Enemy type identifiers
 export enum EnemyType {
   WOLF = 'WOLF',
@@ -68,6 +83,13 @@ export enum CombatPhase {
   ENEMY_ANIMATING = 'ENEMY_ANIMATING',
   RESULT = 'RESULT',
   DONE = 'DONE'
+}
+
+// Active status effect on a combatant
+export interface StatusEffect {
+  type: StatusEffectType;
+  turnsRemaining: number;
+  magnitude?: number;  // for WEAKEN: ATK reduction amount
 }
 
 // 2D vector for positions
@@ -208,12 +230,12 @@ export interface PlayerState {
   armorId: string;     // equipped armor ID
   armors: string[];    // all owned armor IDs
   potions: number;
-  gender: 'male' | 'female';
   tileX: number;
   tileY: number;
   currentMap: string;
   facing: 'up' | 'down' | 'left' | 'right';
   gender: 'male' | 'female';
+  classPath: ClassPath | null;
 }
 
 // Quest state tracking (generic per-quest progress counter)
@@ -247,11 +269,17 @@ export interface CombatState {
   phase: CombatPhase;
   log: string[];
   defendingThisTurn: boolean;
-  nextAttackBonus: number;
+  nextAttackBonus: number;  // positive = bonus, negative = penalty (e.g. wolf howl)
   freeHitUsed: boolean;
   enemyDefending: boolean;
   animationFrame: number;
   resultTimer: number;
+  playerStatusEffects: StatusEffect[];
+  enemyStatusEffects: StatusEffect[];
+  enemyTurnCount: number;
+  enemyIsPhaseTwo: boolean;    // Revenant Knight phase 2 flag
+  enemyJustDefended: boolean;  // true when enemy's last action was defend (Backstab cue)
+  abilityUsedThisCombat: boolean;  // Scout Ambush one-per-combat gate
 }
 
 // Shop item for display
@@ -303,7 +331,7 @@ export const MAX_POTIONS = 10;
 export const POTION_HEAL = 20;
 export const POTION_COST = 5;
 export const MAX_LEVEL = 10;
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 // Default player state factory
 export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerState {
@@ -325,7 +353,8 @@ export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerS
     tileY: 5,
     currentMap: 'village',
     facing: 'down',
-    gender
+    gender,
+    classPath: null
   };
 }
 

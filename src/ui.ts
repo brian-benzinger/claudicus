@@ -9,7 +9,9 @@ import {
   WeaponSpeed,
   xpForLevel,
   MAX_LEVEL,
-  QuestState
+  QuestState,
+  StatusEffectType,
+  ClassPath
 } from './types';
 import { getWeapon } from './data/weapons';
 import { getArmor } from './data/armors';
@@ -92,6 +94,18 @@ export class UIRenderer {
     const weapon = getWeapon(player.weaponId);
     ctx.fillText(weapon.name, 600, 26);
 
+    // Class badge
+    if (player.classPath) {
+      const badge =
+        player.classPath === ClassPath.WARRIOR ? '[WAR]' :
+        player.classPath === ClassPath.SCOUT   ? '[SCT]' : '[BRG]';
+      const badgeColor =
+        player.classPath === ClassPath.WARRIOR ? '#e06060' :
+        player.classPath === ClassPath.SCOUT   ? '#60c060' : '#c060e0';
+      ctx.fillStyle = badgeColor;
+      ctx.fillText(badge, 760, 26);
+    }
+
     // Map name
     ctx.fillStyle = COLORS.textDark;
     ctx.fillText(player.currentMap === 'village' ? 'Brannford' : 'Thornwood', CANVAS_WIDTH - 100, 26);
@@ -125,7 +139,7 @@ export class UIRenderer {
 
   // Draw dialog box
   drawDialogBox(ctx: CanvasRenderingContext2D, speaker: string, text: string, revealFrame?: number): void {
-    const boxHeight = 120;
+    const boxHeight = 150;
     const boxY = CANVAS_HEIGHT - boxHeight - 10;
 
     // Background
@@ -140,23 +154,27 @@ export class UIRenderer {
     ctx.font = 'bold 16px monospace';
     ctx.fillText(speaker, 30, boxY + 30);
 
-    // Dialog text — word-wrap into lines first, then reveal left-to-right
+    // Dialog text — split on \n for paragraph breaks, word-wrap each, then reveal left-to-right
     ctx.font = '14px monospace';
     const maxWidth = CANVAS_WIDTH - 60;
-    const words = text.split(' ');
+    const paragraphs = text.split('\n');
     const lines: string[] = [];
-    let current = '';
 
-    for (const word of words) {
-      const test = current + word + ' ';
-      if (ctx.measureText(test).width > maxWidth && current !== '') {
-        lines.push(current.trimEnd());
-        current = word + ' ';
-      } else {
-        current = test;
+    for (let p = 0; p < paragraphs.length; p++) {
+      if (p > 0) lines.push(''); // blank line between paragraphs
+      const words = paragraphs[p].split(' ');
+      let current = '';
+      for (const word of words) {
+        const test = current + word + ' ';
+        if (ctx.measureText(test).width > maxWidth && current !== '') {
+          lines.push(current.trimEnd());
+          current = word + ' ';
+        } else {
+          current = test;
+        }
       }
+      if (current.trimEnd()) lines.push(current.trimEnd());
     }
-    if (current.trimEnd()) lines.push(current.trimEnd());
 
     // 2 characters revealed per frame; undefined = instant (fully revealed)
     const charsToShow = revealFrame === undefined ? Infinity : Math.floor(revealFrame * 2);
@@ -164,7 +182,8 @@ export class UIRenderer {
 
     ctx.fillStyle = COLORS.text;
     lines.forEach((ln, i) => {
-      const lineY = boxY + 55 + i * 20;
+      const lineY = boxY + 52 + i * 20;
+      if (ln === '') return; // blank separator — just takes up vertical space
       if (charsRemaining <= 0) return;
       const visible = ln.slice(0, charsRemaining);
       ctx.fillText(visible, 30, lineY);
@@ -300,7 +319,7 @@ export class UIRenderer {
     ctx.save();
     ctx.translate(playerX + playerOffset, combatY);
     ctx.scale(2, 2);
-    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress, player.armorId, player.gender);
+    drawCombatPlayer(ctx, 0, 0, frame, weaponSpeed, playerAttackProgress, player.armorId, player.gender, player.weaponId);
     ctx.restore();
 
     // Draw arrow projectile for ranged attack (in screen space, after player draw)
@@ -363,13 +382,63 @@ export class UIRenderer {
     this.drawHpBar(ctx, CANVAS_WIDTH - 210, 55, 150, 16, combat.enemyHp, combat.enemy.maxHp, COLORS.hpEnemy);
     ctx.fillText(`${combat.enemyHp}/${combat.enemy.maxHp}`, CANVAS_WIDTH - 50, 68);
 
+    // Status effects — player side
+    const playerEffects = combat.playerStatusEffects ?? [];
+    if (playerEffects.length > 0) {
+      ctx.font = '12px monospace';
+      playerEffects.forEach((eff, i) => {
+        const label =
+          eff.type === StatusEffectType.BLEED  ? `BLEED(${eff.turnsRemaining})` :
+          eff.type === StatusEffectType.STUN   ? `STUN(${eff.turnsRemaining})`  :
+          `WEAKEN(${eff.turnsRemaining})`;
+        ctx.fillStyle = eff.type === StatusEffectType.BLEED ? '#e05050' : '#e0a030';
+        ctx.fillText(label, 30, 108 + i * 16);
+      });
+    }
+
+    // Status effects — enemy side
+    const enemyEffects = combat.enemyStatusEffects ?? [];
+    if (enemyEffects.length > 0) {
+      ctx.font = '12px monospace';
+      enemyEffects.forEach((eff, i) => {
+        const label =
+          eff.type === StatusEffectType.STUN   ? `STUNNED(${eff.turnsRemaining})` :
+          eff.type === StatusEffectType.WEAKEN  ? `WEAK(${eff.turnsRemaining})` :
+          `BLEED(${eff.turnsRemaining})`;
+        ctx.fillStyle = '#60d0e0';
+        ctx.textAlign = 'right';
+        ctx.fillText(label, CANVAS_WIDTH - 30, 108 + i * 16);
+        ctx.textAlign = 'left';
+      });
+    }
+
     // Combat log
     this.drawCombatLog(ctx, combat.log.slice(-4));
 
     // Combat menu (only during player action)
     if (combat.phase === CombatPhase.PLAYER_ACTION) {
-      this.drawCombatMenu(ctx, player.potions);
+      // Determine available ability from engine state (passed via combat state context)
+      const abilityName = this.getAbilityName(player, combat);
+      this.drawCombatMenu(ctx, player.potions, abilityName);
     }
+  }
+
+  private getAbilityName(player: PlayerState, combat: CombatState): string | null {
+    if (player.level >= 3) {
+      switch (player.weaponId) {
+        case 'dagger':      return 'Backstab';
+        case 'hunting_bow': return 'Pin';
+        case 'mace':        return 'Shatter';
+      }
+    }
+    if (player.classPath) {
+      switch (player.classPath) {
+        case ClassPath.WARRIOR: return 'Shield Bash';
+        case ClassPath.SCOUT:   return combat.abilityUsedThisCombat ? null : 'Ambush';
+        case ClassPath.BRIGAND: return 'Intimidate';
+      }
+    }
+    return null;
   }
 
   // Draw combat log
@@ -390,7 +459,7 @@ export class UIRenderer {
   }
 
   // Draw combat action menu
-  drawCombatMenu(ctx: CanvasRenderingContext2D, potions: number): void {
+  drawCombatMenu(ctx: CanvasRenderingContext2D, potions: number, abilityName: string | null = null): void {
     const menuY = CANVAS_HEIGHT - 90;
 
     ctx.fillStyle = COLORS.bgDark;
@@ -401,12 +470,25 @@ export class UIRenderer {
     ctx.font = '16px monospace';
     ctx.fillStyle = COLORS.text;
 
-    ctx.fillText('[1] Attack', 50, menuY + 35);
-    ctx.fillText('[2] Defend', 200, menuY + 35);
-    ctx.fillStyle = potions > 0 ? COLORS.text : COLORS.textDark;
-    ctx.fillText(`[3] Potion (${potions})`, 350, menuY + 35);
-    ctx.fillStyle = COLORS.text;
-    ctx.fillText('[4] Flee', 550, menuY + 35);
+    if (abilityName) {
+      // 5-column layout to fit ability
+      ctx.fillText('[1] Attack',            40,  menuY + 35);
+      ctx.fillText('[2] Defend',            185, menuY + 35);
+      ctx.fillStyle = potions > 0 ? COLORS.text : COLORS.textDark;
+      ctx.fillText(`[3] Potion (${potions})`, 330, menuY + 35);
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText('[4] Flee',              510, menuY + 35);
+      ctx.fillStyle = '#a0d8ff';
+      ctx.fillText(`[5] ${abilityName}`,   640, menuY + 35);
+    } else {
+      // Original 4-column layout
+      ctx.fillText('[1] Attack',              50,  menuY + 35);
+      ctx.fillText('[2] Defend',              200, menuY + 35);
+      ctx.fillStyle = potions > 0 ? COLORS.text : COLORS.textDark;
+      ctx.fillText(`[3] Potion (${potions})`, 350, menuY + 35);
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText('[4] Flee',                550, menuY + 35);
+    }
   }
 
   // Draw pause menu
@@ -1064,6 +1146,135 @@ export class UIRenderer {
     ctx.font = '14px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('[A/D] or [←/→] Select   [SPACE/ENTER] Confirm', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 50);
+    ctx.textAlign = 'left';
+  }
+
+  drawClassSelectScreen(ctx: CanvasRenderingContext2D, cursor: number): void {
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText('Choose Your Path', CANVAS_WIDTH / 2, 80);
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '15px monospace';
+    ctx.fillText('You have grown strong enough to master a discipline. This choice is permanent.', CANVAS_WIDTH / 2, 115);
+
+    const classes: Array<{
+      path: ClassPath;
+      label: string;
+      color: string;
+      stats: string;
+      ability: string;
+      abilityDesc: string;
+    }> = [
+      {
+        path: ClassPath.WARRIOR,
+        label: 'WARRIOR',
+        color: '#c04040',
+        stats: '+2 DEF',
+        ability: 'Shield Bash',
+        abilityDesc: 'Stun the enemy for one turn'
+      },
+      {
+        path: ClassPath.SCOUT,
+        label: 'SCOUT',
+        color: '#40a040',
+        stats: '+2 AGI',
+        ability: 'Ambush',
+        abilityDesc: 'Guaranteed critical hit (once per fight)'
+      },
+      {
+        path: ClassPath.BRIGAND,
+        label: 'BRIGAND',
+        color: '#9040c0',
+        stats: '+2 STR',
+        ability: 'Intimidate',
+        abilityDesc: 'Reduce enemy ATK by 3 for 3 turns'
+      }
+    ];
+
+    const cardW = 230;
+    const cardH = 310;
+    const cardY = 150;
+    const spacing = 40;
+    const totalW = classes.length * cardW + (classes.length - 1) * spacing;
+    const startX = CANVAS_WIDTH / 2 - totalW / 2;
+
+    classes.forEach((cls, i) => {
+      const cardX = startX + i * (cardW + spacing);
+      const isSelected = cursor === i;
+
+      ctx.fillStyle = isSelected ? 'rgba(50, 40, 70, 0.95)' : 'rgba(25, 20, 35, 0.9)';
+      ctx.fillRect(cardX, cardY, cardW, cardH);
+
+      ctx.strokeStyle = isSelected ? cls.color : COLORS.border;
+      ctx.lineWidth = isSelected ? 3 : 1;
+      ctx.strokeRect(cardX, cardY, cardW, cardH);
+
+      // Class name header
+      ctx.fillStyle = cls.color;
+      ctx.font = `bold 20px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(cls.label, cardX + cardW / 2, cardY + 38);
+
+      // Divider
+      ctx.strokeStyle = cls.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cardX + 20, cardY + 50);
+      ctx.lineTo(cardX + cardW - 20, cardY + 50);
+      ctx.stroke();
+
+      // Stat bonus
+      ctx.fillStyle = '#a8e0a8';
+      ctx.font = '15px monospace';
+      ctx.fillText(cls.stats, cardX + cardW / 2, cardY + 78);
+
+      // Flee modifier flavour
+      const fleeNote = cls.path === ClassPath.SCOUT   ? 'Easier to flee'  :
+                       cls.path === ClassPath.WARRIOR ? 'Harder to flee' : '';
+      if (fleeNote) {
+        ctx.fillStyle = COLORS.textDark;
+        ctx.font = '12px monospace';
+        ctx.fillText(fleeNote, cardX + cardW / 2, cardY + 98);
+      }
+
+      // Ability name
+      ctx.fillStyle = '#a0d8ff';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(`[5] ${cls.ability}`, cardX + cardW / 2, cardY + 140);
+
+      // Ability description (word-wrapped to two lines)
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '13px monospace';
+      const words = cls.abilityDesc.split(' ');
+      let line = '';
+      let lineY = cardY + 162;
+      words.forEach(w => {
+        const test = line + w + ' ';
+        if (ctx.measureText(test).width > cardW - 20 && line !== '') {
+          ctx.fillText(line.trim(), cardX + cardW / 2, lineY);
+          line = w + ' ';
+          lineY += 18;
+        } else {
+          line = test;
+        }
+      });
+      if (line.trim()) ctx.fillText(line.trim(), cardX + cardW / 2, lineY);
+
+      if (isSelected) {
+        ctx.fillStyle = cls.color;
+        ctx.font = '20px monospace';
+        ctx.fillText('▲', cardX + cardW / 2, cardY - 10);
+      }
+    });
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '14px monospace';
+    ctx.fillText('[A/D] or [←/→] Select   [SPACE/ENTER] Confirm', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 40);
     ctx.textAlign = 'left';
   }
 }

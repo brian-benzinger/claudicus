@@ -4,8 +4,8 @@ export const VILLAGE_NPCS: NpcDef[] = [
   {
     id: 'elder_aldric',
     name: 'Elder Aldric',
-    tileX: 8,
-    tileY: 4,
+    tileX: 10,
+    tileY: 3,
     role: NpcRole.QUEST,
     questId: 'forest_menace',
     color: '#4a3728',
@@ -68,8 +68,8 @@ export const VILLAGE_NPCS: NpcDef[] = [
   {
     id: 'gretta_smith',
     name: 'Gretta the Smith',
-    tileX: 20,
-    tileY: 6,
+    tileX: 21,
+    tileY: 3,
     role: NpcRole.SHOP_WEAPONS,
     questId: 'bandit_steel',
     color: '#8b4513',

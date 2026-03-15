@@ -56,7 +56,7 @@ export class NpcManager {
   advanceDialog(): 'continue' | 'done' | 'shop' {
     if (!this.dialogState) return 'done';
 
-    this.dialogState.currentLine++;
+    this.dialogState.currentLine += 2;
 
     if (this.dialogState.currentLine >= this.dialogState.lines.length) {
       const role = this.dialogState.npc.role;
@@ -73,10 +73,12 @@ export class NpcManager {
     return 'continue';
   }
 
-  // Get current dialog line
+  // Get current dialog line (returns two lines joined with \n if available)
   getCurrentLine(): string | null {
     if (!this.dialogState) return null;
-    return this.dialogState.lines[this.dialogState.currentLine];
+    const current = this.dialogState.lines[this.dialogState.currentLine];
+    const next = this.dialogState.lines[this.dialogState.currentLine + 1];
+    return next ? `${current}\n${next}` : current;
   }
 
   // Get NPC name for dialog display

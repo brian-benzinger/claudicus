@@ -4,6 +4,7 @@ import {
   Armor,
   LevelReward,
   LEVEL_REWARDS,
+  ClassPath,
   createDefaultPlayer,
   xpForLevel,
   MAX_LEVEL,
@@ -204,6 +205,17 @@ export class PlayerManager {
     this.state.tileX = 5;
     this.state.tileY = 6;
     this.state.facing = 'down';
+  }
+
+  // Choose a class path (one-time, at level 3)
+  chooseClass(path: ClassPath): void {
+    if (this.state.classPath !== null) return; // already chosen
+    this.state.classPath = path;
+    switch (path) {
+      case ClassPath.WARRIOR: this.state.def += 2; break;
+      case ClassPath.SCOUT:   this.state.agi += 2; break;
+      case ClassPath.BRIGAND: this.state.str += 2; break;
+    }
   }
 
   // Check if dead

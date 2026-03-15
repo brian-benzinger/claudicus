@@ -908,7 +908,7 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, type: EnemyType, x: num
 }
 
 // Draw weapon sprite, pivoted at (0,0) = grip, blade extends in +x when angle=0
-function drawWeaponSprite(ctx: CanvasRenderingContext2D, speed: WeaponSpeed): void {
+function drawWeaponSprite(ctx: CanvasRenderingContext2D, speed: WeaponSpeed, weaponId?: string): void {
   switch (speed) {
     case WeaponSpeed.FAST: // dagger
       ctx.fillStyle = '#c0c0c0';
@@ -919,21 +919,64 @@ function drawWeaponSprite(ctx: CanvasRenderingContext2D, speed: WeaponSpeed): vo
       ctx.fillRect(-1, -3, 2, 7);   // crossguard
       break;
 
-    case WeaponSpeed.NORMAL: // longsword
-      ctx.fillStyle = '#d0d8e0';
-      ctx.fillRect(0, -1, 18, 3);   // blade
-      ctx.fillStyle = '#5a3a1a';
-      ctx.fillRect(-8, -2, 8, 5);   // handle
-      ctx.fillStyle = '#a08030';
-      ctx.fillRect(-1, -4, 2, 9);   // crossguard
+    case WeaponSpeed.NORMAL:
+      if (weaponId === 'hand_axe') {
+        // Hand axe — short handle, wide single-sided blade
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-6, -2, 10, 4);  // short handle
+        ctx.fillStyle = '#a08030';
+        ctx.fillRect(3, -3, 3, 6);    // collar
+        ctx.fillStyle = '#909aa8';
+        ctx.fillRect(6, -8, 8, 16);   // blade body (wide, tall)
+        ctx.fillStyle = '#b8c4d0';
+        ctx.fillRect(6, -11, 5, 4);   // top hook
+        ctx.fillRect(6, 8, 4, 3);     // bottom beard
+      } else {
+        // longsword / shortsword
+        ctx.fillStyle = '#d0d8e0';
+        ctx.fillRect(0, -1, 18, 3);   // blade
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-8, -2, 8, 5);   // handle
+        ctx.fillStyle = '#a08030';
+        ctx.fillRect(-1, -4, 2, 9);   // crossguard
+      }
       break;
 
-    case WeaponSpeed.SLOW: // halberd / mace — long heavy weapon
-      ctx.fillStyle = '#5a3a1a';
-      ctx.fillRect(-12, -2, 26, 4); // long pole
-      ctx.fillStyle = '#808898';
-      ctx.fillRect(10, -6, 5, 13);  // axe blade
-      ctx.fillRect(13, -3, 6, 7);   // axe body
+    case WeaponSpeed.SLOW:
+      if (weaponId === 'mace') {
+        // Mace — shaft with round flanged head
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-12, -2, 22, 4); // shaft
+        ctx.fillStyle = '#a08030';
+        ctx.fillRect(7, -3, 3, 6);    // collar ring
+        ctx.fillStyle = '#6e7880';
+        ctx.beginPath();
+        ctx.arc(14, 0, 7, 0, Math.PI * 2);
+        ctx.fill();                    // round ball head
+        ctx.fillStyle = '#a8b4c0';
+        ctx.fillRect(9, -11, 9, 4);   // top flange
+        ctx.fillRect(9, 7, 9, 4);     // bottom flange
+        ctx.fillRect(19, -2, 4, 4);   // front flange
+      } else if (weaponId === 'halberd') {
+        // Halberd — long polearm with axe blade and top spike
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-14, -2, 30, 4); // long pole
+        ctx.fillStyle = '#a08030';
+        ctx.fillRect(12, -3, 3, 6);   // collar
+        ctx.fillStyle = '#808898';
+        ctx.fillRect(13, -14, 5, 16); // blade stem
+        ctx.fillRect(8, -14, 10, 5);  // blade top (wide)
+        ctx.fillRect(14, -18, 3, 5);  // tip spike
+        ctx.fillStyle = '#a0acb8';
+        ctx.fillRect(9, 2, 6, 4);     // back beard
+      } else {
+        // fallback
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-12, -2, 26, 4); // long pole
+        ctx.fillStyle = '#808898';
+        ctx.fillRect(10, -6, 5, 13);  // axe blade
+        ctx.fillRect(13, -3, 6, 7);   // axe body
+      }
       break;
 
     case WeaponSpeed.RANGED: // hunting bow — drawn vertically, held at left
@@ -962,7 +1005,8 @@ export function drawCombatPlayer(
   weaponSpeed: WeaponSpeed,
   attackProgress: number,  // -1 = idle, 0..1 = attack animation
   armorId?: string,
-  gender: 'male' | 'female' = 'male'
+  gender: 'male' | 'female' = 'male',
+  weaponId?: string
 ): void {
   drawPlayer(ctx, x, y, frame, 'right', undefined, armorId, gender);
 
@@ -981,7 +1025,7 @@ export function drawCombatPlayer(
     ctx.save();
     ctx.translate(bowX, bowY);
     ctx.rotate(-Math.PI / 2); // bow points up
-    drawWeaponSprite(ctx, WeaponSpeed.RANGED);
+    drawWeaponSprite(ctx, WeaponSpeed.RANGED, weaponId);
 
     // Draw taut string when pulling
     if (pullback > 0) {
@@ -1039,7 +1083,7 @@ export function drawCombatPlayer(
   ctx.save();
   ctx.translate(handX, handY);
   ctx.rotate(angle);
-  drawWeaponSprite(ctx, weaponSpeed);
+  drawWeaponSprite(ctx, weaponSpeed, weaponId);
   ctx.restore();
 }
 

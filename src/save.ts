@@ -33,8 +33,14 @@ export function load(): SaveData | null {
     const data = JSON.parse(raw) as SaveData;
 
     if (data.version !== SAVE_VERSION) {
-      console.warn('Save version mismatch, starting fresh');
-      return null;
+      if (data.version === 4) {
+        // Migrate v4 → v5: backfill new player fields
+        (data.player as any).classPath = (data.player as any).classPath ?? null;
+        data.version = SAVE_VERSION;
+      } else {
+        console.warn('Save version mismatch, starting fresh');
+        return null;
+      }
     }
 
     return data;
