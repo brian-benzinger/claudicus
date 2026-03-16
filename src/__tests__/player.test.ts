@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PlayerManager } from '../player';
-import { createDefaultPlayer, ClassPath, MAX_POTIONS, MAX_LEVEL, LEVEL_REWARDS, POTION_HEAL, xpForLevel } from '../types';
+import { createDefaultPlayer, ClassPath, MAX_POTIONS, MAX_LEVEL, LEVEL_REWARDS, POTION_HEAL, xpForLevel, TITLES } from '../types';
 
 function makePlayer() {
   return new PlayerManager(createDefaultPlayer());
@@ -439,5 +439,65 @@ describe('PlayerManager.chooseClass', () => {
   it('new players start with classPath null', () => {
     const p = new PlayerManager(createDefaultPlayer());
     expect(p.state.classPath).toBeNull();
+  });
+});
+
+describe('PlayerManager materials', () => {
+  it('starts with zero wolf pelts and bandit steel', () => {
+    const p = makePlayer();
+    expect(p.state.materials.wolf_pelt).toBe(0);
+    expect(p.state.materials.bandit_steel).toBe(0);
+  });
+
+  it('can accumulate wolf pelts', () => {
+    const p = makePlayer();
+    p.state.materials.wolf_pelt += 3;
+    expect(p.state.materials.wolf_pelt).toBe(3);
+  });
+
+  it('crafting consumes materials correctly', () => {
+    const p = makePlayer();
+    p.state.materials.wolf_pelt = 3;
+    p.state.materials.bandit_steel = 2;
+    // Simulate consuming recipe: 3 pelts → armor
+    p.state.materials.wolf_pelt -= 3;
+    expect(p.state.materials.wolf_pelt).toBe(0);
+    expect(p.state.materials.bandit_steel).toBe(2); // unchanged
+  });
+});
+
+describe('PlayerManager titles', () => {
+  it('starts with no earned titles', () => {
+    const p = makePlayer();
+    expect(p.state.earnedTitles).toEqual([]);
+    expect(p.state.activeTitle).toBeNull();
+  });
+
+  it('can earn a title', () => {
+    const p = makePlayer();
+    p.state.earnedTitles.push('wolfsbane');
+    expect(p.state.earnedTitles).toContain('wolfsbane');
+  });
+
+  it('can set an active title', () => {
+    const p = makePlayer();
+    p.state.earnedTitles.push('wolfsbane');
+    p.state.activeTitle = 'wolfsbane';
+    expect(p.state.activeTitle).toBe('wolfsbane');
+  });
+
+  it('TITLES constant defines all four titles', () => {
+    expect(TITLES.wolfsbane).toBeDefined();
+    expect(TITLES.bandit_hunter).toBeDefined();
+    expect(TITLES.grave_robber).toBeDefined();
+    expect(TITLES.survivor).toBeDefined();
+  });
+
+  it('each TITLES entry has id, label, and requirement', () => {
+    for (const def of Object.values(TITLES)) {
+      expect(def.id.length).toBeGreaterThan(0);
+      expect(def.label.length).toBeGreaterThan(0);
+      expect(def.requirement.length).toBeGreaterThan(0);
+    }
   });
 });

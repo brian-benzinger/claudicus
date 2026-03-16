@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ARMORS, getArmor, getShopArmors } from '../data/armors';
+import { CRAFT_RECIPES } from '../data/recipes';
 import { PlayerManager } from '../player';
 import { createDefaultPlayer } from '../types';
 
@@ -113,5 +114,54 @@ describe('PlayerManager armor methods', () => {
     const defBefore = p.getEffectiveDef();
     p.equipArmor('iron_plate');
     expect(p.getEffectiveDef()).toBeGreaterThan(defBefore);
+  });
+});
+
+describe('studded_leather craftable armor', () => {
+  it('is defined in ARMORS', () => {
+    expect(ARMORS.studded_leather).toBeDefined();
+    expect(ARMORS.studded_leather.defBonus).toBe(2);
+    expect(ARMORS.studded_leather.source).toBe('chest');
+  });
+
+  it('is not in shop armors', () => {
+    const shop = getShopArmors();
+    expect(shop.find(a => a.id === 'studded_leather')).toBeUndefined();
+  });
+});
+
+describe('CRAFT_RECIPES', () => {
+  it('has three recipes', () => {
+    expect(CRAFT_RECIPES.length).toBe(3);
+  });
+
+  it('studded_leather recipe costs 3 wolf pelts', () => {
+    const recipe = CRAFT_RECIPES.find(r => r.id === 'studded_leather')!;
+    expect(recipe).toBeDefined();
+    expect(recipe.armorId).toBe('studded_leather');
+    expect(recipe.cost.wolf_pelt).toBe(3);
+    expect(recipe.cost.bandit_steel).toBeUndefined();
+  });
+
+  it('iron_longsword recipe costs 2 bandit steel', () => {
+    const recipe = CRAFT_RECIPES.find(r => r.id === 'iron_longsword')!;
+    expect(recipe).toBeDefined();
+    expect(recipe.weaponId).toBe('iron_longsword');
+    expect(recipe.cost.bandit_steel).toBe(2);
+    expect(recipe.cost.wolf_pelt).toBeUndefined();
+  });
+
+  it('war_axe recipe costs 2 bandit steel + 1 wolf pelt', () => {
+    const recipe = CRAFT_RECIPES.find(r => r.id === 'war_axe')!;
+    expect(recipe).toBeDefined();
+    expect(recipe.weaponId).toBe('war_axe');
+    expect(recipe.cost.bandit_steel).toBe(2);
+    expect(recipe.cost.wolf_pelt).toBe(1);
+  });
+
+  it('all recipes have a non-empty description', () => {
+    for (const r of CRAFT_RECIPES) {
+      expect(r.description.length).toBeGreaterThan(0);
+    }
   });
 });

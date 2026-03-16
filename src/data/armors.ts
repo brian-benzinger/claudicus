@@ -28,6 +28,13 @@ export const ARMORS: Record<string, Armor> = {
     defBonus: 2,
     cost: 35,
     source: 'chest'
+  },
+  studded_leather: {
+    id: 'studded_leather',
+    name: 'Studded Leather',
+    defBonus: 2,
+    cost: 0,
+    source: 'chest'  // 'chest' so it doesn't appear in shops
   }
 };
 

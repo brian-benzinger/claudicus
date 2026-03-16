@@ -330,6 +330,22 @@ export const VILLAGE_NPCS: NpcDef[] = [
         'Ha! There\'ll be songs about you in every tavern from here to the capital.'
       ]
     }
+  },
+  {
+    id: 'gretta_anvil',
+    name: 'Gretta\'s Forge',
+    tileX: 22,
+    tileY: 4,
+    role: NpcRole.SHOP_CRAFT,
+    color: '#555555',
+    apronColor: '#2a1a0a',
+    dialogs: {
+      default: [
+        'The forge burns hot.',
+        'Bring me wolf pelts and bandit steel, and I\'ll craft something worth carrying.',
+        'What would you like to forge?'
+      ]
+    }
   }
 ];
 

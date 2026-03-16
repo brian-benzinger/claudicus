@@ -11,8 +11,10 @@ import {
   MAX_LEVEL,
   QuestState,
   StatusEffectType,
-  ClassPath
+  ClassPath,
+  TITLES
 } from './types';
+import { CRAFT_RECIPES } from './data/recipes';
 import { getWeapon } from './data/weapons';
 import { getArmor } from './data/armors';
 import { drawPlayer, drawEnemy, drawCombatPlayer } from './renderer';
@@ -106,9 +108,20 @@ export class UIRenderer {
       ctx.fillText(badge, 760, 26);
     }
 
+    // Active title (below class badge or at badge position)
+    if (player.activeTitle) {
+      const label = TITLES[player.activeTitle]?.label ?? player.activeTitle;
+      ctx.fillStyle = '#d4af37';
+      ctx.font = '10px monospace';
+      ctx.fillText(`"${label}"`, 760, 37);
+      ctx.font = '14px monospace';
+    }
+
     // Map name
+    const mapName = player.currentMap === 'village' ? 'Brannford' :
+                    player.currentMap === 'dungeon'  ? 'Greymoor Crypt' : 'Thornwood';
     ctx.fillStyle = COLORS.textDark;
-    ctx.fillText(player.currentMap === 'village' ? 'Brannford' : 'Thornwood', CANVAS_WIDTH - 100, 26);
+    ctx.fillText(mapName, CANVAS_WIDTH - 120, 26);
   }
 
   // Draw HP bar
@@ -252,6 +265,75 @@ export class UIRenderer {
     ctx.fillStyle = COLORS.textDark;
     ctx.font = '12px monospace';
     ctx.fillText('[W/S] Select   [SPACE] Buy   [ESC] Exit', menuX + 60, menuY + menuHeight - 20);
+  }
+
+  // Draw crafting menu
+  drawCraftMenu(
+    ctx: CanvasRenderingContext2D,
+    player: PlayerState,
+    cursor: number
+  ): void {
+    const menuWidth = 480;
+    const menuHeight = 340;
+    const menuX = (CANVAS_WIDTH - menuWidth) / 2;
+    const menuY = (CANVAS_HEIGHT - menuHeight) / 2;
+
+    ctx.fillStyle = COLORS.bgDark;
+    ctx.fillRect(menuX, menuY, menuWidth, menuHeight);
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(menuX, menuY, menuWidth, menuHeight);
+
+    ctx.fillStyle = COLORS.textGold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('FORGE', menuX + 200, menuY + 30);
+
+    // Materials display
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '13px monospace';
+    const pelts = player.materials?.wolf_pelt ?? 0;
+    const steel = player.materials?.bandit_steel ?? 0;
+    ctx.fillText(`Wolf Pelts: ${pelts}   Bandit Steel: ${steel}`, menuX + 20, menuY + 55);
+
+    // Divider
+    ctx.strokeStyle = COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(menuX + 10, menuY + 66);
+    ctx.lineTo(menuX + menuWidth - 10, menuY + 66);
+    ctx.stroke();
+
+    // Recipe list
+    CRAFT_RECIPES.forEach((recipe, i) => {
+      const itemY = menuY + 90 + i * 55;
+      const hasPelts = pelts >= (recipe.cost.wolf_pelt ?? 0);
+      const hasSteel = steel >= (recipe.cost.bandit_steel ?? 0);
+      const canCraft = hasPelts && hasSteel;
+
+      if (i === cursor) {
+        ctx.fillStyle = COLORS.menuHighlight;
+        ctx.fillRect(menuX + 10, itemY - 20, menuWidth - 20, 50);
+      }
+
+      ctx.fillStyle = canCraft ? COLORS.text : COLORS.textDark;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(recipe.name, menuX + 20, itemY);
+
+      ctx.font = '12px monospace';
+      ctx.fillText(recipe.description, menuX + 20, itemY + 18);
+
+      // Cost indicators
+      const peltsOk = (recipe.cost.wolf_pelt ?? 0) === 0 || hasPelts;
+      const steelOk = (recipe.cost.bandit_steel ?? 0) === 0 || hasSteel;
+      ctx.fillStyle = peltsOk ? '#88cc88' : '#cc4444';
+      if (recipe.cost.wolf_pelt) ctx.fillText(`Pelts: ${recipe.cost.wolf_pelt}`, menuX + menuWidth - 140, itemY);
+      ctx.fillStyle = steelOk ? '#88cc88' : '#cc4444';
+      if (recipe.cost.bandit_steel) ctx.fillText(`Steel: ${recipe.cost.bandit_steel}`, menuX + menuWidth - 140, itemY + 18);
+    });
+
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = '12px monospace';
+    ctx.fillText('[W/S] Select   [SPACE] Craft   [ESC] Exit', menuX + 70, menuY + menuHeight - 20);
   }
 
   // Draw combat screen
@@ -749,15 +831,17 @@ export class UIRenderer {
     ctx.lineTo(panelX + panelW - 10, panelY + 44);
     ctx.stroke();
 
-    // Build item list: weapons, then armors, then potions
+    // Build item list: weapons, then armors, then potions, then titles
     const items: Array<
       | { type: 'weapon'; id: string }
       | { type: 'armor'; id: string }
       | { type: 'potions' }
+      | { type: 'title'; id: string }
     > = [
       ...player.weapons.map(id => ({ type: 'weapon' as const, id })),
       ...(player.armors ?? []).map(id => ({ type: 'armor' as const, id })),
-      { type: 'potions' as const }
+      { type: 'potions' as const },
+      ...(player.earnedTitles ?? []).map(id => ({ type: 'title' as const, id }))
     ];
 
     // Left column: item list
@@ -788,6 +872,12 @@ export class UIRenderer {
 
         ctx.fillStyle = isEquipped ? COLORS.textGold : COLORS.text;
         const label = isEquipped ? `[E] ${armor.name}` : `    ${armor.name}`;
+        ctx.fillText(label, listX, rowY);
+      } else if (item.type === 'title') {
+        const titleDef = TITLES[item.id];
+        const isActive = player.activeTitle === item.id;
+        ctx.fillStyle = isActive ? '#d4af37' : COLORS.text;
+        const label = isActive ? `[*] "${titleDef?.label ?? item.id}"` : `    "${titleDef?.label ?? item.id}"`;
         ctx.fillText(label, listX, rowY);
       } else {
         ctx.fillStyle = player.potions > 0 ? COLORS.text : COLORS.textDark;
@@ -885,6 +975,25 @@ export class UIRenderer {
         ctx.font = '13px monospace';
         ctx.fillText('[SPACE] Use Potion', detailX, detailY + 200);
       }
+    } else if (selectedItem?.type === 'title') {
+      const titleDef = TITLES[selectedItem.id];
+      const isActive = player.activeTitle === selectedItem.id;
+
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(`"${titleDef?.label ?? selectedItem.id}"`, detailX, detailY);
+
+      ctx.fillStyle = isActive ? '#d4af37' : COLORS.textDark;
+      ctx.font = '12px monospace';
+      ctx.fillText(isActive ? '✦ Active' : 'Earned', detailX, detailY + 20);
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '13px monospace';
+      ctx.fillText(titleDef?.requirement ?? '', detailX, detailY + 55);
+
+      ctx.fillStyle = COLORS.textGold;
+      ctx.font = '13px monospace';
+      ctx.fillText(isActive ? '[SPACE] Remove Title' : '[SPACE] Wear Title', detailX, detailY + 200);
     }
 
     // Footer

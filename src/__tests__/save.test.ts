@@ -100,6 +100,29 @@ describe('load edge cases', () => {
     expect(loaded!.version).toBe(SAVE_VERSION);
     expect(loaded!.player.classPath).toBeNull();
   });
+
+  it('migrates v5 save to current version by backfilling materials and title fields', () => {
+    const data = createNewGameData();
+    // Simulate v5 save: no materials/earnedTitles/activeTitle, no world kill tracking
+    const v5player = { ...data.player };
+    delete (v5player as any).materials;
+    delete (v5player as any).earnedTitles;
+    delete (v5player as any).activeTitle;
+    const v5world = { ...data.world };
+    delete (v5world as any).killCounts;
+    delete (v5world as any).survivedLowHp;
+    const v5save = { ...data, player: v5player, world: v5world, version: 5 };
+    localStorage.setItem('claudicus_save', JSON.stringify(v5save));
+
+    const loaded = load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.version).toBe(SAVE_VERSION);
+    expect(loaded!.player.materials).toEqual({ wolf_pelt: 0, bandit_steel: 0 });
+    expect(loaded!.player.earnedTitles).toEqual([]);
+    expect(loaded!.player.activeTitle).toBeNull();
+    expect(loaded!.world.killCounts).toEqual({ wolf: 0, bandit: 0 });
+    expect(loaded!.world.survivedLowHp).toBe(0);
+  });
 });
 
 describe('createNewGameData', () => {

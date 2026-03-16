@@ -9,6 +9,7 @@ import {
   WorldState,
   EnemyType,
   ClassPath,
+  TITLES,
   createDefaultPlayer,
   createDefaultWorld,
   NpcRole
@@ -23,6 +24,7 @@ import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
 import { QUESTS, createDefaultQuests } from './data/quests';
+import { CRAFT_RECIPES } from './data/recipes';
 import { MusicEngine, TrackName, SfxType } from './music';
 
 class Game {
@@ -51,6 +53,7 @@ class Game {
   private inventoryReturnState: GameState = GameState.OVERWORLD;
 
   private dialogLineStartFrame: number = 0;
+  private craftCursor: number = 0;
 
   private questRewardTimer: number = 0;
   private questRewardName: string = '';
@@ -177,6 +180,9 @@ class Game {
       case GameState.QUEST_LOG:
         this.updateQuestLog();
         break;
+      case GameState.CRAFT:
+        this.updateCraft();
+        break;
     }
 
     // Update timers
@@ -212,6 +218,7 @@ class Game {
       case GameState.OVERWORLD:
       case GameState.DIALOG:
       case GameState.SHOP:
+      case GameState.CRAFT:
       case GameState.PAUSE:
       case GameState.INVENTORY:
       case GameState.QUEST_LOG:
@@ -226,6 +233,8 @@ class Game {
           this.ui.drawInventoryScreen(this.ctx, this.player.state, this.inventoryCursor);
         } else if (this.state === GameState.QUEST_LOG) {
           this.ui.drawQuestLog(this.ctx, this.quests);
+        } else if (this.state === GameState.CRAFT) {
+          this.ui.drawCraftMenu(this.ctx, this.player.state, this.craftCursor);
         }
         break;
       case GameState.COMBAT:
@@ -465,6 +474,12 @@ class Game {
         this.mapManager.openChest(chest.id);
         this.music.playSfx('chest');
         this.showNotification(result.messages);
+        // Grave Robber title: earn after opening 3 chests
+        const chestsOpened = this.world.openedChests.length;
+        if (chestsOpened >= 3 && !this.player.state.earnedTitles.includes('grave_robber')) {
+          this.player.state.earnedTitles.push('grave_robber');
+          this.showNotification(['Title Earned: Grave Robber!']);
+        }
         this.autoSave();
         return;
       }
@@ -566,11 +581,12 @@ class Game {
   private updateDialog(): void {
     if (this.input.interact()) {
       this.dialogLineStartFrame = this.frame;
+      // Capture NPC reference before advanceDialog() nullifies dialogState
+      const npc = this.npcManager.dialogState?.npc;
       const result = this.npcManager.advanceDialog();
 
-      if (result === 'done' || result === 'shop') {
+      if (result === 'done' || result === 'shop' || result === 'craft') {
         // Claim quest reward for any NPC whose quest is complete but unclaimed
-        const npc = this.npcManager.dialogState?.npc;
         if (npc?.questId) {
           const questState = this.quests[npc.questId];
           const questDef = QUESTS[npc.questId];
@@ -588,8 +604,12 @@ class Game {
         if (result === 'done') {
           this.npcManager.clearDialog();
           this.state = GameState.OVERWORLD;
-        } else {
+        } else if (result === 'shop') {
           this.state = GameState.SHOP;
+        } else {
+          this.npcManager.clearDialog();
+          this.craftCursor = 0;
+          this.state = GameState.CRAFT;
         }
       }
     }
@@ -694,6 +714,7 @@ class Game {
         if (this.player.state.currentMap === 'forest' || this.player.state.currentMap === 'dungeon') {
           this.checkQuestProgress(this.combat.state.enemy.type);
         }
+        this.checkSurvivorTitle(this.combat.state.playerHp);
         this.autoSave();
 
         this.victoryTimer = 360; // 6 seconds at 60fps
@@ -790,10 +811,11 @@ class Game {
   // --- INVENTORY ---
 
   private updateInventory(): void {
-    // items = weapons[] + armors[] + potions entry
+    // items = weapons[] + armors[] + potions + earned titles
     const weaponCount = this.player.state.weapons.length;
     const armorCount = (this.player.state.armors ?? []).length;
-    const itemCount = weaponCount + armorCount + 1;
+    const titleCount = (this.player.state.earnedTitles ?? []).length;
+    const itemCount = weaponCount + armorCount + 1 + titleCount;
 
     if (this.input.menuUp()) {
       this.inventoryCursor = (this.inventoryCursor - 1 + itemCount) % itemCount;
@@ -804,9 +826,24 @@ class Game {
 
     if (this.input.interact()) {
       const isPotion = this.inventoryCursor === weaponCount + armorCount;
-      const isArmor = !isPotion && this.inventoryCursor >= weaponCount;
+      const isTitle = this.inventoryCursor > weaponCount + armorCount;
+      const isArmor = !isPotion && !isTitle && this.inventoryCursor >= weaponCount;
 
-      if (isPotion) {
+      if (isTitle) {
+        const titleIndex = this.inventoryCursor - (weaponCount + armorCount + 1);
+        const titleId = this.player.state.earnedTitles[titleIndex];
+        if (titleId) {
+          if (this.player.state.activeTitle === titleId) {
+            this.player.state.activeTitle = null;
+            this.showNotification(['Title removed.']);
+          } else {
+            this.player.state.activeTitle = titleId;
+            const label = TITLES[titleId]?.label ?? titleId;
+            this.showNotification([`Title equipped: ${label}`]);
+          }
+          this.autoSave();
+        }
+      } else if (isPotion) {
         const used = this.player.usePotion();
         if (used) {
           this.showNotification(['Used Health Potion.', `HP: ${this.player.state.hp}/${this.player.state.maxHp}`]);
@@ -855,6 +892,60 @@ class Game {
     }
   }
 
+  // --- CRAFT ---
+
+  private updateCraft(): void {
+    const recipes = CRAFT_RECIPES;
+
+    if (this.input.menuUp()) {
+      this.craftCursor = (this.craftCursor - 1 + recipes.length) % recipes.length;
+    }
+    if (this.input.menuDown()) {
+      this.craftCursor = (this.craftCursor + 1) % recipes.length;
+    }
+
+    if (this.input.interact()) {
+      const recipe = recipes[this.craftCursor];
+      const mats = this.player.state.materials;
+      const hasPelts = (mats.wolf_pelt ?? 0) >= (recipe.cost.wolf_pelt ?? 0);
+      const hasSteel = (mats.bandit_steel ?? 0) >= (recipe.cost.bandit_steel ?? 0);
+
+      if (!hasPelts || !hasSteel) {
+        this.showNotification(['Not enough materials.']);
+        return;
+      }
+
+      // Check already owns item
+      if (recipe.weaponId && this.player.ownsWeapon(recipe.weaponId)) {
+        this.showNotification(['You already own that weapon.']);
+        return;
+      }
+      if (recipe.armorId && this.player.ownsArmor(recipe.armorId)) {
+        this.showNotification(['You already own that armor.']);
+        return;
+      }
+
+      // Consume materials
+      mats.wolf_pelt -= recipe.cost.wolf_pelt ?? 0;
+      mats.bandit_steel -= recipe.cost.bandit_steel ?? 0;
+
+      // Grant item
+      if (recipe.weaponId) {
+        this.player.addWeaponToInventory(recipe.weaponId);
+        this.showNotification([`Crafted: ${recipe.name}!`, 'Added to inventory.']);
+      } else if (recipe.armorId) {
+        this.player.addArmorToInventory(recipe.armorId);
+        this.showNotification([`Crafted: ${recipe.name}!`, 'Added to inventory.']);
+      }
+
+      this.autoSave();
+    }
+
+    if (this.input.cancel()) {
+      this.state = GameState.OVERWORLD;
+    }
+  }
+
   // --- HELPERS ---
 
   private checkQuestProgress(enemyType: EnemyType): void {
@@ -875,6 +966,42 @@ class Game {
             `Return to ${questDef.npcName}.`
           ]);
         }
+      }
+    }
+
+    // Track kills for titles
+    if (enemyType === EnemyType.WOLF) {
+      this.world.killCounts.wolf = (this.world.killCounts.wolf ?? 0) + 1;
+      if (this.world.killCounts.wolf >= 5 && !this.player.state.earnedTitles.includes('wolfsbane')) {
+        this.player.state.earnedTitles.push('wolfsbane');
+        this.showNotification(['Title Earned: Wolfsbane!']);
+      }
+      // Wolf pelt drop (40%)
+      if (Math.random() < 0.4) {
+        this.player.state.materials.wolf_pelt++;
+        this.showNotification(['Wolf Pelt obtained!']);
+      }
+    }
+    if (enemyType === EnemyType.BANDIT || enemyType === EnemyType.BANDIT_ARCHER) {
+      this.world.killCounts.bandit = (this.world.killCounts.bandit ?? 0) + 1;
+      if (this.world.killCounts.bandit >= 5 && !this.player.state.earnedTitles.includes('bandit_hunter')) {
+        this.player.state.earnedTitles.push('bandit_hunter');
+        this.showNotification(['Title Earned: Bandit Hunter!']);
+      }
+      // Bandit steel drop (50%)
+      if (Math.random() < 0.5) {
+        this.player.state.materials.bandit_steel++;
+        this.showNotification(['Bandit Steel obtained!']);
+      }
+    }
+  }
+
+  private checkSurvivorTitle(remainingHp: number): void {
+    if (remainingHp <= 5) {
+      this.world.survivedLowHp = (this.world.survivedLowHp ?? 0) + 1;
+      if (this.world.survivedLowHp >= 3 && !this.player.state.earnedTitles.includes('survivor')) {
+        this.player.state.earnedTitles.push('survivor');
+        this.showNotification(['Title Earned: Survivor!']);
       }
     }
   }

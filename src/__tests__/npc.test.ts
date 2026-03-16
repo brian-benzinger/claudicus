@@ -390,3 +390,50 @@ describe('NpcManager.claimQuestReward', () => {
     expect(result.success).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Forge / crafting NPC
+// ---------------------------------------------------------------------------
+describe('NpcManager.advanceDialog — SHOP_CRAFT role returns craft', () => {
+  it('returns "craft" when dialog ends for a SHOP_CRAFT NPC', () => {
+    const mgr = new NpcManager();
+    const forgeNpc = {
+      id: 'gretta_anvil',
+      name: "Gretta's Forge",
+      tileX: 22,
+      tileY: 4,
+      role: NpcRole.SHOP_CRAFT,
+      color: '#555',
+      dialogs: { default: ['The forge burns hot.'] },
+    };
+    mgr.startDialog(forgeNpc, {});
+    const result = mgr.advanceDialog();
+    expect(result).toBe('craft');
+  });
+
+  it('does not open shop items for SHOP_CRAFT NPC', () => {
+    const mgr = new NpcManager();
+    const forgeNpc = {
+      id: 'gretta_anvil',
+      name: "Gretta's Forge",
+      tileX: 22,
+      tileY: 4,
+      role: NpcRole.SHOP_CRAFT,
+      color: '#555',
+      dialogs: { default: ['Ready to forge?'] },
+    };
+    mgr.startDialog(forgeNpc, {});
+    mgr.advanceDialog();
+    expect(mgr.isInShop).toBe(false);
+    expect(mgr.shopItems.length).toBe(0);
+  });
+});
+
+describe('Gretta\'s Forge NPC placement', () => {
+  it('is defined in VILLAGE_NPCS', async () => {
+    const { VILLAGE_NPCS } = await import('../data/npcs');
+    const forge = VILLAGE_NPCS.find(n => n.id === 'gretta_anvil');
+    expect(forge).toBeDefined();
+    expect(forge!.role).toBe(NpcRole.SHOP_CRAFT);
+  });
+});

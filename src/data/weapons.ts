@@ -77,6 +77,17 @@ export const WEAPONS: Record<string, Weapon> = {
     ignoresDefense: 0,
     cost: 50,
     source: 'chest'
+  },
+  war_axe: {
+    id: 'war_axe',
+    name: 'War Axe',
+    damageBonus: 8,
+    speed: WeaponSpeed.SLOW,
+    missChance: 0.1,
+    critChance: 0.1,
+    ignoresDefense: 0.2,
+    cost: 0,
+    source: 'chest'  // 'chest' so it doesn't appear in shops
   }
 };
 

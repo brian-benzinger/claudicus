@@ -53,7 +53,7 @@ export class NpcManager {
   }
 
   // Advance to next dialog line
-  advanceDialog(): 'continue' | 'done' | 'shop' {
+  advanceDialog(): 'continue' | 'done' | 'shop' | 'craft' {
     if (!this.dialogState) return 'done';
 
     this.dialogState.currentLine += 2;
@@ -64,6 +64,11 @@ export class NpcManager {
       if (role === NpcRole.SHOP_WEAPONS || role === NpcRole.SHOP_POTIONS || role === NpcRole.SHOP_ARMOR) {
         this.openShop(role);
         return 'shop';
+      }
+
+      if (role === NpcRole.SHOP_CRAFT) {
+        this.dialogState = null;
+        return 'craft';
       }
 
       this.dialogState = null;

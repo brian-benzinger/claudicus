@@ -34,10 +34,22 @@ export function load(): SaveData | null {
 
     if (data.version !== SAVE_VERSION) {
       if (data.version === 4) {
-        // Migrate v4 → v5: backfill new player fields
+        // Migrate v4 → v5: backfill classPath
         (data.player as any).classPath = (data.player as any).classPath ?? null;
+        data.version = 5;
+      }
+      if (data.version === 5) {
+        // Migrate v5 → v6: backfill materials, earnedTitles, activeTitle, world kill tracking
+        const p = data.player as any;
+        p.materials = p.materials ?? { wolf_pelt: 0, bandit_steel: 0 };
+        p.earnedTitles = p.earnedTitles ?? [];
+        p.activeTitle = p.activeTitle ?? null;
+        const w = data.world as any;
+        w.killCounts = w.killCounts ?? { wolf: 0, bandit: 0 };
+        w.survivedLowHp = w.survivedLowHp ?? 0;
         data.version = SAVE_VERSION;
-      } else {
+      }
+      if (data.version !== SAVE_VERSION) {
         console.warn('Save version mismatch, starting fresh');
         return null;
       }

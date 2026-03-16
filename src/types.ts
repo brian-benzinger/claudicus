@@ -6,6 +6,7 @@ export enum GameState {
   OVERWORLD = 'OVERWORLD',
   DIALOG = 'DIALOG',
   SHOP = 'SHOP',
+  CRAFT = 'CRAFT',
   COMBAT = 'COMBAT',
   COMBAT_VICTORY = 'COMBAT_VICTORY',
   COMBAT_DEFEAT = 'COMBAT_DEFEAT',
@@ -72,8 +73,29 @@ export enum NpcRole {
   SHOP_WEAPONS = 'SHOP_WEAPONS',
   SHOP_POTIONS = 'SHOP_POTIONS',
   SHOP_ARMOR = 'SHOP_ARMOR',
+  SHOP_CRAFT = 'SHOP_CRAFT',
   QUEST = 'QUEST'
 }
+
+// Crafting materials in player inventory
+export interface CraftMaterials {
+  wolf_pelt: number;
+  bandit_steel: number;
+}
+
+// Title definition
+export interface TitleDef {
+  id: string;
+  label: string;
+  requirement: string;
+}
+
+export const TITLES: Record<string, TitleDef> = {
+  wolfsbane:     { id: 'wolfsbane',     label: 'Wolfsbane',     requirement: '5 wolves slain' },
+  bandit_hunter: { id: 'bandit_hunter', label: 'Bandit Hunter', requirement: '5 bandits slain' },
+  grave_robber:  { id: 'grave_robber',  label: 'Grave Robber',  requirement: '3 chests opened' },
+  survivor:      { id: 'survivor',      label: 'Survivor',      requirement: 'Survive 3 fights at ≤5 HP' },
+};
 
 // Combat phases
 export enum CombatPhase {
@@ -236,6 +258,9 @@ export interface PlayerState {
   facing: 'up' | 'down' | 'left' | 'right';
   gender: 'male' | 'female';
   classPath: ClassPath | null;
+  materials: CraftMaterials;
+  earnedTitles: string[];
+  activeTitle: string | null;
 }
 
 // Quest state tracking (generic per-quest progress counter)
@@ -250,6 +275,8 @@ export interface QuestState {
 export interface WorldState {
   openedChests: string[];
   defeatedEnemies: string[];
+  killCounts: { wolf: number; bandit: number };
+  survivedLowHp: number;  // times player survived a combat with ≤5 HP remaining
 }
 
 // Full save data structure
@@ -331,7 +358,7 @@ export const MAX_POTIONS = 10;
 export const POTION_HEAL = 20;
 export const POTION_COST = 5;
 export const MAX_LEVEL = 10;
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 // Default player state factory
 export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerState {
@@ -354,7 +381,10 @@ export function createDefaultPlayer(gender: 'male' | 'female' = 'male'): PlayerS
     currentMap: 'village',
     facing: 'down',
     gender,
-    classPath: null
+    classPath: null,
+    materials: { wolf_pelt: 0, bandit_steel: 0 },
+    earnedTitles: [],
+    activeTitle: null
   };
 }
 
@@ -372,7 +402,9 @@ export function createDefaultQuest(): QuestState {
 export function createDefaultWorld(): WorldState {
   return {
     openedChests: [],
-    defeatedEnemies: []
+    defeatedEnemies: [],
+    killCounts: { wolf: 0, bandit: 0 },
+    survivedLowHp: 0
   };
 }
 
