@@ -251,3 +251,9 @@ npm run test:coverage   # report + enforce thresholds
 Coverage is **enforced**: the build fails if it drops below **95% lines / 90% branches**. Pure-rendering and layout modules (`main.ts`, `renderer.ts`, `ui.ts`, `data/maps.ts`, `data/npcs.ts`) are excluded from the metric since they are exercised only through the canvas; everything else — game logic, combat, progression, persistence, audio scheduling — is covered by unit tests.
 </content>
 </invoke>
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE) — © 2026 Brian Benzinger.

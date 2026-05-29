@@ -2,6 +2,7 @@
   "name": "claudicus",
   "version": "1.0.0",
   "description": "A top-down 2D tile-based sprite RPG",
+  "license": "MIT",
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --outfile=dist/game.js --watch --sourcemap",
     "build": "esbuild src/main.ts --bundle --outfile=dist/game.js --minify",
