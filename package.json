@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --outfile=dist/game.js --watch --sourcemap",
     "build": "esbuild src/main.ts --bundle --outfile=dist/game.js --minify",
-    "build:vercel": "npm run build && mkdir -p public/dist && cp index.html style.css public/ && cp dist/game.js public/dist/game.js",
+    "build:vercel": "npm run build && mkdir -p public/dist && cp index.html style.css favicon.svg favicon.png public/ && cp dist/game.js public/dist/game.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
