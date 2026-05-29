@@ -107,6 +107,19 @@ describe('MapManager.getEnemyAt / getNpcAt', () => {
   });
 });
 
+describe('MapManager.getEnemyAt — live enemy in the forest', () => {
+  it('returns the living enemy occupying a tile', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const enemy = mgr.currentMap.enemies.find(e => e.alive);
+    expect(enemy).toBeDefined();
+    const found = mgr.getEnemyAt(enemy!.tileX, enemy!.tileY);
+    expect(found).not.toBeNull();
+    expect(found!.id).toBe(enemy!.id);
+  });
+});
+
 describe('MapManager.removeEnemy', () => {
   it('marks enemy as not alive', () => {
     const mgr = makeMapManager();
@@ -210,6 +223,169 @@ describe('MapManager.clearDefeatedEnemies', () => {
     mgr.loadMap('village');
     mgr.clearDefeatedEnemies();
     expect(world.defeatedEnemies.length).toBe(0);
+  });
+});
+
+describe('MapManager.getTransition', () => {
+  it('returns the transition inside its zone and null elsewhere', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const t = mgr.currentMap.transitions[0];
+    expect(t).toBeDefined();
+    const found = mgr.getTransition(t.tileX, t.tileY);
+    expect(found).not.toBeNull();
+    expect(found!.targetMap).toBe(t.targetMap);
+    // Far away → no transition
+    expect(mgr.getTransition(-5, -5)).toBeNull();
+  });
+});
+
+describe('MapManager.removeEnemy — unknown id', () => {
+  it('still records the id in world state even if no instance matches', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('village');
+    mgr.removeEnemy('does_not_exist');
+    expect(world.defeatedEnemies).toContain('does_not_exist');
+  });
+});
+
+describe('MapManager.getChestAdjacent / getChestAt', () => {
+  it('returns null when no chest at position', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    expect(mgr.getChestAt(0, 0)).toBeNull();
+  });
+
+  it('returns the chest in the facing direction', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const chest = mgr.currentMap.chests[0];
+    expect(chest).toBeDefined();
+    // Stand one tile above the chest, facing down
+    const found = mgr.getChestAdjacent(chest.tileX, chest.tileY - 1, 'down');
+    expect(found).not.toBeNull();
+    expect(found!.id).toBe(chest.id);
+  });
+
+  it('checks each facing direction', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const chest = mgr.currentMap.chests[0];
+    expect(mgr.getChestAdjacent(chest.tileX, chest.tileY + 1, 'up')!.id).toBe(chest.id);
+    expect(mgr.getChestAdjacent(chest.tileX + 1, chest.tileY, 'left')!.id).toBe(chest.id);
+    expect(mgr.getChestAdjacent(chest.tileX - 1, chest.tileY, 'right')!.id).toBe(chest.id);
+  });
+
+  it('returns null when nothing is in front', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    expect(mgr.getChestAdjacent(0, 0, 'up')).toBeNull();
+  });
+});
+
+describe('MapManager.getNpcAdjacent — all facings', () => {
+  it('finds an NPC up/left/right of the player too', () => {
+    const mgr = makeMapManager();
+    const npc = mgr.currentMap.npcs[0];
+    expect(mgr.getNpcAdjacent(npc.tileX, npc.tileY + 1, 'up')!.id).toBe(npc.id);
+    expect(mgr.getNpcAdjacent(npc.tileX + 1, npc.tileY, 'left')!.id).toBe(npc.id);
+    expect(mgr.getNpcAdjacent(npc.tileX - 1, npc.tileY, 'right')!.id).toBe(npc.id);
+  });
+});
+
+describe('MapManager.isWalkable — unopened chests block', () => {
+  it('an unopened chest tile is not walkable, an opened one is', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const chest = mgr.currentMap.chests[0];
+    expect(mgr.isWalkable(chest.tileX, chest.tileY)).toBe(false);
+    mgr.openChest(chest.id);
+    expect(mgr.isWalkable(chest.tileX, chest.tileY)).toBe(true);
+  });
+});
+
+describe('MapManager.setWorldState', () => {
+  it('swaps the world state used for enemy/chest persistence', () => {
+    const mgr = makeMapManager();
+    const newWorld = createDefaultWorld();
+    newWorld.openedChests.push('swapped_chest');
+    mgr.setWorldState(newWorld);
+    expect(mgr.isChestOpened('swapped_chest')).toBe(true);
+  });
+});
+
+describe('MapManager.render', () => {
+  // Minimal canvas mock that records draw calls.
+  function makeCtx() {
+    const calls: string[] = [];
+    const rec = (m: string) => (...args: unknown[]) => { calls.push(m); };
+    const ctx = {
+      fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1,
+      font: '', textAlign: 'left' as CanvasTextAlign,
+      fillRect: rec('fillRect'), strokeRect: rec('strokeRect'),
+      beginPath: rec('beginPath'), arc: rec('arc'), fill: rec('fill'),
+      stroke: rec('stroke'), moveTo: rec('moveTo'), lineTo: rec('lineTo'),
+      ellipse: rec('ellipse'), save: rec('save'), restore: rec('restore'),
+      translate: rec('translate'), scale: rec('scale'), rotate: rec('rotate'),
+      fillText: rec('fillText'), measureText: () => ({ width: 0 }),
+      clearRect: rec('clearRect'), drawImage: rec('drawImage'),
+      closePath: rec('closePath'), quadraticCurveTo: rec('quadraticCurveTo'),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  }
+
+  it('renders the village (tiles, chests, npcs, enemies) without throwing', () => {
+    const mgr = makeMapManager();
+    mgr.updateCamera(mgr.currentMap.spawnX, mgr.currentMap.spawnY);
+    const { ctx, calls } = makeCtx();
+    expect(() => mgr.render(ctx, 0)).not.toThrow();
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it('renders the forest with live enemies, chests and npcs', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    mgr.updateCamera(mgr.currentMap.spawnX, mgr.currentMap.spawnY);
+    const { ctx } = makeCtx();
+    expect(() => mgr.render(ctx, 5)).not.toThrow();
+  });
+
+  it('renders opened chests and dead enemies (alternate branches)', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    for (const c of mgr.currentMap.chests) mgr.openChest(c.id);
+    if (mgr.currentMap.enemies[0]) mgr.currentMap.enemies[0].alive = false;
+    mgr.updateCamera(0, 0);
+    const { ctx } = makeCtx();
+    expect(() => mgr.render(ctx, 1)).not.toThrow();
+  });
+});
+
+describe('MapManager.updateCameraToPixel — small map centering', () => {
+  it('centers when the map is smaller than the viewport', () => {
+    // Force a tiny map by swapping currentMap dimensions
+    const mgr = makeMapManager();
+    mgr.currentMap = {
+      ...mgr.currentMap,
+      width: 5,
+      height: 5,
+      tiles: Array.from({ length: 5 }, () => [0, 0, 0, 0, 0]),
+    };
+    mgr.updateCameraToPixel(0, 0);
+    const expectedX = (5 * TILE_SIZE - CANVAS_WIDTH) / 2;
+    const expectedY = (5 * TILE_SIZE - CANVAS_HEIGHT) / 2;
+    expect(mgr.camera.x).toBeCloseTo(expectedX);
+    expect(mgr.camera.y).toBeCloseTo(expectedY);
   });
 });
 

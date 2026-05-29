@@ -157,5 +157,81 @@ describe('InputManager', () => {
       input.flushFrame();
       expect(input.action4()).toBe(true);
     });
+
+    it('action5 returns true for key 5', () => {
+      press('5');
+      input.flushFrame();
+      expect(input.action5()).toBe(true);
+    });
+
+    it('openInventory returns true for key i', () => {
+      press('i');
+      input.flushFrame();
+      expect(input.openInventory()).toBe(true);
+    });
+
+    it('openQuestLog returns true for key q', () => {
+      press('q');
+      input.flushFrame();
+      expect(input.openQuestLog()).toBe(true);
+    });
+
+    it('toggleMute returns true for key m', () => {
+      press('m');
+      input.flushFrame();
+      expect(input.toggleMute()).toBe(true);
+    });
+  });
+
+  describe('menu navigation helpers (wasJustPressed)', () => {
+    it('menuUp responds to w and ArrowUp', () => {
+      press('w');
+      input.flushFrame();
+      expect(input.menuUp()).toBe(true);
+    });
+
+    it('menuUp responds to ArrowUp', () => {
+      press('ArrowUp');
+      input.flushFrame();
+      expect(input.menuUp()).toBe(true);
+    });
+
+    it('menuDown responds to s and ArrowDown', () => {
+      press('ArrowDown');
+      input.flushFrame();
+      expect(input.menuDown()).toBe(true);
+    });
+
+    it('menuLeft responds to a and ArrowLeft', () => {
+      press('a');
+      input.flushFrame();
+      expect(input.menuLeft()).toBe(true);
+    });
+
+    it('menuLeft responds to ArrowLeft', () => {
+      press('ArrowLeft');
+      input.flushFrame();
+      expect(input.menuLeft()).toBe(true);
+    });
+
+    it('menuRight responds to d and ArrowRight', () => {
+      press('d');
+      input.flushFrame();
+      expect(input.menuRight()).toBe(true);
+    });
+
+    it('menuRight responds to ArrowRight', () => {
+      press('ArrowRight');
+      input.flushFrame();
+      expect(input.menuRight()).toBe(true);
+    });
+
+    it('menu helpers are false when nothing pressed', () => {
+      input.flushFrame();
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
   });
 });

@@ -501,3 +501,56 @@ describe('PlayerManager titles', () => {
     }
   });
 });
+
+describe('PlayerManager constructor default', () => {
+  it('creates a default player when no state is provided', () => {
+    const p = new PlayerManager();
+    expect(p.state.level).toBe(1);
+    expect(p.state.weaponId).toBe('rusty_shortsword');
+  });
+});
+
+describe('PlayerManager.loadState / reset', () => {
+  it('loadState replaces the player state with a copy', () => {
+    const p = makePlayer();
+    const incoming = createDefaultPlayer('female');
+    incoming.gold = 500;
+    incoming.level = 7;
+    p.loadState(incoming);
+    expect(p.state.gold).toBe(500);
+    expect(p.state.level).toBe(7);
+    expect(p.state.gender).toBe('female');
+    // It should be a copy, not the same reference
+    expect(p.state).not.toBe(incoming);
+  });
+
+  it('reset returns the player to default starting state', () => {
+    const p = makePlayer();
+    p.state.gold = 9999;
+    p.state.level = 9;
+    p.reset();
+    expect(p.state.gold).toBe(10);
+    expect(p.state.level).toBe(1);
+  });
+});
+
+describe('PlayerManager.addArmorToInventory / addWeaponToInventory', () => {
+  it('adds armor without equipping it', () => {
+    const p = makePlayer();
+    p.addArmorToInventory('iron_plate');
+    expect(p.ownsArmor('iron_plate')).toBe(true);
+    expect(p.state.armorId).not.toBe('iron_plate');
+    // No duplicate on second add
+    p.addArmorToInventory('iron_plate');
+    expect(p.state.armors.filter(a => a === 'iron_plate').length).toBe(1);
+  });
+
+  it('adds a weapon without equipping it', () => {
+    const p = makePlayer();
+    p.addWeaponToInventory('mace');
+    expect(p.ownsWeapon('mace')).toBe(true);
+    expect(p.state.weaponId).not.toBe('mace');
+    p.addWeaponToInventory('mace');
+    expect(p.state.weapons.filter(w => w === 'mace').length).toBe(1);
+  });
+});

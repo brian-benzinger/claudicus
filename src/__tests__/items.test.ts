@@ -34,6 +34,26 @@ describe('openChest', () => {
     expect(result.messages[0]).toContain('Dagger');
   });
 
+  it('equips armor and returns message', () => {
+    const player = makePlayer();
+    const result = openChest(makeChest([{ type: 'armor', armorId: 'shadow_cloak' }]), player);
+    expect(player.state.armorId).toBe('shadow_cloak');
+    expect(result.messages[0]).toContain('Shadow Cloak');
+  });
+
+  it('ignores a weapon loot entry with no weaponId', () => {
+    const player = makePlayer();
+    const result = openChest(makeChest([{ type: 'weapon' }]), player);
+    // No weapon equipped, falls through to empty message
+    expect(result.messages[0]).toContain('empty');
+  });
+
+  it('ignores an armor loot entry with no armorId', () => {
+    const player = makePlayer();
+    const result = openChest(makeChest([{ type: 'armor' }]), player);
+    expect(result.messages[0]).toContain('empty');
+  });
+
   it('antique coin adds 15 gold', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'antique_coin' }]), player);
@@ -86,5 +106,17 @@ describe('getItemDescription', () => {
 
   it('describes antique coin', () => {
     expect(getItemDescription({ type: 'antique_coin' })).toBe('Antique Coin');
+  });
+
+  it('describes armor by name', () => {
+    expect(getItemDescription({ type: 'armor', armorId: 'chain_mail' })).toBe('Chain Mail');
+  });
+
+  it('describes unknown armor', () => {
+    expect(getItemDescription({ type: 'armor' })).toBe('Unknown Armor');
+  });
+
+  it('describes an unknown item type', () => {
+    expect(getItemDescription({ type: 'mystery' as any })).toBe('Unknown Item');
   });
 });

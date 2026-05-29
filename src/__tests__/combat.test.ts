@@ -781,3 +781,303 @@ describe('CombatEngine.playerFlee — class modifiers', () => {
     expect(warriorEngine.playerFlee()).toBe(false);
   });
 });
+
+// ===========================================================================
+// Coverage completion: AI variants, abilities, status effects, phase guards
+// ===========================================================================
+describe('CombatEngine — action phase guards', () => {
+  function engineInEnemyPhase() {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    return e;
+  }
+
+  it('playerDefend is a no-op outside PLAYER_ACTION', () => {
+    const e = engineInEnemyPhase();
+    e.playerDefend();
+    expect(e.state.defendingThisTurn).toBe(false);
+  });
+
+  it('playerPotion is a no-op outside PLAYER_ACTION', () => {
+    const e = engineInEnemyPhase();
+    expect(e.playerPotion()).toBe(false);
+  });
+
+  it('playerFlee is a no-op outside PLAYER_ACTION', () => {
+    const e = engineInEnemyPhase();
+    expect(e.playerFlee()).toBe(false);
+  });
+
+  it('playerUseAbility is a no-op outside PLAYER_ACTION', () => {
+    const p = makePlayer();
+    p.state.level = 3;
+    p.equipWeapon('dagger');
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    e.playerUseAbility();
+    // Should not have changed to an animating phase
+    expect(e.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+  });
+
+  it('playerUseAbility does nothing when no ability is available', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy()); // level 1, basic weapon
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility();
+    expect(e.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
+});
+
+describe('CombatEngine — flee class modifier reaches the calc', () => {
+  it('Warrior classBonus (-0.1) applies when it is the player turn', () => {
+    const p = makePlayer();
+    p.state.classPath = ClassPath.WARRIOR;
+    const enemy = makeEnemy();
+    enemy.agi = 10; // remove the AGI flee bonus
+    const e = new CombatEngine(p, enemy);
+    e.state.phase = CombatPhase.PLAYER_ACTION; // force player turn
+    vi.spyOn(Math, 'random').mockReturnValue(0.45); // >= 0.4 → fail
+    expect(e.playerFlee()).toBe(false);
+  });
+});
+
+describe('CombatEngine — enemy AI branches', () => {
+  function runEnemyTurn(type: EnemyType, randomValue: number, mutate?: (e: CombatEngine) => void) {
+    const e = new CombatEngine(makePlayer(), makeEnemy(type));
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    if (mutate) mutate(e);
+    vi.spyOn(Math, 'random').mockReturnValue(randomValue);
+    e.enemyTurn();
+    return e;
+  }
+
+  it('Skeleton raises a shield of bones', () => {
+    const e = runEnemyTurn(EnemyType.SKELETON, 0.1); // < 0.4 → shield
+    expect(e.state.enemyDefending).toBe(true);
+    expect(e.state.log.some(l => l.includes('shield of bones'))).toBe(true);
+  });
+
+  it('Skeleton mends its bones every third turn', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    e.state.enemyTurnCount = 2;       // next turn → 3 → heals
+    e.state.enemyHp = 5;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    e.enemyTurn();
+    expect(e.state.log.some(l => l.includes('mends its bones'))).toBe(true);
+  });
+
+  it('Wild Boar stamps its hooves', () => {
+    const e = runEnemyTurn(EnemyType.WILD_BOAR, 0.95); // >= 0.9 → stamp
+    expect(e.state.enemyDefending).toBe(true);
+    expect(e.state.log.some(l => l.includes('stamps its hooves'))).toBe(true);
+  });
+
+  it('Revenant Knight enters phase two and inflicts bleed', () => {
+    const e = runEnemyTurn(EnemyType.REVENANT_KNIGHT, 0.1, (eng) => {
+      eng.state.enemyHp = 10; // < 50% of 60 → phase two
+    });
+    expect(e.state.enemyIsPhaseTwo).toBe(true);
+    expect(e.state.playerStatusEffects.some(s => s.type === StatusEffectType.BLEED)).toBe(true);
+  });
+
+  it('Revenant Knight phase two can raise its cursed blade', () => {
+    const e = runEnemyTurn(EnemyType.REVENANT_KNIGHT, 0.95, (eng) => {
+      eng.state.enemyHp = 10;
+      eng.state.enemyIsPhaseTwo = true;
+    });
+    expect(e.state.enemyDefending).toBe(true);
+    expect(e.state.log.some(l => l.includes('cursed blade'))).toBe(true);
+  });
+
+  it('Revenant Knight phase one braces for the attack', () => {
+    const e = runEnemyTurn(EnemyType.REVENANT_KNIGHT, 0.1); // full HP, < 0.25 → brace
+    expect(e.state.enemyDefending).toBe(true);
+  });
+
+  it('Revenant Knight phase one attacks otherwise', () => {
+    const e = runEnemyTurn(EnemyType.REVENANT_KNIGHT, 0.5); // full HP, >= 0.25 → attack
+    expect(e.state.log.some(l => l.includes('deals'))).toBe(true);
+  });
+
+  it('default AI makes a desperate attack at low HP', () => {
+    const e = runEnemyTurn(EnemyType.BANDIT, 0.1, (eng) => {
+      eng.state.enemyHp = 2; // < 25% → desperate (0.1 < 0.3)
+    });
+    expect(e.state.log.some(l => l.includes('desperate attack'))).toBe(true);
+  });
+
+  it('default AI braces for the attack', () => {
+    const e = runEnemyTurn(EnemyType.BANDIT, 0.1); // full HP, 0.1 < 0.2 → defend
+    expect(e.state.enemyDefending).toBe(true);
+  });
+
+  it('enemyTurn is a no-op outside ENEMY_ACTION', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    const before = e.state.enemyTurnCount;
+    e.enemyTurn();
+    expect(e.state.enemyTurnCount).toBe(before);
+  });
+
+  it('enemyTurn ends in DONE when the enemy is already dead', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    e.state.enemyHp = 0;
+    e.enemyTurn();
+    expect(e.state.phase).toBe(CombatPhase.DONE);
+  });
+});
+
+describe('CombatEngine — bleed can kill the player on their enemy turn', () => {
+  it('a bleeding player at 1 HP falls before the enemy acts', () => {
+    const p = makePlayer();
+    p.state.hp = 1;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.playerHp = 1;
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    e.state.playerStatusEffects.push({ type: StatusEffectType.BLEED, turnsRemaining: 2 });
+    e.enemyTurn();
+    expect(e.state.phase).toBe(CombatPhase.DONE);
+    expect(e.state.log.some(l => l.includes('fallen'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — status effect refresh and expiry', () => {
+  it('Intimidate re-applied refreshes the existing WEAKEN effect', () => {
+    const p = makePlayer();
+    p.state.classPath = ClassPath.BRIGAND;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility(); // first WEAKEN
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility(); // refresh existing WEAKEN
+    const weaken = e.state.enemyStatusEffects.filter(s => s.type === StatusEffectType.WEAKEN);
+    expect(weaken.length).toBe(1);
+    expect(weaken[0].magnitude).toBe(3);
+  });
+
+  it('WEAKEN expiry is announced when it ticks to zero', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.enemyStatusEffects.push({
+      type: StatusEffectType.WEAKEN, turnsRemaining: 1, magnitude: 3,
+    });
+    e.state.phase = CombatPhase.ENEMY_ANIMATING;
+    e.state.animationFrame = 21; // trigger end-of-animation tick
+    e.update();
+    expect(e.state.log.some(l => l.includes('no longer weakened'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — dagger Backstab ability', () => {
+  function daggerEngine() {
+    const p = makePlayer();
+    p.state.level = 3;
+    p.equipWeapon('dagger');
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    return e;
+  }
+
+  it('Backstab strikes off-guard when the enemy just defended', () => {
+    const e = daggerEngine();
+    e.state.enemyJustDefended = true;
+    mockAttacks([0, 0, 0]); // no miss, variance 0, no crit
+    e.playerUseAbility();
+    expect(e.state.log.some(l => l.includes('off-guard'))).toBe(true);
+    expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
+  });
+
+  it('Backstab goes for a backstab when the enemy did not defend', () => {
+    const e = daggerEngine();
+    e.state.enemyJustDefended = false;
+    mockAttacks([0, 0, 0]);
+    e.playerUseAbility();
+    expect(e.state.log.some(l => l.includes('backstab'))).toBe(true);
+  });
+
+  it('Backstab that drops the enemy logs a defeat', () => {
+    const e = daggerEngine();
+    e.state.enemyHp = 1;
+    mockAttacks([0, 0, 0.99]); // hit
+    e.playerUseAbility();
+    expect(e.state.enemyHp).toBe(0);
+    expect(e.state.log.some(l => l.includes('is defeated'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — Mace Shatter on already-broken armor', () => {
+  it('reports armor already broken when enemy DEF is 0', () => {
+    const p = makePlayer();
+    p.state.level = 3;
+    p.equipWeapon('mace');
+    const enemy = makeEnemy();
+    enemy.def = 0;
+    const e = new CombatEngine(p, enemy);
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility();
+    expect(e.state.log.some(l => l.includes('already broken'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — Scout Ambush defeats the enemy', () => {
+  it('logs a defeat when the guaranteed crit finishes the enemy', () => {
+    const p = makePlayer();
+    p.state.classPath = ClassPath.SCOUT;
+    const enemy = makeEnemy();
+    enemy.hp = 1;
+    const e = new CombatEngine(p, enemy);
+    e.state.enemyHp = 1;
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    mockAttacks([0, 0, 0]); // miss roll, variance — forceCrit makes crit guaranteed
+    e.playerUseAbility();
+    expect(e.state.enemyHp).toBe(0);
+    expect(e.state.log.some(l => l.includes('is defeated'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — player attack into a defending enemy', () => {
+  it('doubles enemy DEF when the enemy is defending', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.state.enemyDefending = true;
+    mockAttacks([0, 0, 0]);
+    expect(() => e.playerAttack()).not.toThrow();
+  });
+});
+
+describe('CombatEngine — update phase transitions', () => {
+  it('enemy animation ending with a dead player ends combat', () => {
+    const p = makePlayer();
+    p.state.hp = 0;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.playerHp = 0;
+    e.state.phase = CombatPhase.ENEMY_ANIMATING;
+    e.state.animationFrame = 21;
+    e.update();
+    expect(e.state.phase).toBe(CombatPhase.DONE);
+  });
+
+  it('RESULT phase advances to DONE after the timer elapses', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.RESULT;
+    for (let i = 0; i < 62; i++) e.update();
+    expect(e.state.phase).toBe(CombatPhase.DONE);
+  });
+});
+
+describe('CombatEngine.getResult — fled outcome', () => {
+  it('returns "fled" when combat is done with both combatants alive', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.0); // guaranteed flee success
+    e.playerFlee();
+    expect(e.isDone()).toBe(true);
+    expect(e.getResult()).toBe('fled');
+  });
+
+  it('returns "ongoing" while combat is still active', () => {
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    expect(e.getResult()).toBe('ongoing');
+  });
+});
