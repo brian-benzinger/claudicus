@@ -4,6 +4,8 @@ A top-down 2D tile-based sprite RPG set in a gritty medieval fantasy world. Buil
 
 You play a peasant-turned-militia member defending the village of **Brannford** from the bandits, beasts, and undead stirring in **Thornwood** forest and the depths of **Greymoor Crypt**.
 
+**▶ Play it live: [claudicus.vercel.app](https://claudicus.vercel.app)**
+
 ---
 
 ## Quick Start
