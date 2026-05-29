@@ -143,3 +143,18 @@ describe('createNewGameData', () => {
     }
   });
 });
+
+describe('save error handling', () => {
+  it('swallows and logs errors thrown by localStorage.setItem', () => {
+    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() =>
+      save(createDefaultPlayer(), createDefaultQuests(), createDefaultWorld())
+    ).not.toThrow();
+    expect(errSpy).toHaveBeenCalled();
+    spy.mockRestore();
+    errSpy.mockRestore();
+  });
+});

@@ -437,3 +437,143 @@ describe('Gretta\'s Forge NPC placement', () => {
     expect(forge!.role).toBe(NpcRole.SHOP_CRAFT);
   });
 });
+
+describe('NpcManager — armor shop', () => {
+  function makeArmorNpc() {
+    return {
+      id: 'armorer',
+      name: 'Armorer',
+      tileX: 1,
+      tileY: 1,
+      role: NpcRole.SHOP_ARMOR,
+      color: '#444',
+      dialogs: { default: ['Steel for sale.'] },
+    };
+  }
+
+  it('opens an armor shop after dialog completes', () => {
+    const mgr = new NpcManager();
+    mgr.startDialog(makeArmorNpc(), {});
+    const result = mgr.advanceDialog();
+    expect(result).toBe('shop');
+    expect(mgr.isInShop).toBe(true);
+    expect(mgr.shopItems.length).toBeGreaterThan(0);
+    expect(mgr.shopItems.every(i => i.type === 'armor')).toBe(true);
+  });
+
+  it('marks owned armor via getShopItemsWithOwnership', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    const owned = mgr.shopItems[0].armorId!;
+    player.equipArmor(owned);
+    const items = mgr.getShopItemsWithOwnership(player);
+    expect(items.find(i => i.armorId === owned)!.owned).toBe(true);
+  });
+
+  it('buys an armor piece, spending gold', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    player.addGold(1000);
+    const before = player.state.gold;
+    const item = mgr.shopItems[0];
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(player.ownsArmor(item.armorId!)).toBe(true);
+    expect(player.state.gold).toBe(before - item.cost);
+  });
+
+  it('refuses to buy armor already owned', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    player.addGold(1000);
+    player.equipArmor(mgr.shopItems[0].armorId!);
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('already own');
+  });
+
+  it('refuses to buy armor without enough gold', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    player.state.gold = 0;
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Not enough gold');
+  });
+});
+
+describe('NpcManager — misc helpers', () => {
+  it('buySelectedItem reports when nothing is selected', () => {
+    const mgr = new NpcManager();
+    mgr.shopItems = [];
+    mgr.shopCursor = 0;
+    const result = mgr.buySelectedItem(makePlayer());
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('No item selected');
+  });
+
+  it('buySelectedItem returns "Unknown item" for an unrecognised type', () => {
+    const mgr = new NpcManager();
+    mgr.shopItems = [{ name: 'Mystery', cost: 0, type: 'mystery' as any }];
+    mgr.shopCursor = 0;
+    const player = makePlayer();
+    player.addGold(100);
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Unknown item');
+  });
+
+  it('getCurrentLine returns null when there is no dialog', () => {
+    const mgr = new NpcManager();
+    expect(mgr.getCurrentLine()).toBeNull();
+    expect(mgr.getSpeakerName()).toBeNull();
+  });
+
+  it('claimQuestReward falls back to the main quest def when none is passed', () => {
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    const quest = makeQuestState({ completed: true, rewardClaimed: false });
+    const result = mgr.claimQuestReward(quest, player);
+    expect(result.success).toBe(true);
+    expect(quest.rewardClaimed).toBe(true);
+  });
+
+  it('moveShopCursor wraps around both ends', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const n = mgr.shopItems.length;
+    mgr.shopCursor = 0;
+    mgr.moveShopCursor(-1);
+    expect(mgr.shopCursor).toBe(n - 1);
+    mgr.moveShopCursor(1);
+    expect(mgr.shopCursor).toBe(0);
+  });
+
+  it('getShopItemsWithOwnership reports potions (no weapon/armor) as not owned', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const items = mgr.getShopItemsWithOwnership(makePlayer());
+    expect(items[0].owned).toBe(false);
+  });
+
+  it('clearDialog wipes the dialog state', () => {
+    const mgr = new NpcManager();
+    mgr.startDialog(makeQuestNpc(), makeQuests());
+    expect(mgr.dialogState).not.toBeNull();
+    mgr.clearDialog();
+    expect(mgr.dialogState).toBeNull();
+  });
+
+  it('closeShop resets shop state', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    mgr.closeShop();
+    expect(mgr.isInShop).toBe(false);
+    expect(mgr.shopItems).toEqual([]);
+    expect(mgr.shopCursor).toBe(0);
+  });
+});
