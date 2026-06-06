@@ -85,6 +85,22 @@ describe('openChest', () => {
     const result = openChest(makeChest([{ type: 'potion', amount: 3 }]), makePlayer());
     expect(result.messages[0]).toContain('Potions');
   });
+
+  it('defaults to 1 potion when amount is omitted', () => {
+    const player = makePlayer();
+    const before = player.state.potions;
+    const result = openChest(makeChest([{ type: 'potion' }]), player);
+    expect(player.state.potions).toBe(before + 1);
+    expect(result.messages[0]).toContain('1 Health Potion');
+  });
+
+  it('defaults to 0 gold when amount is omitted', () => {
+    const player = makePlayer();
+    const before = player.state.gold;
+    const result = openChest(makeChest([{ type: 'gold' }]), player);
+    expect(player.state.gold).toBe(before);
+    expect(result.messages[0]).toContain('0 gold');
+  });
 });
 
 describe('getItemDescription', () => {
@@ -92,8 +108,16 @@ describe('getItemDescription', () => {
     expect(getItemDescription({ type: 'potion', amount: 2 })).toBe('2x Health Potion');
   });
 
+  it('defaults to 1 potion when amount is omitted', () => {
+    expect(getItemDescription({ type: 'potion' })).toBe('1x Health Potion');
+  });
+
   it('describes gold', () => {
     expect(getItemDescription({ type: 'gold', amount: 50 })).toBe('50 Gold');
+  });
+
+  it('defaults to 0 gold when amount is omitted', () => {
+    expect(getItemDescription({ type: 'gold' })).toBe('0 Gold');
   });
 
   it('describes a weapon by name', () => {
