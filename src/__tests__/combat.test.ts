@@ -1072,12 +1072,20 @@ describe('CombatEngine — Scout Ambush defeats the enemy', () => {
 });
 
 describe('CombatEngine — player attack into a defending enemy', () => {
-  it('doubles enemy DEF when the enemy is defending', () => {
+  it('clears the enemyDefending flag, deals damage, and enters PLAYER_ANIMATING', () => {
     const e = new CombatEngine(makePlayer(), makeEnemy());
     e.state.phase = CombatPhase.PLAYER_ACTION;
     e.state.enemyDefending = true;
-    mockAttacks([0, 0, 0]);
-    expect(() => e.playerAttack()).not.toThrow();
+    const hpBefore = e.state.enemyHp;
+    mockAttacks([0, 0, 0]); // no miss, zero variance, no crit
+    e.playerAttack();
+    // playerAttack() must reset the flag before striking — removing this reset
+    // would cause executePlayerAttack to double the enemy's DEF, breaking the game flow.
+    expect(e.state.enemyDefending).toBe(false);
+    // The attack must have connected and reduced enemy HP.
+    expect(e.state.enemyHp).toBeLessThan(hpBefore);
+    // Turn must advance to the animating phase.
+    expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
 });
 
