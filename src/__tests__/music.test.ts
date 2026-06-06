@@ -9,11 +9,13 @@ import type { TrackName, SfxType } from '../music';
 describe('MusicEngine — all four tracks are defined', () => {
   const tracks: TrackName[] = ['village', 'forest', 'dungeon', 'combat'];
 
-  it('play() accepts all four track names without throwing', () => {
+  it('play() does not change currentTrack when AudioContext is absent', () => {
     const engine = new MusicEngine();
-    // AudioContext is not initialised so play() is a no-op, but must not throw
+    // Without AudioContext the guard `if (!this.ctx || !this.master) return` fires,
+    // so currentTrackName must never be updated.
     for (const track of tracks) {
-      expect(() => engine.play(track)).not.toThrow();
+      engine.play(track);
+      expect(engine.currentTrack).toBe('');
     }
   });
 
@@ -27,9 +29,12 @@ describe('MusicEngine — all four tracks are defined', () => {
     expect(engine.isMuted).toBe(false);
   });
 
-  it('stop() does not throw', () => {
+  it('stop() resets currentTrack to empty string', () => {
     const engine = new MusicEngine();
-    expect(() => engine.stop()).not.toThrow();
+    // Simulate a state where a track name was set without a real AudioContext
+    (engine as any).currentTrackName = 'village';
+    engine.stop();
+    expect(engine.currentTrack).toBe('');
   });
 
   it('toggleMute() returns the current muted state unchanged when master is absent', () => {
@@ -44,32 +49,40 @@ describe('MusicEngine — all four tracks are defined', () => {
 });
 
 describe('MusicEngine — track name type coverage', () => {
-  it('dungeon track is a valid TrackName', () => {
-    const track: TrackName = 'dungeon';
-    expect(track).toBe('dungeon');
+  it('play("dungeon") does not change currentTrack when AudioContext is absent', () => {
+    const engine = new MusicEngine();
+    engine.play('dungeon');
+    expect(engine.currentTrack).toBe('');
   });
 
-  it('combat track is a valid TrackName', () => {
-    const track: TrackName = 'combat';
-    expect(track).toBe('combat');
+  it('play("combat") does not change currentTrack when AudioContext is absent', () => {
+    const engine = new MusicEngine();
+    engine.play('combat');
+    expect(engine.currentTrack).toBe('');
   });
 });
 
 describe('MusicEngine — playSfx', () => {
-  it('playSfx does not throw when AudioContext is not initialized', () => {
+  it('playSfx is a no-op when AudioContext is not initialized: engine state unchanged', () => {
+    const sfx: SfxType[] = ['levelup', 'quest_complete', 'death', 'chest'];
     const engine = new MusicEngine();
-    expect(() => engine.playSfx('levelup')).not.toThrow();
-    expect(() => engine.playSfx('quest_complete')).not.toThrow();
-    expect(() => engine.playSfx('death')).not.toThrow();
-    expect(() => engine.playSfx('chest')).not.toThrow();
+    for (const type of sfx) {
+      engine.playSfx(type);
+    }
+    // Guard `if (!this.ctx || !this.master) return` must fire for every SFX type;
+    // no oscillators are created and the engine's observable state is untouched.
+    expect(engine.currentTrack).toBe('');
+    expect(engine.isMuted).toBe(false);
   });
 });
 
 describe('MusicEngine — private guard branches without AudioContext', () => {
-  it('tick() returns early without throwing when ctx is null', () => {
+  it('tick() does not advance stepIndex when ctx is null', () => {
     const engine = new MusicEngine();
-    // ctx is null; tick() must hit its !ctx guard and return cleanly
-    expect(() => (engine as any).tick()).not.toThrow();
+    // ctx is null; tick() must hit its `if (!this.ctx) return` guard and
+    // leave stepIndex at 0 — no notes scheduled, no state mutation.
+    (engine as any).tick();
+    expect((engine as any).stepIndex).toBe(0);
   });
 
   it('playNote() returns early without throwing when ctx is null', () => {
