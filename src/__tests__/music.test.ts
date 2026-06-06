@@ -32,13 +32,14 @@ describe('MusicEngine — all four tracks are defined', () => {
     expect(() => engine.stop()).not.toThrow();
   });
 
-  it('toggleMute() returns true then false without ctx', () => {
+  it('toggleMute() returns the current muted state unchanged when master is absent', () => {
     const engine = new MusicEngine();
-    // Without AudioContext, master is null — toggleMute returns current muted flag
+    // Without AudioContext master is null — toggleMute returns this.muted without toggling it
     const first  = engine.toggleMute();
     const second = engine.toggleMute();
-    expect(typeof first).toBe('boolean');
-    expect(typeof second).toBe('boolean');
+    expect(first).toBe(false);   // default muted = false, no toggle without master
+    expect(second).toBe(false);  // still false — early return skips the toggle
+    expect(engine.isMuted).toBe(false);
   });
 });
 
