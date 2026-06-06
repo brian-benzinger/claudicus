@@ -437,6 +437,8 @@ describe('MapManager.updateCameraToPixel — small map centering', () => {
 describe('Entity spawn placement - no blocking tiles', () => {
   it('all village NPCs are on walkable tiles', () => {
     const mgr = makeMapManager();
+    // Guard: if npcs is empty the loop is vacuously true — ensure the village has NPCs
+    expect(mgr.currentMap.npcs.length).toBeGreaterThan(0);
     for (const npc of mgr.currentMap.npcs) {
       expect(
         mgr.isWalkable(npc.tileX, npc.tileY),
