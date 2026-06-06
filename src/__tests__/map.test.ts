@@ -42,7 +42,10 @@ describe('MapManager.isWalkable', () => {
   });
 
   it('returns false for WALL tiles', () => {
-    const mgr = makeMapManager();
+    // Forest map has TileType.WALL tiles; village does not.
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
     const map = mgr.currentMap;
     let wallFound = false;
     for (let y = 0; y < map.height && !wallFound; y++) {
@@ -53,19 +56,24 @@ describe('MapManager.isWalkable', () => {
         }
       }
     }
+    expect(wallFound).toBe(true); // guard: ensure a WALL tile was actually tested
   });
 
   it('returns true for GRASS tiles', () => {
     const mgr = makeMapManager();
     const map = mgr.currentMap;
+    let grassFound = false;
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (map.tiles[y][x] === TileType.GRASS) {
           expect(mgr.isWalkable(x, y)).toBe(true);
-          return;
+          grassFound = true;
+          break;
         }
       }
+      if (grassFound) break;
     }
+    expect(grassFound).toBe(true); // guard: ensure a GRASS tile was actually tested
   });
 });
 
@@ -172,37 +180,52 @@ describe('MapManager.openChest / isChestOpened', () => {
 });
 
 describe('MapManager.updateCamera / tileToScreen', () => {
-  it('tileToScreen at (0,0) gives position offset by camera', () => {
-    const mgr = makeMapManager();
-    mgr.updateCamera(0, 0);
-    const pos = mgr.tileToScreen(0, 0);
-    // camera.x may be 0 or negative-clamped; tileToScreen = tile*TILE_SIZE - camera.x
-    expect(pos.x).toBeCloseTo(0 * TILE_SIZE - mgr.camera.x);
-    expect(pos.y).toBeCloseTo(0 * TILE_SIZE - mgr.camera.y);
+  // Village is exactly 30×20 tiles at 32px = 960×640, same as the canvas, so
+  // camera is always clamped to (0,0) there.  Forest (40×30) is larger than the
+  // canvas and produces a real, non-zero camera offset — use it here.
+  function makeForestManager() {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    return mgr;
+  }
+
+  it('tileToScreen reflects camera offset when map is larger than canvas', () => {
+    const mgr = makeForestManager();
+    // Player at tile (20,15): camera.x = 20*32 - 480 = 160, camera.y = 15*32 - 320 = 160
+    mgr.updateCamera(20, 15);
+    expect(mgr.camera.x).toBeGreaterThan(0);
+    expect(mgr.camera.y).toBeGreaterThan(0);
+    const pos = mgr.tileToScreen(5, 5);
+    expect(pos.x).toBeCloseTo(5 * TILE_SIZE - mgr.camera.x);
+    expect(pos.y).toBeCloseTo(5 * TILE_SIZE - mgr.camera.y);
   });
 
-  it('tileToScreen converts correctly for a mid-map tile', () => {
-    const mgr = makeMapManager();
-    mgr.updateCamera(10, 10);
-    const pos = mgr.tileToScreen(10, 10);
-    expect(pos.x).toBeCloseTo(10 * TILE_SIZE - mgr.camera.x);
-    expect(pos.y).toBeCloseTo(10 * TILE_SIZE - mgr.camera.y);
+  it('tileToScreen converts correctly for the tile at camera origin', () => {
+    const mgr = makeForestManager();
+    mgr.updateCamera(20, 15);
+    // The player tile itself should appear at screen center
+    const pos = mgr.tileToScreen(20, 15);
+    expect(pos.x).toBeCloseTo(20 * TILE_SIZE - mgr.camera.x);
+    expect(pos.y).toBeCloseTo(15 * TILE_SIZE - mgr.camera.y);
   });
 
   it('camera clamps to map bounds', () => {
-    const mgr = makeMapManager();
+    const mgr = makeForestManager();
     mgr.updateCamera(9999, 9999);
     const maxX = mgr.currentMap.width * TILE_SIZE - CANVAS_WIDTH;
     const maxY = mgr.currentMap.height * TILE_SIZE - CANVAS_HEIGHT;
-    expect(mgr.camera.x).toBeLessThanOrEqual(Math.max(0, maxX));
-    expect(mgr.camera.y).toBeLessThanOrEqual(Math.max(0, maxY));
+    expect(maxX).toBeGreaterThan(0); // guard: forest must actually have scrollable range
+    expect(maxY).toBeGreaterThan(0);
+    expect(mgr.camera.x).toBe(maxX);
+    expect(mgr.camera.y).toBe(maxY);
   });
 
   it('camera does not go negative', () => {
-    const mgr = makeMapManager();
+    const mgr = makeForestManager();
     mgr.updateCamera(0, 0);
-    expect(mgr.camera.x).toBeGreaterThanOrEqual(0);
-    expect(mgr.camera.y).toBeGreaterThanOrEqual(0);
+    expect(mgr.camera.x).toBe(0);
+    expect(mgr.camera.y).toBe(0);
   });
 });
 
