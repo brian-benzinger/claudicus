@@ -151,6 +151,17 @@ describe('MusicEngine — with mocked AudioContext', () => {
     expect(ctx.resumed).toBe(1);
   });
 
+  it('init() called twice on a running context does not call resume', () => {
+    const engine = new MusicEngine();
+    engine.init();
+    const ctx = (engine as any).ctx as MockAudioContext;
+    expect(ctx.state).toBe('running');
+    // Second init() with running context: enters the if(this.ctx) branch but
+    // skips the if(state==='suspended') inner branch and just returns.
+    engine.init();
+    expect(ctx.resumed).toBe(0);
+  });
+
   it('play() sets the current track and schedules notes on tick', () => {
     const engine = new MusicEngine();
     engine.init();

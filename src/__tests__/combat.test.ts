@@ -1065,6 +1065,31 @@ describe('CombatEngine — update phase transitions', () => {
   });
 });
 
+describe('CombatEngine — applyStatusEffect refreshes a magnitude-less existing effect', () => {
+  it('Shield Bash applied twice refreshes turnsRemaining without adding a magnitude', () => {
+    const player = makePlayer();
+    player.state.classPath = ClassPath.WARRIOR;
+    const engine = new CombatEngine(player, makeEnemy());
+
+    // First Shield Bash: creates a STUN with no magnitude
+    engine.playerUseAbility();
+    expect(engine.state.enemyStatusEffects).toHaveLength(1);
+    const firstStun = engine.state.enemyStatusEffects[0];
+    expect(firstStun.type).toBe(StatusEffectType.STUN);
+    expect(firstStun.magnitude).toBeUndefined();
+
+    // Re-enable the ability
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+
+    // Second Shield Bash: finds existing STUN and refreshes turnsRemaining only
+    engine.playerUseAbility();
+    const effects = engine.state.enemyStatusEffects.filter(e => e.type === StatusEffectType.STUN);
+    expect(effects).toHaveLength(1); // no duplicate
+    expect(effects[0].turnsRemaining).toBe(1); // refreshed
+    expect(effects[0].magnitude).toBeUndefined(); // still no magnitude
+  });
+});
+
 describe('CombatEngine.getResult — fled outcome', () => {
   it('returns "fled" when combat is done with both combatants alive', () => {
     const e = new CombatEngine(makePlayer(), makeEnemy());
