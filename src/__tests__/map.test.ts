@@ -85,12 +85,12 @@ describe('MapManager.getEnemyAt / getNpcAt', () => {
   });
 
   it('returns null for dead enemy', () => {
-    const mgr = makeMapManager();
-    const enemy = mgr.currentMap.enemies[0];
-    if (enemy) {
-      enemy.alive = false;
-      expect(mgr.getEnemyAt(enemy.tileX, enemy.tileY)).toBeNull();
-    }
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const enemy = mgr.currentMap.enemies.find(e => e.alive)!;
+    enemy.alive = false;
+    expect(mgr.getEnemyAt(enemy.tileX, enemy.tileY)).toBeNull();
   });
 
   it('returns npc at its tile position', () => {
@@ -144,13 +144,11 @@ describe('MapManager.removeEnemy', () => {
   it('does not duplicate in world state on second call', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
-    mgr.loadMap('village');
-    const enemy = mgr.currentMap.enemies[0];
-    if (enemy) {
-      mgr.removeEnemy(enemy.id);
-      mgr.removeEnemy(enemy.id);
-      expect(world.defeatedEnemies.filter(id => id === enemy.id).length).toBe(1);
-    }
+    mgr.loadMap('forest');
+    const enemy = mgr.currentMap.enemies[0]!;
+    mgr.removeEnemy(enemy.id);
+    mgr.removeEnemy(enemy.id);
+    expect(world.defeatedEnemies.filter(id => id === enemy.id).length).toBe(1);
   });
 });
 
@@ -160,6 +158,16 @@ describe('MapManager.openChest / isChestOpened', () => {
     expect(mgr.isChestOpened('test_chest')).toBe(false);
     mgr.openChest('test_chest');
     expect(mgr.isChestOpened('test_chest')).toBe(true);
+  });
+
+  it('calling openChest twice does not duplicate the id in world state', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const chest = mgr.currentMap.chests[0]!;
+    mgr.openChest(chest.id);
+    mgr.openChest(chest.id);
+    expect(world.openedChests.filter(id => id === chest.id).length).toBe(1);
   });
 });
 
