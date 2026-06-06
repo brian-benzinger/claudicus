@@ -257,9 +257,11 @@ describe('CombatEngine.computeRewards', () => {
 describe('CombatEngine.getRecentLog', () => {
   it('returns the last N entries', () => {
     const engine = new CombatEngine(makePlayer(), makeEnemy());
+    engine.state.log.push('middle entry');
+    engine.state.log.push('final entry');
     const log = engine.getRecentLog(1);
     expect(log.length).toBe(1);
-    expect(log[0]).toBe(engine.state.log[engine.state.log.length - 1]);
+    expect(log[0]).toBe('final entry');
   });
 
   it('defaults to 3 entries', () => {
