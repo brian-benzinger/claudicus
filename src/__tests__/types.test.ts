@@ -25,8 +25,13 @@ describe('createDefaultPlayer', () => {
     expect(p.gold).toBe(10);
     expect(p.potions).toBe(3);
     expect(p.weaponId).toBe('rusty_shortsword');
+    expect(p.armorId).toBe('leather_vest');
     expect(p.currentMap).toBe('village');
     expect(p.facing).toBe('down');
+    expect(p.classPath).toBeNull();
+    expect(p.materials).toEqual({ wolf_pelt: 0, bandit_steel: 0 });
+    expect(p.earnedTitles).toEqual([]);
+    expect(p.activeTitle).toBeNull();
   });
 
   it('produces independent objects each call', () => {
@@ -48,10 +53,12 @@ describe('createDefaultQuest', () => {
 });
 
 describe('createDefaultWorld', () => {
-  it('returns empty arrays', () => {
+  it('returns a fully initialized world state', () => {
     const w = createDefaultWorld();
     expect(w.openedChests).toEqual([]);
     expect(w.defeatedEnemies).toEqual([]);
+    expect(w.killCounts).toEqual({ wolf: 0, bandit: 0 });
+    expect(w.survivedLowHp).toBe(0);
   });
 });
 
