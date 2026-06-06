@@ -132,6 +132,7 @@ describe('NpcManager.advanceDialog', () => {
     expect(mgr.advanceDialog()).toBe('shop');
     expect(mgr.isInShop).toBe(true);
     expect(mgr.shopItems.length).toBeGreaterThan(0);
+    expect(mgr.shopItems.every(i => i.type === 'weapon')).toBe(true);
   });
 
   it('returns done when called with no dialog state', () => {

@@ -312,13 +312,13 @@ describe('Victory reward integration', () => {
   });
 
   it('applying computeRewards XP to player increases xp', () => {
+    // Fresh player: xp=0, level=1 (needs 25 XP). Wolf gives 8 XP — no level-up occurs.
     const { player, engine } = winFight();
     const xpBefore = player.state.xp;
     const { xp } = engine.computeRewards();
+    expect(xp).toBeGreaterThan(0);
     player.gainXp(xp);
-    expect(player.state.xp + player.state.level * 0 || player.state.xp).toBeGreaterThanOrEqual(0);
-    // XP was consumed by level-up or accumulated
-    expect(player.state.xp + xpForLevel(1)).toBeGreaterThanOrEqual(xpBefore + xp - xpForLevel(1));
+    expect(player.state.xp).toBe(xpBefore + xp);
   });
 
   it('applying computeRewards gold to player increases gold', () => {
