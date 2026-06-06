@@ -79,6 +79,36 @@ describe('NpcManager.startDialog', () => {
     mgr.startDialog(npc, makeQuests());
     expect(mgr.getCurrentLine()).toBe('Welcome to my shop!');
   });
+
+  it('falls back to default when questComplete dialog is absent', () => {
+    const mgr = new NpcManager();
+    const npc = {
+      ...makeQuestNpc(),
+      dialogs: { default: ['Generic reply.'] },
+    };
+    mgr.startDialog(npc, makeQuests({ started: true, completed: true }));
+    expect(mgr.getCurrentLine()).toBe('Generic reply.');
+  });
+
+  it('falls back to default when questDone dialog is absent', () => {
+    const mgr = new NpcManager();
+    const npc = {
+      ...makeQuestNpc(),
+      dialogs: { default: ['Generic reply.'] },
+    };
+    mgr.startDialog(npc, makeQuests({ started: true, completed: true, rewardClaimed: true }));
+    expect(mgr.getCurrentLine()).toBe('Generic reply.');
+  });
+
+  it('falls back to default when questInProgress dialog is absent', () => {
+    const mgr = new NpcManager();
+    const npc = {
+      ...makeQuestNpc(),
+      dialogs: { default: ['Generic reply.'] },
+    };
+    mgr.startDialog(npc, makeQuests({ started: true }));
+    expect(mgr.getCurrentLine()).toBe('Generic reply.');
+  });
 });
 
 describe('NpcManager.advanceDialog', () => {
@@ -119,6 +149,22 @@ describe('NpcManager.getSpeakerName', () => {
 
   it('returns null when no dialog', () => {
     expect(new NpcManager().getSpeakerName()).toBeNull();
+  });
+});
+
+describe('NpcManager.getCurrentLine — paired vs single line', () => {
+  it('joins the pair with \\n when both current and next lines exist', () => {
+    const mgr = new NpcManager();
+    const npc = { ...makeQuestNpc(), dialogs: { default: ['Line one.', 'Line two.'] } };
+    mgr.startDialog(npc, makeQuests());
+    expect(mgr.getCurrentLine()).toBe('Line one.\nLine two.');
+  });
+
+  it('returns just the single line when there is no paired second line', () => {
+    const mgr = new NpcManager();
+    const npc = { ...makeQuestNpc(), dialogs: { default: ['One lonely line.'] } };
+    mgr.startDialog(npc, makeQuests());
+    expect(mgr.getCurrentLine()).toBe('One lonely line.');
   });
 });
 
@@ -560,6 +606,16 @@ describe('NpcManager — misc helpers', () => {
     expect(items[0].owned).toBe(false);
   });
 
+  it('getShopItemsWithOwnership reflects weapon ownership for weapon shop items', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    const player = makePlayer();
+    const firstWeaponId = mgr.shopItems[0].weaponId!;
+    player.equipWeapon(firstWeaponId);
+    const items = mgr.getShopItemsWithOwnership(player);
+    expect(items.find(i => i.weaponId === firstWeaponId)!.owned).toBe(true);
+  });
+
   it('clearDialog wipes the dialog state', () => {
     const mgr = new NpcManager();
     mgr.startDialog(makeQuestNpc(), makeQuests());
@@ -575,5 +631,12 @@ describe('NpcManager — misc helpers', () => {
     expect(mgr.isInShop).toBe(false);
     expect(mgr.shopItems).toEqual([]);
     expect(mgr.shopCursor).toBe(0);
+  });
+
+  it('openShop with a non-shop role leaves shopItems empty', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.QUEST);
+    expect(mgr.isInShop).toBe(true);
+    expect(mgr.shopItems).toEqual([]);
   });
 });
