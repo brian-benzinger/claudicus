@@ -25,13 +25,12 @@ describe('MapManager.loadMap', () => {
   it('filters out defeated enemies from world state', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
-    mgr.loadMap('village');
+    mgr.loadMap('forest');
     const firstEnemy = mgr.currentMap.enemies[0];
-    if (firstEnemy) {
-      world.defeatedEnemies.push(firstEnemy.id);
-      mgr.loadMap('village');
-      expect(mgr.currentMap.enemies.find(e => e.id === firstEnemy.id)).toBeUndefined();
-    }
+    expect(firstEnemy).toBeDefined();
+    world.defeatedEnemies.push(firstEnemy.id);
+    mgr.loadMap('forest');
+    expect(mgr.currentMap.enemies.find(e => e.id === firstEnemy.id)).toBeUndefined();
   });
 });
 
@@ -77,11 +76,12 @@ describe('MapManager.getEnemyAt / getNpcAt', () => {
   });
 
   it('returns enemy at its tile position', () => {
-    const mgr = makeMapManager();
-    const enemy = mgr.currentMap.enemies[0];
-    if (enemy && enemy.alive) {
-      expect(mgr.getEnemyAt(enemy.tileX, enemy.tileY)).not.toBeNull();
-    }
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const enemy = mgr.currentMap.enemies.find(e => e.alive);
+    expect(enemy).toBeDefined();
+    expect(mgr.getEnemyAt(enemy!.tileX, enemy!.tileY)).not.toBeNull();
   });
 
   it('returns null for dead enemy', () => {
@@ -122,23 +122,23 @@ describe('MapManager.getEnemyAt — live enemy in the forest', () => {
 
 describe('MapManager.removeEnemy', () => {
   it('marks enemy as not alive', () => {
-    const mgr = makeMapManager();
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
     const enemy = mgr.currentMap.enemies[0];
-    if (enemy) {
-      mgr.removeEnemy(enemy.id);
-      expect(enemy.alive).toBe(false);
-    }
+    expect(enemy).toBeDefined();
+    mgr.removeEnemy(enemy.id);
+    expect(enemy.alive).toBe(false);
   });
 
   it('adds enemy id to world state', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
-    mgr.loadMap('village');
+    mgr.loadMap('forest');
     const enemy = mgr.currentMap.enemies[0];
-    if (enemy) {
-      mgr.removeEnemy(enemy.id);
-      expect(world.defeatedEnemies).toContain(enemy.id);
-    }
+    expect(enemy).toBeDefined();
+    mgr.removeEnemy(enemy.id);
+    expect(world.defeatedEnemies).toContain(enemy.id);
   });
 
   it('does not duplicate in world state on second call', () => {
