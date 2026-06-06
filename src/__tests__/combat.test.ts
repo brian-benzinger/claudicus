@@ -159,10 +159,11 @@ describe('CombatEngine.playerDefend', () => {
 describe('CombatEngine.playerPotion', () => {
   it('restores hp and advances turn', () => {
     const player = makeFastPlayer();
-    player.takeDamage(20);
+    player.takeDamage(20); // player goes from 40 → 20 HP
     const engine = new CombatEngine(player, makeEnemy());
     engine.playerPotion();
-    expect(engine.state.playerHp).toBeGreaterThan(20);
+    // POTION_HEAL=20: 20 + 20 = 40 = maxHp → fully restored
+    expect(engine.state.playerHp).toBe(40);
     expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
   });
 
@@ -315,10 +316,10 @@ describe('Victory reward integration', () => {
 
   it('applying computeRewards XP to player increases xp', () => {
     // Fresh player: xp=0, level=1 (needs 25 XP). Wolf gives 8 XP — no level-up occurs.
-    const { player, engine } = winFight();
+    const { player, engine, enemy } = winFight();
     const xpBefore = player.state.xp;
     const { xp } = engine.computeRewards();
-    expect(xp).toBeGreaterThan(0);
+    expect(xp).toBe(enemy.xp); // Wolf gives exactly 8 XP — not just "some" XP
     player.gainXp(xp);
     expect(player.state.xp).toBe(xpBefore + xp);
   });
@@ -496,7 +497,7 @@ describe('Enemy AI — Wolf howl', () => {
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn();
-    expect(engine.state.nextAttackBonus).toBeLessThanOrEqual(-2);
+    expect(engine.state.nextAttackBonus).toBe(-2); // Math.min(0, -2) = exactly -2
     expect(engine.state.log.some(l => l.includes('howl'))).toBe(true);
   });
 
@@ -537,7 +538,7 @@ describe('Enemy AI — Skeleton healing', () => {
   it('skeleton heals on its 3rd turn and logs it', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5); // attack (not defend)
     const enemy = makeEnemy(EnemyType.SKELETON);
-    enemy.hp = 15; // below max so heal has room
+    enemy.hp = 15; // below max (20) so heal has room
     const engine = new CombatEngine(makeFastPlayer(), enemy);
     engine.state.enemyHp = 15;
 
@@ -547,6 +548,8 @@ describe('Enemy AI — Skeleton healing', () => {
       engine.enemyTurn();
     }
     expect(engine.state.log.some(l => l.includes('mends'))).toBe(true);
+    // Skeleton heals +5 HP on turn 3: min(maxHp=20, 15+5) = 20
+    expect(engine.state.enemyHp).toBe(20);
   });
 
   it('skeleton does not heal on non-3rd turns', () => {
