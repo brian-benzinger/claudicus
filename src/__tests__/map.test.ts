@@ -251,6 +251,20 @@ describe('MapManager.removeEnemy — unknown id', () => {
   });
 });
 
+describe('MapManager.removeEnemy — forest map with live enemies', () => {
+  it('marks the enemy instance as not alive when found in the current map', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const enemy = mgr.currentMap.enemies[0];
+    expect(enemy).toBeDefined();
+    expect(enemy!.alive).toBe(true);
+    mgr.removeEnemy(enemy!.id);
+    expect(enemy!.alive).toBe(false);
+    expect(world.defeatedEnemies).toContain(enemy!.id);
+  });
+});
+
 describe('MapManager.getChestAdjacent / getChestAt', () => {
   it('returns null when no chest at position', () => {
     const world = createDefaultWorld();
@@ -368,6 +382,19 @@ describe('MapManager.render', () => {
     mgr.updateCamera(0, 0);
     const { ctx } = makeCtx();
     expect(() => mgr.render(ctx, 1)).not.toThrow();
+  });
+
+  it('renders forest chests that are on screen (camera scrolled near tile 35,10)', () => {
+    // Forest chests sit at tileX 30-36; the default spawn view (camera near origin)
+    // puts them off-screen.  Centering on tile (35, 10) brings forest_chest_1 into
+    // the visible area so drawChest() is actually called.
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    mgr.updateCamera(35, 10);
+    const { ctx, calls } = makeCtx();
+    expect(() => mgr.render(ctx, 0)).not.toThrow();
+    expect(calls.length).toBeGreaterThan(0);
   });
 });
 
