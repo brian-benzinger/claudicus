@@ -44,7 +44,7 @@ describe('createEnemy', () => {
     createEnemy(EnemyType.WOLF, 0, 0);
     resetEnemyIdCounter();
     const e = createEnemy(EnemyType.WOLF, 0, 0);
-    expect(e.id).toContain('1');
+    expect(e.id).toBe(`enemy_${EnemyType.WOLF}_1`);
   });
 });
 

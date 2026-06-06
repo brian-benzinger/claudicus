@@ -181,7 +181,7 @@ describe('save error handling', () => {
     expect(() =>
       save(createDefaultPlayer(), createDefaultQuests(), createDefaultWorld())
     ).not.toThrow();
-    expect(errSpy).toHaveBeenCalled();
+    expect(errSpy).toHaveBeenCalledWith('Failed to save game:', expect.any(Error));
     spy.mockRestore();
     errSpy.mockRestore();
   });
