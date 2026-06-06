@@ -64,6 +64,19 @@ describe('MusicEngine — playSfx', () => {
   });
 });
 
+describe('MusicEngine — private guard branches without AudioContext', () => {
+  it('tick() returns early without throwing when ctx is null', () => {
+    const engine = new MusicEngine();
+    // ctx is null; tick() must hit its !ctx guard and return cleanly
+    expect(() => (engine as any).tick()).not.toThrow();
+  });
+
+  it('playNote() returns early without throwing when ctx is null', () => {
+    const engine = new MusicEngine();
+    expect(() => (engine as any).playNote(440, 0, 0.1, 'square', 0.5)).not.toThrow();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Deep tests with a mocked Web Audio API (jsdom has no AudioContext).
 // These exercise init/play/tick/scheduleStep/playNote/playSfx/toggleMute.
@@ -226,5 +239,17 @@ describe('MusicEngine — with mocked AudioContext', () => {
       const ctx = (engine as any).ctx as MockAudioContext;
       expect(ctx.oscillators.length).toBeGreaterThan(0);
     }
+  });
+
+  it('tick() returns early without throwing when currentTrackName is not a valid song', () => {
+    const engine = new MusicEngine();
+    engine.init();
+    // Bypass play() to put engine in a state where ctx exists but track is unknown
+    (engine as any).currentTrackName = 'not_a_real_track';
+    (engine as any).nextStepTime = 0;
+    expect(() => (engine as any).tick()).not.toThrow();
+    // No oscillators should have been scheduled
+    const ctx = (engine as any).ctx as MockAudioContext;
+    expect(ctx.oscillators.length).toBe(0);
   });
 });

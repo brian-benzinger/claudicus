@@ -192,6 +192,33 @@ describe('PlayerManager.gainXp / checkLevelUp', () => {
     expect(p.state.def).toBeGreaterThan(prevDef);
     expect(p.state.agi).toBeGreaterThan(prevAgi);
   });
+
+  it('applies bonusAgi when a level reward defines it', () => {
+    const p = makePlayer();
+    const saved = LEVEL_REWARDS[2];
+    (LEVEL_REWARDS as any)[2] = { ...saved, bonusAgi: 4 };
+    try {
+      const agiBefore = p.state.agi;
+      p.gainXp(25); // level 1 → 2
+      // base +1 agi every level, plus the bonusAgi of 4
+      expect(p.state.agi).toBe(agiBefore + 1 + 4);
+    } finally {
+      (LEVEL_REWARDS as any)[2] = saved;
+    }
+  });
+
+  it('returns null reward and still levels up when no LEVEL_REWARDS entry exists for the new level', () => {
+    const p = makePlayer();
+    const saved = LEVEL_REWARDS[2];
+    delete (LEVEL_REWARDS as any)[2];
+    try {
+      const reward = p.gainXp(25); // level 1 → 2
+      expect(p.state.level).toBe(2);
+      expect(reward).toBeNull();
+    } finally {
+      (LEVEL_REWARDS as any)[2] = saved;
+    }
+  });
 });
 
 describe('PlayerManager.isDead', () => {
