@@ -404,6 +404,16 @@ describe('MapManager.render', () => {
     expect(() => mgr.render(ctx, 0)).not.toThrow();
     expect(calls.length).toBeGreaterThan(0);
   });
+
+  it('skips drawing tiles with negative indices when camera has a negative offset', () => {
+    // Force camera.x < 0 so startTileX < 0, exercising the `if (y >= 0 && x >= 0)`
+    // guard inside the tile-drawing loop (the false branch, which skips out-of-bounds tiles).
+    const mgr = makeMapManager();
+    mgr.camera.x = -TILE_SIZE; // startTileX becomes -1
+    mgr.camera.y = -TILE_SIZE; // startTileY becomes -1
+    const { ctx } = makeCtx();
+    expect(() => mgr.render(ctx, 0)).not.toThrow();
+  });
 });
 
 describe('MapManager.updateCameraToPixel — small map centering', () => {
