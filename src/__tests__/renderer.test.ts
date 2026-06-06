@@ -95,9 +95,9 @@ describe('drawTile — TREE determinism', () => {
 });
 
 // ---------------------------------------------------------------------------
-// drawTile — other tile types don't throw
+// drawTile — other tile types produce draw calls
 // ---------------------------------------------------------------------------
-describe('drawTile — all tile types render without throwing', () => {
+describe('drawTile — all tile types produce draw calls', () => {
   const allTypes: TileType[] = [
     TileType.GRASS, TileType.DIRT, TileType.COBBLESTONE, TileType.WATER,
     TileType.WALL, TileType.TREE, TileType.FENCE, TileType.DARK_GRASS,
@@ -105,9 +105,10 @@ describe('drawTile — all tile types render without throwing', () => {
     TileType.WELL, TileType.GATE,
   ];
   for (const type of allTypes) {
-    it(`TileType ${type} renders without error`, () => {
-      const { ctx } = makeCtx();
-      expect(() => drawTile(ctx, type, 0, 0)).not.toThrow();
+    it(`TileType ${type} fills the tile background`, () => {
+      const { ctx, calls } = makeCtx();
+      drawTile(ctx, type, 0, 0);
+      expect(calls.some(c => c.method === 'fillRect')).toBe(true);
     });
   }
 });
@@ -116,9 +117,10 @@ describe('drawTile — all tile types render without throwing', () => {
 // drawPlayer — overworld weapon rendering
 // ---------------------------------------------------------------------------
 describe('drawPlayer — without weapon', () => {
-  it('renders without throwing', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 100, 100, 0, 'down')).not.toThrow();
+  it('produces draw calls when facing up', () => {
+    const { ctx, calls } = makeCtx();
+    drawPlayer(ctx, 100, 100, 0, 'up');
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
 
   it('draws body and head (fillRect + arc calls)', () => {
@@ -135,9 +137,10 @@ describe('drawPlayer — with weaponSpeed', () => {
 
   for (const facing of facings) {
     for (const speed of speeds) {
-      it(`renders WeaponSpeed.${WeaponSpeed[speed]} facing ${facing} without throwing`, () => {
-        const { ctx } = makeCtx();
-        expect(() => drawPlayer(ctx, 100, 100, 10, facing, speed)).not.toThrow();
+      it(`WeaponSpeed.${WeaponSpeed[speed]} facing ${facing} produces draw calls`, () => {
+        const { ctx, calls } = makeCtx();
+        drawPlayer(ctx, 100, 100, 10, facing, speed);
+        expect(calls.length).toBeGreaterThan(0);
       });
     }
   }
@@ -184,14 +187,16 @@ describe('drawPlayer — with weaponSpeed', () => {
 // drawPlayer — gender avatars
 // ---------------------------------------------------------------------------
 describe('drawPlayer — gender', () => {
-  it('male avatar renders without throwing', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'male')).not.toThrow();
+  it('male avatar fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'male');
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
 
-  it('female avatar renders without throwing', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'female')).not.toThrow();
+  it('female avatar fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'female');
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
 
   it('female avatar produces more arc calls (hair)', () => {
@@ -204,39 +209,48 @@ describe('drawPlayer — gender', () => {
     expect(femaleArcs).toBeGreaterThan(maleArcs);
   });
 
-  it('female avatar with weapon renders without throwing', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.NORMAL, undefined, 'female')).not.toThrow();
+  it('female avatar with weapon produces more draw calls than without', () => {
+    const { ctx: noWeapon, calls: noWeaponCalls } = makeCtx();
+    const { ctx: withWeapon, calls: withWeaponCalls } = makeCtx();
+    drawPlayer(noWeapon,   0, 0, 0, 'right', undefined,          undefined, 'female');
+    drawPlayer(withWeapon, 0, 0, 0, 'right', WeaponSpeed.NORMAL, undefined, 'female');
+    expect(withWeaponCalls.length).toBeGreaterThan(noWeaponCalls.length);
   });
 });
 
 // ---------------------------------------------------------------------------
-// drawEnemy — all types render without throwing
+// drawEnemy — all types produce draw calls
 // ---------------------------------------------------------------------------
-describe('drawEnemy — all enemy types render without throwing', () => {
-  it('WOLF renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.WOLF, 0, 0)).not.toThrow();
+describe('drawEnemy — all enemy types produce draw calls', () => {
+  it('WOLF fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.WOLF, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
-  it('BANDIT renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.BANDIT, 0, 0)).not.toThrow();
+  it('BANDIT fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.BANDIT, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
-  it('BANDIT_ARCHER renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.BANDIT_ARCHER, 0, 0)).not.toThrow();
+  it('BANDIT_ARCHER fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.BANDIT_ARCHER, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
-  it('SKELETON renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.SKELETON, 0, 0)).not.toThrow();
+  it('SKELETON fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.SKELETON, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
-  it('WILD_BOAR renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.WILD_BOAR, 0, 0)).not.toThrow();
+  it('WILD_BOAR fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.WILD_BOAR, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
-  it('REVENANT_KNIGHT renders without error', () => {
-    const { ctx } = makeCtx();
-    expect(() => drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0)).not.toThrow();
+  it('REVENANT_KNIGHT fills body rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
+    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
   });
 });
 
