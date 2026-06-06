@@ -413,6 +413,11 @@ describe('NpcManager.claimQuestReward', () => {
     expect(result.success).toBe(true);
     expect(player.state.gold).toBe(10 + testQuestDef.rewardGold);
     expect(quest.rewardClaimed).toBe(true);
+    // forest_menace gives gold + iron_longsword — both must be applied
+    expect(player.ownsWeapon(testQuestDef.rewardWeaponId!)).toBe(true);
+    expect(result.rewards).toHaveLength(2);
+    expect(result.rewards[0]).toContain(String(testQuestDef.rewardGold));
+    expect(result.rewards[1]).toContain('Iron Longsword');
   });
 
   it('grants potions when quest has potion reward', () => {
@@ -422,20 +427,41 @@ describe('NpcManager.claimQuestReward', () => {
     const quest = makeQuestState({ started: true, completed: true });
     const result = mgr.claimQuestReward(quest, player, QUESTS.boar_problem);
     expect(result.success).toBe(true);
+    // boar_problem gives gold=25 + potions=3 — both must be applied
+    expect(player.state.gold).toBe(10 + QUESTS.boar_problem.rewardGold);
     expect(player.state.potions).toBe(QUESTS.boar_problem.rewardPotions);
+    expect(result.rewards).toHaveLength(2);
+    expect(result.rewards[0]).toContain(String(QUESTS.boar_problem.rewardGold));
+  });
+
+  it('skips weapon reward when player already owns it, returning only gold message', () => {
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.equipWeapon('iron_longsword'); // already owns the forest_menace weapon reward
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, testQuestDef);
+    expect(result.success).toBe(true);
+    expect(player.state.gold).toBe(10 + testQuestDef.rewardGold);
+    // Weapon skipped: only 1 reward message (gold), not 2
+    expect(result.rewards).toHaveLength(1);
+    expect(result.rewards[0]).toContain(String(testQuestDef.rewardGold));
   });
 
   it('fails when quest not completed', () => {
     const mgr = new NpcManager();
     const result = mgr.claimQuestReward(makeQuestState(), makePlayer(), testQuestDef);
     expect(result.success).toBe(false);
+    expect(result.rewards).toHaveLength(0);
   });
 
   it('fails when reward already claimed', () => {
     const mgr = new NpcManager();
+    const player = makePlayer();
     const quest = makeQuestState({ completed: true, rewardClaimed: true });
-    const result = mgr.claimQuestReward(quest, makePlayer(), testQuestDef);
+    const result = mgr.claimQuestReward(quest, player, testQuestDef);
     expect(result.success).toBe(false);
+    expect(result.rewards).toHaveLength(0);
+    expect(player.state.gold).toBe(10); // gold must not be granted twice
   });
 });
 
