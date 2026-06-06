@@ -71,9 +71,10 @@ describe('PlayerManager armor methods', () => {
 
   it('getEffectiveDef includes armor bonus', () => {
     const p = makePlayer();
-    const baseDef = p.state.def;
-    const armorBonus = p.getArmor().defBonus;
-    expect(p.getEffectiveDef()).toBe(baseDef + armorBonus);
+    // default player: def=3, leather_vest defBonus=1 → effective=4
+    expect(p.state.def).toBe(3);
+    expect(p.getArmor().defBonus).toBe(1);
+    expect(p.getEffectiveDef()).toBe(4);
   });
 
   it('equipArmor switches equipped armor', () => {
