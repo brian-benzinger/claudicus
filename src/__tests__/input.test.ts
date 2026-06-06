@@ -234,4 +234,12 @@ describe('InputManager', () => {
       expect(input.menuRight()).toBe(false);
     });
   });
+
+  describe('non-game keys', () => {
+    it('a key not in the game key list is still tracked as held', () => {
+      // Non-game keys do not call preventDefault but are still added to held set.
+      press('x');
+      expect(input.isHeld('x')).toBe(true);
+    });
+  });
 });
