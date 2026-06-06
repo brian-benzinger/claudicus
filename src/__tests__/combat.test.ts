@@ -367,6 +367,9 @@ describe('Victory reward integration', () => {
     const r2 = engine.computeRewards();
     expect(r1.xp).toBe(r2.xp);
     expect(r1.gold).toBe(r2.gold);
+    // Verify actual values, not just mutual consistency: {xp:0,gold:0} would pass the above
+    expect(r1.xp).toBe(8);   // wolf.xp = 8
+    expect(r1.gold).toBe(3); // Math.random()=0.1 < 0.5 → wolf.gold = 3
   });
 });
 
