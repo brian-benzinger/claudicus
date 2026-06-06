@@ -742,6 +742,38 @@ describe('CombatEngine.playerUseAbility — Ambush (Scout)', () => {
     engine.playerUseAbility();
     expect(engine.state.phase).toBe(phaseBefore);
   });
+
+  it('Scout branch: skips ability body when abilityUsedThisCombat is already true (guard bypassed)', () => {
+    // The getAvailableAbility() guard at the top of playerUseAbility normally prevents
+    // reaching this branch when abilityUsedThisCombat is true.  Mock it to document
+    // that the inner if(!abilityUsedThisCombat) guard also handles this case defensively.
+    const player = makeFastPlayer();
+    player.state.classPath = ClassPath.SCOUT;
+    player.state.level = 1;
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.state.abilityUsedThisCombat = true;
+    vi.spyOn(engine, 'getAvailableAbility').mockReturnValue('Ambush');
+    const phaseBefore = engine.state.phase;
+    engine.playerUseAbility();
+    // inner guard at line 510 fires: ability is NOT executed a second time
+    expect(engine.state.phase).toBe(phaseBefore);
+    expect(engine.state.log.some(l => l.includes('Ambush'))).toBe(false);
+  });
+});
+
+describe('CombatEngine.playerUseAbility — no class path fallthrough', () => {
+  it('exits cleanly when no weapon ability and no class path (guard bypassed)', () => {
+    // With level < 3 and no classPath, getAvailableAbility() returns null and the method
+    // exits early.  Mocking getAvailableAbility lets us reach and exercise the
+    // `if (player.classPath)` false branch at line 498 directly.
+    const player = makePlayer(); // level 1, rusty_shortsword, no classPath
+    const engine = new CombatEngine(player, makeEnemy());
+    vi.spyOn(engine, 'getAvailableAbility').mockReturnValue('FakeAbility');
+    const phaseBefore = engine.state.phase;
+    engine.playerUseAbility();
+    // neither weapon nor class branch matches — phase is unchanged
+    expect(engine.state.phase).toBe(phaseBefore);
+  });
 });
 
 describe('CombatEngine.playerUseAbility — Intimidate (Brigand)', () => {
