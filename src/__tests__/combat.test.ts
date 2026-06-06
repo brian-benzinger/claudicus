@@ -109,10 +109,12 @@ describe('CombatEngine.playerAttack', () => {
   it('does nothing outside PLAYER_ACTION phase', () => {
     mockAttacks([0, 0, 0], [0, 0, 0]);
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    const initialHp = engine.state.enemyHp;
     engine.playerAttack(); // moves to PLAYER_ANIMATING
-    const hpBefore = engine.state.enemyHp;
+    expect(engine.state.enemyHp).toBeLessThan(initialHp); // first attack dealt damage
+    const hpAfterFirstAttack = engine.state.enemyHp;
     engine.playerAttack(); // should do nothing (wrong phase)
-    expect(engine.state.enemyHp).toBe(hpBefore);
+    expect(engine.state.enemyHp).toBe(hpAfterFirstAttack);
   });
 
   it('logs a miss when random is below missChance', () => {
@@ -262,7 +264,9 @@ describe('CombatEngine.getRecentLog', () => {
 
   it('defaults to 3 entries', () => {
     const engine = new CombatEngine(makePlayer(), makeEnemy());
-    expect(engine.getRecentLog().length).toBeLessThanOrEqual(3);
+    // Seed more than 3 entries so the slice is actually exercised
+    for (let i = 0; i < 5; i++) engine.state.log.push(`entry ${i}`);
+    expect(engine.getRecentLog().length).toBe(3);
   });
 });
 
