@@ -101,6 +101,34 @@ describe('load edge cases', () => {
     expect(loaded!.player.classPath).toBeNull();
   });
 
+  it('migrates a true v4 save through both migration steps (v4 → v5 → v6)', () => {
+    // A real v4 save lacks ALL post-v4 fields (classPath, materials, earnedTitles,
+    // activeTitle, world kill tracking).  The chained if-blocks in load() must apply
+    // both the v4→v5 and v5→v6 migrations sequentially on the same data object.
+    const data = createNewGameData();
+    const v4player = { ...data.player };
+    delete (v4player as any).classPath;
+    delete (v4player as any).materials;
+    delete (v4player as any).earnedTitles;
+    delete (v4player as any).activeTitle;
+    const v4world = { ...data.world };
+    delete (v4world as any).killCounts;
+    delete (v4world as any).survivedLowHp;
+    localStorage.setItem('claudicus_save', JSON.stringify({ ...data, player: v4player, world: v4world, version: 4 }));
+
+    const loaded = load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.version).toBe(SAVE_VERSION);
+    // v4 → v5: classPath backfilled
+    expect(loaded!.player.classPath).toBeNull();
+    // v5 → v6: all new fields backfilled in the same migration pass
+    expect(loaded!.player.materials).toEqual({ wolf_pelt: 0, bandit_steel: 0 });
+    expect(loaded!.player.earnedTitles).toEqual([]);
+    expect(loaded!.player.activeTitle).toBeNull();
+    expect(loaded!.world.killCounts).toEqual({ wolf: 0, bandit: 0 });
+    expect(loaded!.world.survivedLowHp).toBe(0);
+  });
+
   it('migrates v5 save to current version by backfilling materials and title fields', () => {
     const data = createNewGameData();
     // Simulate v5 save: no materials/earnedTitles/activeTitle, no world kill tracking
