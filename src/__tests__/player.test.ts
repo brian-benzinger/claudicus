@@ -37,6 +37,13 @@ describe('PlayerManager.move', () => {
     p.move(0, -1);
     expect(p.state.facing).toBe('up');
   });
+
+  it('does not change facing when dx and dy are both 0', () => {
+    const p = makePlayer();
+    p.move(1, 0); // face right first
+    p.move(0, 0); // null move should not change facing
+    expect(p.state.facing).toBe('right');
+  });
 });
 
 describe('PlayerManager.takeDamage', () => {
