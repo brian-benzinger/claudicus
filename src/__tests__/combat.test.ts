@@ -1106,3 +1106,61 @@ describe('CombatEngine.getResult — fled outcome', () => {
     expect(e.getResult()).toBe('ongoing');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Branch-coverage completions: enemyDefending true path, non-BLEED player
+// effect in tickPlayerEffects, non-WEAKEN enemy effect in tickEnemyEffects
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — executePlayerAttack with a defending enemy', () => {
+  it('uses doubled enemy DEF when enemyDefending is true, capping damage at minimum 1', () => {
+    // playerAttack() resets enemyDefending to false before calling executePlayerAttack,
+    // so we call the private method directly to reach the defending branch (line 111).
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // miss check (dagger: missChance=0, consumed but irrelevant)
+      .mockReturnValueOnce(0.25)  // variance: floor(0.25*4)-1 = 0
+      .mockReturnValueOnce(0.9);  // crit check: 0.9 >= 0.3, no crit
+
+    const player = makeFastPlayer(); // dagger, STR=5, damageBonus=1 → attackPower=6
+    const enemy = makeEnemy(EnemyType.SKELETON); // DEF=4; defending → effectiveDef=8
+    const engine = new CombatEngine(player, enemy);
+    const hpBefore = engine.state.enemyHp;
+
+    engine.state.enemyDefending = true;
+    (engine as any).executePlayerAttack(); // bypass playerAttack()'s enemyDefending reset
+
+    // effectiveDef=8, attackPower=6, variance=0: max(1, 6-8+0) = 1
+    expect(hpBefore - engine.state.enemyHp).toBe(1);
+  });
+});
+
+describe('CombatEngine — tickPlayerEffects skips damage for non-BLEED effects', () => {
+  it('a STUN in playerStatusEffects is decremented without dealing bleed damage', () => {
+    const player = makeFastPlayer();
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    engine.state.playerStatusEffects.push({ type: StatusEffectType.STUN, turnsRemaining: 2 });
+
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // skeleton: 0.5 >= 0.4 → attacks
+
+    engine.enemyTurn(); // tickPlayerEffects runs before the skeleton attacks
+
+    expect(engine.state.log.some(l => l.includes('bleed'))).toBe(false);
+    expect(engine.state.playerStatusEffects[0]?.turnsRemaining).toBe(1);
+  });
+});
+
+describe('CombatEngine — tickEnemyEffects expires non-WEAKEN effects silently', () => {
+  it('an expiring STUN in enemyStatusEffects is removed without a "no longer weakened" message', () => {
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.enemyStatusEffects.push({ type: StatusEffectType.STUN, turnsRemaining: 1 });
+
+    engine.state.phase = CombatPhase.ENEMY_ANIMATING;
+    engine.state.animationFrame = 20; // after ++ → 21 > 20 → tickEnemyEffects fires
+
+    engine.update();
+
+    expect(engine.state.enemyStatusEffects).toHaveLength(0);
+    expect(engine.state.log.some(l => l.includes('no longer weakened'))).toBe(false);
+  });
+});
