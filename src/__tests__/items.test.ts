@@ -44,14 +44,15 @@ describe('openChest', () => {
   it('ignores a weapon loot entry with no weaponId', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'weapon' }]), player);
-    // No weapon equipped, falls through to empty message
     expect(result.messages[0]).toContain('empty');
+    expect(player.state.weaponId).toBe('rusty_shortsword');
   });
 
   it('ignores an armor loot entry with no armorId', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'armor' }]), player);
     expect(result.messages[0]).toContain('empty');
+    expect(player.state.armorId).toBe('leather_vest');
   });
 
   it('antique coin adds 15 gold', () => {
