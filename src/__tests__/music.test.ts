@@ -242,6 +242,19 @@ describe('MusicEngine — with mocked AudioContext', () => {
     }
   });
 
+  it('toggleMute() uses 0 for currentTime when ctx is null but master exists', () => {
+    const engine = new MusicEngine();
+    engine.init();
+    // Force ctx to null while keeping master intact — exercises the `?? 0` branch
+    // in `(this.ctx?.currentTime ?? 0) + 0.05`.
+    (engine as any).ctx = null;
+    // Should still toggle and not throw
+    expect(engine.toggleMute()).toBe(true);
+    expect(engine.isMuted).toBe(true);
+    expect(engine.toggleMute()).toBe(false);
+    expect(engine.isMuted).toBe(false);
+  });
+
   it('tick() returns early without throwing when currentTrackName is not a valid song', () => {
     const engine = new MusicEngine();
     engine.init();
