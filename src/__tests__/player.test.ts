@@ -182,15 +182,17 @@ describe('PlayerManager.gainXp / checkLevelUp', () => {
     expect(p.state.hp).toBe(p.state.maxHp);
   });
 
-  it('increases stats on level up', () => {
+  it('increases stats by exact base amounts on level up', () => {
     const p = makePlayer();
     const prevStr = p.state.str;
     const prevDef = p.state.def;
     const prevAgi = p.state.agi;
-    p.gainXp(25);
-    expect(p.state.str).toBeGreaterThan(prevStr);
-    expect(p.state.def).toBeGreaterThan(prevDef);
-    expect(p.state.agi).toBeGreaterThan(prevAgi);
+    const prevMaxHp = p.state.maxHp;
+    p.gainXp(25); // level 1 → 2; level-2 reward is +2 potions only, no stat bonus
+    expect(p.state.str).toBe(prevStr + 2);
+    expect(p.state.def).toBe(prevDef + 1);
+    expect(p.state.agi).toBe(prevAgi + 1);
+    expect(p.state.maxHp).toBe(prevMaxHp + 5);
   });
 
   it('applies bonusAgi when a level reward defines it', () => {
