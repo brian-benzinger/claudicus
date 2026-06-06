@@ -32,10 +32,11 @@ describe('createEnemy', () => {
     expect(e.alive).toBe(true);
   });
 
-  it('generates unique ids', () => {
-    const a = createEnemy(EnemyType.WOLF, 0, 0);
-    const b = createEnemy(EnemyType.WOLF, 1, 1);
-    expect(a.id).not.toBe(b.id);
+  it('generates unique ids across many enemies', () => {
+    const types = [EnemyType.WOLF, EnemyType.BANDIT, EnemyType.BANDIT_ARCHER, EnemyType.SKELETON, EnemyType.WILD_BOAR, EnemyType.REVENANT_KNIGHT];
+    const enemies = types.flatMap(t => [createEnemy(t, 0, 0), createEnemy(t, 1, 1), createEnemy(t, 2, 2)]);
+    const ids = new Set(enemies.map(e => e.id));
+    expect(ids.size).toBe(enemies.length);
   });
 
   it('resets id counter correctly', () => {

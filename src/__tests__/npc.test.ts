@@ -213,6 +213,7 @@ describe('NpcManager.buySelectedItem', () => {
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(true);
     expect(player.state.gold).toBe(100 - item.cost);
+    expect(player.ownsWeapon(item.weaponId!)).toBe(true);
   });
 
   it('fails when not enough gold', () => {

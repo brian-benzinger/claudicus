@@ -356,6 +356,7 @@ describe('Level rewards', () => {
   it('gainXp returns null when no level-up occurs', () => {
     const p = makePlayer();
     expect(p.gainXp(1)).toBeNull();
+    expect(p.state.xp).toBe(1);
   });
 
   it('gainXp returns a LevelReward object on level-up', () => {
