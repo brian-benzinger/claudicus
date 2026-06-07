@@ -18,8 +18,8 @@ describe('MapManager.loadMap', () => {
   it('loads the village map', () => {
     const mgr = makeMapManager();
     expect(mgr.currentMap.id).toBe('village');
-    expect(mgr.currentMap.width).toBeGreaterThan(0);
-    expect(mgr.currentMap.height).toBeGreaterThan(0);
+    expect(mgr.currentMap.width).toBe(30);
+    expect(mgr.currentMap.height).toBe(20);
   });
 
   it('filters out defeated enemies from world state', () => {

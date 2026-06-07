@@ -403,6 +403,8 @@ describe('Status effects — BLEED', () => {
     const bleedEffect = engine.state.playerStatusEffects[0];
     expect(bleedEffect?.turnsRemaining).toBe(2); // decremented from 3
     expect(engine.state.log.some(l => l.includes('bleed'))).toBe(true);
+    // bleed deals exactly 2 HP — player HP must have dropped by at least that much
+    expect(hpBefore - engine.state.playerHp).toBeGreaterThanOrEqual(2);
   });
 
   it('BLEED is removed when turnsRemaining reaches 0', () => {
@@ -516,21 +518,29 @@ describe('Enemy AI — Wolf howl', () => {
 describe('Enemy AI — Bandit Archer alternating', () => {
   it('fires ranged shot (logs "arrow") on odd turns', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT_ARCHER));
+    const player = makeFastPlayer();
+    player.state.def = 0; // ensure archer damage isn't absorbed
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT_ARCHER));
+    const hpBefore = engine.state.playerHp;
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn(); // enemyTurnCount becomes 1 (odd)
     expect(engine.state.log.some(l => l.includes('arrow'))).toBe(true);
+    expect(engine.state.playerHp).toBeLessThan(hpBefore); // arrow must deal damage
   });
 
   it('uses melee attack (logs "knife") on even turns', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT_ARCHER));
+    const player = makeFastPlayer();
+    player.state.def = 0; // ensure melee damage isn't absorbed
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT_ARCHER));
     // Advance to second enemy turn
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn(); // turn 1 (odd → arrow)
+    const hpBeforeKnife = engine.state.playerHp;
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn(); // turn 2 (even → knife)
     expect(engine.state.log.some(l => l.includes('knife'))).toBe(true);
+    expect(engine.state.playerHp).toBeLessThan(hpBeforeKnife); // knife must deal damage
   });
 });
 
