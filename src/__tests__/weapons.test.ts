@@ -17,7 +17,7 @@ describe('getWeapon', () => {
   });
 
   it('returns all expected weapons', () => {
-    const ids = ['rusty_shortsword', 'iron_longsword', 'mace', 'hand_axe', 'dagger', 'hunting_bow', 'halberd'];
+    const ids = ['rusty_shortsword', 'iron_longsword', 'mace', 'hand_axe', 'dagger', 'hunting_bow', 'halberd', 'war_axe'];
     for (const id of ids) {
       expect(getWeapon(id).id).toBe(id);
     }
@@ -37,6 +37,7 @@ describe('getShopWeapons', () => {
     const ids = shopWeapons.map(w => w.id);
     expect(ids).not.toContain('rusty_shortsword'); // source: start
     expect(ids).not.toContain('halberd');           // source: chest
+    expect(ids).not.toContain('war_axe');           // source: chest (crafted only)
   });
 
   it('returns at least one weapon', () => {
@@ -68,5 +69,31 @@ describe('WEAPONS data integrity', () => {
 
   it('mace is slow speed', () => {
     expect(getWeapon('mace').speed).toBe(WeaponSpeed.SLOW);
+  });
+});
+
+describe('war_axe weapon', () => {
+  it('has the correct damage, speed, and source', () => {
+    const w = getWeapon('war_axe');
+    expect(w.id).toBe('war_axe');
+    expect(w.name).toBe('War Axe');
+    expect(w.damageBonus).toBe(8);
+    expect(w.speed).toBe(WeaponSpeed.SLOW);
+    expect(w.source).toBe('chest');
+  });
+
+  it('has all three non-zero special properties', () => {
+    const w = getWeapon('war_axe');
+    expect(w.missChance).toBe(0.1);
+    expect(w.critChance).toBe(0.1);
+    expect(w.ignoresDefense).toBe(0.2);
+  });
+
+  it('is the only weapon combining missChance, critChance, and ignoresDefense simultaneously', () => {
+    const multiSpecial = Object.values(WEAPONS).filter(
+      w => w.missChance > 0 && w.critChance > 0 && w.ignoresDefense > 0
+    );
+    expect(multiSpecial).toHaveLength(1);
+    expect(multiSpecial[0].id).toBe('war_axe');
   });
 });
