@@ -73,6 +73,32 @@ describe('CombatEngine constructor', () => {
     expect(engine.state.log.some(l => l.includes('opening shot'))).toBe(true);
     expect(engine.state.freeHitUsed).toBe(true);
   });
+
+  it('starts in ENEMY_ACTION for normal weapon when enemy agi exceeds player agi', () => {
+    // rusty_shortsword (NORMAL): playerTurn = playerAgi >= enemyAgi = 3 >= 5 = false → ENEMY_ACTION
+    const player = makePlayer(); // agi=3, rusty_shortsword (NORMAL speed)
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+  });
+
+  it('equal agi with a normal weapon gives the first turn to the player', () => {
+    // NORMAL: playerTurn = playerAgi >= enemyAgi — >= means ties resolve in player's favour
+    const player = makePlayer(); // agi=3
+    const enemy = makeEnemy(EnemyType.BANDIT); // agi=3 (equal to player)
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
+
+  it('starts in PLAYER_ACTION for slow weapon when player agi exceeds enemy agi by more than 3', () => {
+    // SLOW: playerTurn = playerAgi > enemyAgi + 3: 10 > 5+3=8 = true → PLAYER_ACTION
+    const player = makePlayer();
+    player.equipWeapon('mace'); // SLOW
+    player.state.agi = 10;      // 10 > wolf(5)+3=8 → player still goes first
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
 });
 
 describe('CombatEngine.playerAttack', () => {
@@ -174,6 +200,15 @@ describe('CombatEngine.playerPotion', () => {
     const result = engine.playerPotion();
     expect(result).toBe(false);
     expect(engine.state.log.some(l => l.includes('No potions'))).toBe(true);
+  });
+
+  it('decrements the player potion count by one', () => {
+    const player = makeFastPlayer();
+    player.takeDamage(10);
+    const potionsBefore = player.state.potions;
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerPotion();
+    expect(player.state.potions).toBe(potionsBefore - 1);
   });
 });
 
