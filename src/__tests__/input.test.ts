@@ -64,6 +64,20 @@ describe('InputManager', () => {
       input.flushFrame();
       expect(input.wasJustPressed('a')).toBe(false);
     });
+
+    it('a repeated keydown for an already-held key does not re-trigger wasJustPressed', () => {
+      // Browsers fire repeated keydown events while a key is held.
+      // The `if (!this.held.has(key))` guard must prevent those repeats from
+      // being re-queued in justPressedBuffer — otherwise held keys would trigger
+      // actions every frame (e.g., the attack key fires on every game loop tick).
+      press('a');
+      input.flushFrame(); // first keydown → promoted to justPressed
+      input.flushFrame(); // buffer cleared; justPressed empty
+
+      press('a'); // browser key-repeat: keydown fires again for the still-held 'a'
+      input.flushFrame();
+      expect(input.wasJustPressed('a')).toBe(false); // guard must have fired
+    });
   });
 
   describe('movement helpers', () => {
