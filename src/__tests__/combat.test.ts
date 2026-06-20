@@ -1328,3 +1328,110 @@ describe('CombatEngine — ignoresDefense formula in executePlayerAttack', () =>
     expect(maceDmg).toBeGreaterThan(rustyDmg);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Behavioral contracts: pin damage formulas and effect mechanics that the
+// existing tests exercise only shallowly (log-only or any-damage checks).
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — Wolf howl overrides a defend bonus', () => {
+  it('Math.min(nextAttackBonus, -2) sets bonus to -2 even when player just defended', () => {
+    // playerDefend() sets nextAttackBonus = +1.  If the wolf howls on the very next
+    // enemy turn the formula Math.min(+1, -2) = -2 negates that bonus entirely.
+    // Regression guard: changing the howl to a plain `= -2` assignment would still
+    // pass this test, but changing it to `+= -2` (additive) would produce -1 and fail.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.30 → howl
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
+    engine.state.nextAttackBonus = 1; // player defended last turn
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.nextAttackBonus).toBe(-2);
+  });
+});
+
+describe('CombatEngine — Bandit Archer arrow ignoresDefense=0.3 vs knife ignoresDefense=0', () => {
+  it('arrow deals strictly more damage than knife against a player with non-zero effective DEF', () => {
+    // Arrow turn (odd): executeEnemyAttack(1, 0.3) → effectiveDef = 4 * 0.7 = 2.8
+    // Knife turn (even): executeEnemyAttack(1, 0)  → effectiveDef = 4 * 1.0 = 4.0
+    // With ATK=7 and variance=1 (random=0.5): arrowDmg=5.2 > knifeDmg=4.
+    // This would fail if ignoresDefense were removed from the archer's ranged attack.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const player = makePlayer(); // effectiveDef = state.def(3) + leatherVest(1) = 4
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT_ARCHER));
+
+    const hpStart = engine.state.playerHp;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // turn 1: arrow (ignoresDefense=0.3)
+    const arrowDrop = hpStart - engine.state.playerHp;
+
+    const hpBeforeKnife = engine.state.playerHp;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // turn 2: knife (ignoresDefense=0)
+    const knifeDrop = hpBeforeKnife - engine.state.playerHp;
+
+    expect(arrowDrop).toBeGreaterThan(knifeDrop);
+  });
+});
+
+describe('CombatEngine — Wild Boar charge exact damage (1.2× ATK multiplier)', () => {
+  it('charge applies floor(ATK * 1.2) attack power — pins the exact damage dealt', () => {
+    // Boar ATK=7. floor(7 * 1.2) = 8.  Player effectiveDef=4.  Variance=1 (random=0.5).
+    // damage = max(1, 8 - 4 + 1) = 5.
+    // If the 1.2× multiplier were removed (normal ATK=7): max(1, 7 - 4 + 1) = 4 — test fails.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const player = makePlayer(); // effectiveDef = 3 + 1 = 4
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    const hpBefore = engine.state.playerHp;
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(hpBefore - 5);
+  });
+});
+
+describe('CombatEngine — Backstab 2× crit multiplier', () => {
+  it('crits at roll=0.5 (2× dagger critChance = 0.6 > 0.5)', () => {
+    // Dagger critChance=0.3.  Backstab passes critMultiplier=2 → baseCrit=min(1, 0.6)=0.6.
+    // Roll 0.5 satisfies 0.5 < 0.6 → crit.  If the multiplier were dropped to 1, baseCrit=0.3
+    // and 0.5 < 0.3 is false — no crit, test fails.
+    const p = makeFastPlayer(); // dagger
+    p.state.level = 3;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    mockAttacks([0, 0, 0.5]); // no miss, zero variance, crit roll = 0.5
+    e.playerUseAbility(); // Backstab
+    expect(e.state.log.some(l => l.includes('Critical'))).toBe(true);
+  });
+
+  it('normal dagger attack does NOT crit at roll=0.5 (critChance=0.3 < 0.5)', () => {
+    // Confirms the crit threshold: same roll that triggers Backstab leaves a normal attack cold.
+    const p = makeFastPlayer();
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    mockAttacks([0, 0, 0.5]); // crit roll 0.5 → 0.5 < 0.3 = false
+    e.playerAttack();
+    expect(e.state.log.some(l => l.includes('Critical'))).toBe(false);
+  });
+});
+
+describe('CombatEngine — Revenant Knight phase-2 BLEED refreshes rather than stacks', () => {
+  it('two consecutive phase-2 hits leave exactly one BLEED entry with turnsRemaining=3', () => {
+    // applyStatusEffect finds the existing BLEED and resets its duration instead of pushing
+    // a second entry.  If it always pushed, bleeds.length would be 2 and the player would
+    // take 4 bleed damage/turn instead of the intended 2.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → phase-2 attack each turn
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 10; // below 50% → phase 2
+    engine.state.enemyIsPhaseTwo = true;
+
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // first hit: BLEED applied (turnsRemaining=3)
+
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // second hit: tickPlayerEffects ticks to 2, then applyStatusEffect refreshes to 3
+
+    const bleeds = engine.state.playerStatusEffects.filter(e => e.type === StatusEffectType.BLEED);
+    expect(bleeds).toHaveLength(1);
+    expect(bleeds[0].turnsRemaining).toBe(3);
+  });
+});
