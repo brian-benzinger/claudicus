@@ -75,6 +75,84 @@ describe('MapManager.isWalkable', () => {
     }
     expect(grassFound).toBe(true); // guard: ensure a GRASS tile was actually tested
   });
+
+  it('returns true for DIRT tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.DIRT) {
+          expect(mgr.isWalkable(x, y)).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: DIRT tile must exist in the forest map
+  });
+
+  it('returns true for COBBLESTONE tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon'); // dungeon has cobblestone floor tiles
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.COBBLESTONE) {
+          expect(mgr.isWalkable(x, y)).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: COBBLESTONE tile must exist in the dungeon map
+  });
+
+  it('returns true for DARK_GRASS tiles', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.DARK_GRASS) {
+          expect(mgr.isWalkable(x, y)).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: DARK_GRASS tile must exist in the forest map
+  });
+
+  it('returns true for DOOR tiles', () => {
+    const mgr = makeMapManager(); // village map has door tiles
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.DOOR) {
+          expect(mgr.isWalkable(x, y)).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: DOOR tile must exist in the village map
+  });
+
+  it('returns false for WATER tiles', () => {
+    // WATER is not in any map but must never become walkable.
+    // Inject it directly to pin the design intent.
+    const mgr = makeMapManager();
+    mgr.currentMap.tiles[1][1] = TileType.WATER;
+    expect(mgr.isWalkable(1, 1)).toBe(false);
+  });
 });
 
 describe('MapManager.getEnemyAt / getNpcAt', () => {
