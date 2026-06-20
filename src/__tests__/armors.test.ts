@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ARMORS, getArmor, getShopArmors } from '../data/armors';
 import { CRAFT_RECIPES } from '../data/recipes';
+import { getWeapon } from '../data/weapons';
 import { PlayerManager } from '../player';
 import { createDefaultPlayer } from '../types';
 
@@ -163,6 +164,26 @@ describe('CRAFT_RECIPES', () => {
   it('all recipes have a non-empty description', () => {
     for (const r of CRAFT_RECIPES) {
       expect(r.description.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('CRAFT_RECIPES item IDs reference real data', () => {
+  it('every weaponId in CRAFT_RECIPES maps to a real weapon', () => {
+    for (const recipe of CRAFT_RECIPES) {
+      if (recipe.weaponId) {
+        const w = getWeapon(recipe.weaponId);
+        expect(w.id, `Recipe "${recipe.id}" weaponId "${recipe.weaponId}" falls back to rusty_shortsword — weapon is missing`).toBe(recipe.weaponId);
+      }
+    }
+  });
+
+  it('every armorId in CRAFT_RECIPES maps to a real armor', () => {
+    for (const recipe of CRAFT_RECIPES) {
+      if (recipe.armorId) {
+        const a = getArmor(recipe.armorId);
+        expect(a.id, `Recipe "${recipe.id}" armorId "${recipe.armorId}" falls back to leather_vest — armor is missing`).toBe(recipe.armorId);
+      }
     }
   });
 });
