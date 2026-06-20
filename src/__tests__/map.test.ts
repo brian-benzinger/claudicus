@@ -153,6 +153,69 @@ describe('MapManager.isWalkable', () => {
     mgr.currentMap.tiles[1][1] = TileType.WATER;
     expect(mgr.isWalkable(1, 1)).toBe(false);
   });
+
+  it('returns true for GATE tiles (player can exit through the village gate)', () => {
+    // GATE is the tile under the village exit — removing it from the walkable list
+    // would trap the player and make the map uncompletable.
+    const mgr = makeMapManager(); // village map
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.GATE) {
+          expect(
+            mgr.isWalkable(x, y),
+            `GATE tile at (${x}, ${y}) must be walkable`
+          ).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: GATE tile must exist in the village map
+  });
+
+  it('returns true for BED tiles (player can walk onto a bed to save)', () => {
+    // BED is walkable so the player can step onto it to trigger a rest/save.
+    // If it were removed from the walkable list the save-at-bed feature would break silently.
+    const mgr = makeMapManager(); // village map
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.BED) {
+          expect(
+            mgr.isWalkable(x, y),
+            `BED tile at (${x}, ${y}) must be walkable`
+          ).toBe(true);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: BED tile must exist in the village map
+  });
+
+  it('returns false for FENCE tiles (fences must block player movement)', () => {
+    // FENCE is an impassable barrier in the village. If it accidentally became
+    // walkable the player could pass through village fences and break map layout.
+    const mgr = makeMapManager(); // village map
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.FENCE) {
+          expect(
+            mgr.isWalkable(x, y),
+            `FENCE tile at (${x}, ${y}) must NOT be walkable`
+          ).toBe(false);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: FENCE tile must exist in the village map
+  });
 });
 
 describe('MapManager.getEnemyAt / getNpcAt', () => {
