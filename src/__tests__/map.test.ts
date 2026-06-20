@@ -216,6 +216,92 @@ describe('MapManager.isWalkable', () => {
     }
     expect(found).toBe(true); // guard: FENCE tile must exist in the village map
   });
+
+  it('returns false for TREE tiles (trees form the impassable border and forest obstacles)', () => {
+    // TREE makes up the outer border of all three maps. If it accidentally became
+    // walkable the player could step off the edge of the map into undefined tile space.
+    const mgr = makeMapManager(); // village map: entire border is TREE tiles
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.TREE) {
+          expect(
+            mgr.isWalkable(x, y),
+            `TREE tile at (${x}, ${y}) must NOT be walkable`
+          ).toBe(false);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: TREE tiles must exist in the village map
+  });
+
+  it('returns false for BUILDING_WALL tiles (building walls are solid in the village)', () => {
+    // BUILDING_WALL forms the walls of all village structures. If it became walkable
+    // the player could walk straight through cottages, the blacksmith, and elder's house.
+    const mgr = makeMapManager(); // village map
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.BUILDING_WALL) {
+          expect(
+            mgr.isWalkable(x, y),
+            `BUILDING_WALL tile at (${x}, ${y}) must NOT be walkable`
+          ).toBe(false);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: BUILDING_WALL tiles must exist in the village map
+  });
+
+  it('returns false for ROCK tiles (rocks are impassable terrain in the forest)', () => {
+    // ROCK appears as boulder clusters in the forest. If it accidentally became
+    // walkable the player could pass through stone outcroppings, breaking map geometry.
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.ROCK) {
+          expect(
+            mgr.isWalkable(x, y),
+            `ROCK tile at (${x}, ${y}) must NOT be walkable`
+          ).toBe(false);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: ROCK tiles must exist in the forest map
+  });
+
+  it('returns false for WELL tiles (the village well is a solid landmark)', () => {
+    // WELL marks the central landmark in the village square. If it became walkable
+    // the player could step onto the well sprite, breaking the intended visual layout.
+    const mgr = makeMapManager(); // village map
+    const map = mgr.currentMap;
+    let found = false;
+    outer: for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y][x] === TileType.WELL) {
+          expect(
+            mgr.isWalkable(x, y),
+            `WELL tile at (${x}, ${y}) must NOT be walkable`
+          ).toBe(false);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // guard: WELL tile must exist in the village map
+  });
 });
 
 describe('MapManager.getEnemyAt / getNpcAt', () => {
