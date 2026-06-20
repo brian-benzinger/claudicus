@@ -399,12 +399,40 @@ describe('CombatEngine.update (animation)', () => {
     expect(engine.state.animationFrame).toBe(1);
   });
 
-  it('transitions out of PLAYER_ANIMATING after 20 frames', () => {
+  it('PLAYER_ANIMATING → ENEMY_ACTION when enemy is alive after 20 frames', () => {
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
     engine.state.phase = CombatPhase.PLAYER_ANIMATING;
     engine.state.animationFrame = 20;
+    // Enemy is alive (default HP > 0) → must hand off to enemy turn, not DONE or any other phase
     engine.update();
-    expect(engine.state.phase).not.toBe(CombatPhase.PLAYER_ANIMATING);
+    expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+  });
+
+  it('PLAYER_ANIMATING → DONE when enemy is dead after 20 frames', () => {
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.phase = CombatPhase.PLAYER_ANIMATING;
+    engine.state.enemyHp = 0;
+    engine.state.animationFrame = 20;
+    engine.update();
+    expect(engine.state.phase).toBe(CombatPhase.DONE);
+  });
+
+  it('ENEMY_ANIMATING → PLAYER_ACTION when player is alive after 20 frames', () => {
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.phase = CombatPhase.ENEMY_ANIMATING;
+    engine.state.animationFrame = 20;
+    // Player is alive (default HP > 0) → must return to player turn, not DONE or any other phase
+    engine.update();
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
+
+  it('ENEMY_ANIMATING → DONE when player is dead after 20 frames', () => {
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.phase = CombatPhase.ENEMY_ANIMATING;
+    engine.state.playerHp = 0;
+    engine.state.animationFrame = 20;
+    engine.update();
+    expect(engine.state.phase).toBe(CombatPhase.DONE);
   });
 });
 
