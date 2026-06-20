@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getWeapon, getShopWeapons, WEAPONS } from '../data/weapons';
 import { WeaponSpeed, LEVEL_REWARDS } from '../types';
+import { QUESTS } from '../data/quests';
 
 describe('getWeapon', () => {
   it('returns the correct weapon by id', () => {
@@ -128,6 +129,17 @@ describe('LEVEL_REWARDS weaponIds all exist in WEAPONS', () => {
       if (reward.weaponId) {
         const w = getWeapon(reward.weaponId);
         expect(w.id, `Level ${lvl} reward weaponId "${reward.weaponId}" falls back to rusty_shortsword — weapon is missing`).toBe(reward.weaponId);
+      }
+    }
+  });
+});
+
+describe('QUESTS rewardWeaponIds all exist in WEAPONS', () => {
+  it('every rewardWeaponId in QUESTS maps to a real weapon', () => {
+    for (const [id, quest] of Object.entries(QUESTS)) {
+      if (quest.rewardWeaponId) {
+        const w = getWeapon(quest.rewardWeaponId);
+        expect(w.id, `Quest "${id}" rewardWeaponId "${quest.rewardWeaponId}" falls back to rusty_shortsword — weapon is missing`).toBe(quest.rewardWeaponId);
       }
     }
   });
