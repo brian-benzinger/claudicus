@@ -216,6 +216,20 @@ describe('NpcManager.buySelectedItem', () => {
     expect(player.ownsWeapon(item.weaponId!)).toBe(true);
   });
 
+  it('purchasing a weapon equips it immediately (not just adds to inventory)', () => {
+    // buySelectedItem calls equipWeapon(), not addWeaponToInventory().
+    // If this changed, the player would own the weapon but still fight with
+    // their previous one — a silent behavioral regression.
+    const mgr = new NpcManager();
+    const player = makePlayer(); // starts with rusty_shortsword
+    player.state.gold = 999;
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    mgr.shopCursor = 0;
+    const item = mgr.shopItems[0];
+    mgr.buySelectedItem(player);
+    expect(player.state.weaponId).toBe(item.weaponId);
+  });
+
   it('fails when not enough gold', () => {
     const mgr = new NpcManager();
     const player = makePlayer();
@@ -556,6 +570,19 @@ describe('NpcManager — armor shop', () => {
     expect(result.success).toBe(true);
     expect(player.ownsArmor(item.armorId!)).toBe(true);
     expect(player.state.gold).toBe(before - item.cost);
+  });
+
+  it('purchasing armor equips it immediately (not just adds to inventory)', () => {
+    // buySelectedItem calls equipArmor(), not addArmorToInventory().
+    // If this changed, the player would own the armor but still fight with
+    // their previous one — a silent behavioral regression.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer(); // starts with leather_vest
+    player.addGold(1000);
+    const item = mgr.shopItems[0];
+    mgr.buySelectedItem(player);
+    expect(player.state.armorId).toBe(item.armorId);
   });
 
   it('refuses to buy armor already owned', () => {

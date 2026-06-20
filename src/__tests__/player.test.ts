@@ -261,6 +261,33 @@ describe('PlayerManager.respawn', () => {
     p.respawn();
     expect(p.state.gold).toBe(90);
   });
+
+  it('loses exactly floor(10%) gold — e.g. 9 gold loses 0, not 1', () => {
+    // Math.floor(9 * 0.1) = Math.floor(0.9) = 0 → no loss
+    // If the formula changed to Math.round or Math.ceil this would break.
+    const p = makePlayer();
+    p.state.gold = 9;
+    p.respawn();
+    expect(p.state.gold).toBe(9);
+  });
+
+  it('respawning with 0 gold stays at 0 (min 0 contract)', () => {
+    // DESIGN.md: "lose 10% gold (min 0)".  floor(0 * 0.1) = 0 → gold never goes negative.
+    const p = makePlayer();
+    p.state.gold = 0;
+    p.respawn();
+    expect(p.state.gold).toBe(0);
+  });
+
+  it('sets facing to down after respawn', () => {
+    // The respawn() implementation resets facing to "down" so the player sprite
+    // faces the village after reviving.  If this is removed the default facing
+    // from before death persists, which can look wrong on the village screen.
+    const p = makePlayer();
+    p.state.facing = 'left';
+    p.respawn();
+    expect(p.state.facing).toBe('down');
+  });
 });
 
 describe('PlayerManager.getXpProgress', () => {
