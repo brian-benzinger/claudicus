@@ -1261,3 +1261,70 @@ describe('CombatEngine — tickEnemyEffects expires non-WEAKEN effects silently'
     expect(engine.state.log.some(l => l.includes('no longer weakened'))).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// ignoresDefense formula — pins the armor-piercing damage calculation
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — ignoresDefense formula in executePlayerAttack', () => {
+  // calcDamage: effectiveDef = defense * (1 - ignoresDefense)
+  // damage = max(1, attackPower - effectiveDef + variance)
+  //
+  // Mock sequence per attack: [miss_check, variance, crit_check]
+  // Variance mock 0.25 → Math.floor(0.25*4) - 1 = Math.floor(1) - 1 = 0
+
+  it('mace (ignoresDefense=0.5) halves effective DEF, producing damage = max(1, atk - def*0.5 + 0)', () => {
+    // mace: missChance=0, critChance=0, ignoresDefense=0.5, damageBonus=5
+    // player str=5 → attackPower = 5+5 = 10
+    // SKELETON def=4, agi=2; mace is SLOW: player goes first when agi > enemyAgi+3 = 2+3=5
+    // effectiveDef = 4 * (1 - 0.5) = 2
+    // expected damage = max(1, 10 - 2 + 0) = 8
+    mockAttacks([0.5, 0.25, 0.5]);
+    const player = makePlayer(); // str=5, agi=3 by default
+    player.equipWeapon('mace');
+    player.state.agi = 10; // 10 > 2+3=5 → player goes first with SLOW mace
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8);
+  });
+
+  it('rusty_shortsword (ignoresDefense=0) applies full DEF, producing damage = max(1, atk - def + 0)', () => {
+    // rusty_shortsword: missChance=0, critChance=0, ignoresDefense=0, damageBonus=2
+    // player str=5 → attackPower = 5+2 = 7
+    // SKELETON def=4, agi=2; NORMAL: player goes first when agi >= enemyAgi = 3 >= 2 ✓
+    // effectiveDef = 4 * (1 - 0) = 4
+    // expected damage = max(1, 7 - 4 + 0) = 3
+    mockAttacks([0.5, 0.25, 0.5]);
+    const player = makePlayer(); // str=5, agi=3; rusty_shortsword equipped by default
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(3);
+  });
+
+  it('ignoresDefense=0.5 vs ignoresDefense=0 yields strictly more damage against a defended enemy', () => {
+    // Confirms that ignoresDefense=0.5 always deals more than ignoresDefense=0
+    // when the enemy has non-zero DEF, holding variance constant.
+    // SKELETON def=4: mace damage=8, rusty damage=3 → 8 > 3 ✓
+    mockAttacks([0.5, 0.25, 0.5]);
+    const macePl = makePlayer();
+    macePl.equipWeapon('mace');
+    macePl.state.agi = 10;
+    const maceEngine = new CombatEngine(macePl, makeEnemy(EnemyType.SKELETON));
+    const maceHpBefore = maceEngine.state.enemyHp;
+    maceEngine.playerAttack();
+    const maceDmg = maceHpBefore - maceEngine.state.enemyHp;
+
+    mockAttacks([0.5, 0.25, 0.5]);
+    const rustyPl = makePlayer();
+    const rustyEngine = new CombatEngine(rustyPl, makeEnemy(EnemyType.SKELETON));
+    const rustyHpBefore = rustyEngine.state.enemyHp;
+    rustyEngine.playerAttack();
+    const rustyDmg = rustyHpBefore - rustyEngine.state.enemyHp;
+
+    // mace ignores 50% of def=4 (saves 2 points of absorbed damage) and has
+    // higher damageBonus (+5 vs +2), so mace must always out-damage rusty here.
+    expect(maceDmg).toBeGreaterThan(rustyDmg);
+  });
+});
