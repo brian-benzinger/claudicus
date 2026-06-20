@@ -117,6 +117,7 @@ You begin with a **Rusty Shortsword** and a **Leather Vest**.
 | Mace | +5 | Slow | ignores 50% DEF | shop |
 | Halberd | +7 | Slow | 15% miss; high raw damage | forest chest |
 | War Axe | +8 | Slow | 10% miss, 10% crit, ignores 20% DEF | crafted |
+| War Halberd | +9 | Slow | 10% miss; max-level reward | level 10 |
 
 **Speed** decides turn order: Fast → you always go first; Slow → enemy first unless your AGI ≥ theirs + 4; Ranged → free opening shot, then AGI; Normal → AGI comparison (ties favor you).
 

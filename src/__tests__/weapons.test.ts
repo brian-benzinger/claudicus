@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getWeapon, getShopWeapons, WEAPONS } from '../data/weapons';
-import { WeaponSpeed } from '../types';
+import { WeaponSpeed, LEVEL_REWARDS } from '../types';
 
 describe('getWeapon', () => {
   it('returns the correct weapon by id', () => {
@@ -17,7 +17,7 @@ describe('getWeapon', () => {
   });
 
   it('returns all expected weapons', () => {
-    const ids = ['rusty_shortsword', 'iron_longsword', 'mace', 'hand_axe', 'dagger', 'hunting_bow', 'halberd', 'war_axe'];
+    const ids = ['rusty_shortsword', 'iron_longsword', 'mace', 'hand_axe', 'dagger', 'hunting_bow', 'halberd', 'war_axe', 'war_halberd'];
     for (const id of ids) {
       expect(getWeapon(id).id).toBe(id);
     }
@@ -95,5 +95,40 @@ describe('war_axe weapon', () => {
     );
     expect(multiSpecial).toHaveLength(1);
     expect(multiSpecial[0].id).toBe('war_axe');
+  });
+});
+
+describe('war_halberd weapon', () => {
+  it('exists in WEAPONS and is retrievable by id', () => {
+    const w = getWeapon('war_halberd');
+    expect(w.id).toBe('war_halberd');
+    expect(w.name).toBe('War Halberd');
+  });
+
+  it('is the highest-damage weapon in the game', () => {
+    const max = Math.max(...Object.values(WEAPONS).map(w => w.damageBonus));
+    expect(getWeapon('war_halberd').damageBonus).toBe(max);
+  });
+
+  it('is slow speed and source=reward (never in shops)', () => {
+    const w = getWeapon('war_halberd');
+    expect(w.speed).toBe(WeaponSpeed.SLOW);
+    expect(w.source).toBe('reward');
+  });
+
+  it('is not returned by getShopWeapons', () => {
+    const ids = getShopWeapons().map(w => w.id);
+    expect(ids).not.toContain('war_halberd');
+  });
+});
+
+describe('LEVEL_REWARDS weaponIds all exist in WEAPONS', () => {
+  it('every weaponId referenced in LEVEL_REWARDS maps to a real weapon', () => {
+    for (const [lvl, reward] of Object.entries(LEVEL_REWARDS)) {
+      if (reward.weaponId) {
+        const w = getWeapon(reward.weaponId);
+        expect(w.id, `Level ${lvl} reward weaponId "${reward.weaponId}" falls back to rusty_shortsword — weapon is missing`).toBe(reward.weaponId);
+      }
+    }
   });
 });
