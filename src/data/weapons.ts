@@ -88,6 +88,17 @@ export const WEAPONS: Record<string, Weapon> = {
     ignoresDefense: 0.2,
     cost: 0,
     source: 'chest'  // 'chest' so it doesn't appear in shops
+  },
+  war_halberd: {
+    id: 'war_halberd',
+    name: 'War Halberd',
+    damageBonus: 9,
+    speed: WeaponSpeed.SLOW,
+    missChance: 0.1,
+    critChance: 0,
+    ignoresDefense: 0,
+    cost: 0,
+    source: 'reward'  // level 10 reward only, never in shops
   }
 };
 
