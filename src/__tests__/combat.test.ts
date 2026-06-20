@@ -153,6 +153,18 @@ describe('CombatEngine.playerAttack', () => {
     expect(engine.state.log.some(l => l.includes('misses'))).toBe(true);
   });
 
+  it('a miss deals no damage to the enemy', () => {
+    // Contract: when executePlayerAttack early-returns on a miss, enemyHp is unchanged.
+    const player = makePlayer();
+    player.equipWeapon('hand_axe'); // missChance=0.2, NORMAL speed
+    player.state.agi = 10;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // 0.1 < 0.2 → always miss
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(engine.state.enemyHp).toBe(hpBefore);
+  });
+
   it('logs a critical hit when crit random is below critChance', () => {
     // dagger: FAST, missChance=0, critChance=0.3
     // random calls: [miss check(→no miss), variance, crit check(→crit)]
@@ -163,6 +175,38 @@ describe('CombatEngine.playerAttack', () => {
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
     engine.playerAttack();
     expect(engine.state.log.some(l => l.includes('Critical'))).toBe(true);
+  });
+
+  it('critical hit deals exactly twice the damage of an equivalent non-crit', () => {
+    // Dagger: missChance=0, critChance=0.3. Random call order per attack:
+    //   1. miss check (always false for dagger), 2. variance, 3. crit check.
+    // Non-crit: variance=0 (random=0.25 → floor(1)-1=0), crit=0.5 (≥0.3 → no crit)
+    // player.computeWeaponDamage()=str(5)+damageBonus(1)=6; skeleton.def=4; ignores=0
+    // damage = max(1, 6-4+0) = 2; non-crit actualDamage = 2
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)    // miss: no miss
+      .mockReturnValueOnce(0.25) // variance: 0
+      .mockReturnValueOnce(0.5); // crit: 0.5 >= 0.3 → no crit
+    const e1 = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    const hp1Before = e1.state.enemyHp;
+    e1.playerAttack();
+    const nonCritDamage = hp1Before - e1.state.enemyHp;
+
+    vi.restoreAllMocks();
+
+    // Crit: same variance=0, crit=0.1 (<0.3 → crit) → damage * 2 = 4
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)    // miss: no miss
+      .mockReturnValueOnce(0.25) // variance: 0
+      .mockReturnValueOnce(0.1); // crit: 0.1 < 0.3 → crit
+    const e2 = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    const hp2Before = e2.state.enemyHp;
+    e2.playerAttack();
+    const critDamage = hp2Before - e2.state.enemyHp;
+
+    expect(critDamage).toBe(nonCritDamage * 2);
+    expect(nonCritDamage).toBe(2); // pin exact non-crit value so the test is meaningful
+    expect(critDamage).toBe(4);    // pin exact crit value
   });
 });
 
@@ -179,6 +223,44 @@ describe('CombatEngine.playerDefend', () => {
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
     engine.playerDefend();
     expect(engine.state.log.some(l => l.includes('brace'))).toBe(true);
+  });
+
+  it('halves the actual damage received from the next enemy attack (min 1)', () => {
+    // Contract: when defendingThisTurn=true, executeEnemyAttack applies
+    // actualDamage = max(1, floor(damage * 0.5)) instead of raw damage.
+    //
+    // Setup: player.def=0, skeleton atk=5, random=0.5 throughout.
+    // skeletonAI: 0.5 >= 0.4 → attacks. calcDamage: variance=floor(0.5*4)-1=1, no enemy crit.
+    // playerDef = def(0) + leatherVest.defBonus(1) = 1
+    // attackPower = max(1, 5) = 5
+    // raw damage = max(1, 5-1+1) = 5
+    // undefended actualDamage = 5; defended actualDamage = max(1, floor(5*0.5)) = 2
+
+    // Undefended baseline
+    const p1 = makeFastPlayer();
+    p1.state.def = 0;
+    const e1 = new CombatEngine(p1, makeEnemy(EnemyType.SKELETON));
+    e1.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const hp1Before = e1.state.playerHp;
+    e1.enemyTurn();
+    const undefendedDamage = hp1Before - e1.state.playerHp;
+
+    vi.restoreAllMocks();
+
+    // Defended: playerDefend() sets defendingThisTurn=true and advances to ENEMY_ACTION
+    const p2 = makeFastPlayer();
+    p2.state.def = 0;
+    const e2 = new CombatEngine(p2, makeEnemy(EnemyType.SKELETON));
+    e2.playerDefend();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const hp2Before = e2.state.playerHp;
+    e2.enemyTurn();
+    const defendedDamage = hp2Before - e2.state.playerHp;
+
+    expect(undefendedDamage).toBe(5); // pin undefended so the assertion is meaningful
+    expect(defendedDamage).toBe(Math.max(1, Math.floor(undefendedDamage * 0.5)));
+    expect(defendedDamage).toBeLessThan(undefendedDamage);
   });
 });
 
@@ -440,6 +522,21 @@ describe('Status effects — BLEED', () => {
     expect(engine.state.log.some(l => l.includes('bleed'))).toBe(true);
     // bleed deals exactly 2 HP — player HP must have dropped by at least that much
     expect(hpBefore - engine.state.playerHp).toBeGreaterThanOrEqual(2);
+  });
+
+  it('BLEED deals exactly 2 damage — no more, no less', () => {
+    // Contract: tickPlayerEffects() applies exactly 2 HP of bleed damage.
+    // Stun the enemy so it cannot also attack, isolating bleed as the sole damage source.
+    const player = makeFastPlayer();
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.state.playerStatusEffects.push({ type: StatusEffectType.BLEED, turnsRemaining: 2 });
+    engine.state.enemyStatusEffects.push({ type: StatusEffectType.STUN, turnsRemaining: 1 });
+
+    const hpBefore = engine.state.playerHp;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+
+    expect(engine.state.playerHp).toBe(hpBefore - 2);
   });
 
   it('BLEED is removed when turnsRemaining reaches 0', () => {
