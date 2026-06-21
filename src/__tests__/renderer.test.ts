@@ -226,17 +226,29 @@ describe('drawTile — base background color per tile type', () => {
 // drawPlayer — overworld weapon rendering
 // ---------------------------------------------------------------------------
 describe('drawPlayer — without weapon', () => {
-  it('produces draw calls when facing up', () => {
+  it('male body rect is 20×18 with playerBody color at frame=0', () => {
     const { ctx, calls } = makeCtx();
-    drawPlayer(ctx, 100, 100, 0, 'up');
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    drawPlayer(ctx, 0, 0, 0, 'up');
+    // bob = Math.sin(0) = 0, male body fillRect(6, 10, 20, 18) with #4a3728
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[2] === 20 &&
+      (c.args as number[])[3] === 18 &&
+      c.fillStyle === '#4a3728'
+    );
+    expect(body).toBeDefined();
   });
 
-  it('draws body and head (fillRect + arc calls)', () => {
-    const { ctx, calls } = makeCtx();
-    drawPlayer(ctx, 0, 0, 0, 'down');
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
-    expect(calls.some(c => c.method === 'arc')).toBe(true);
+  it('facing-down draws two eye rects; facing-up draws none', () => {
+    const { ctx: downCtx, calls: downCalls } = makeCtx();
+    const { ctx: upCtx, calls: upCalls } = makeCtx();
+    drawPlayer(downCtx, 0, 0, 0, 'down');
+    drawPlayer(upCtx, 0, 0, 0, 'up');
+    // Eyes are 2×2 fillRects drawn only when facing toward the viewer
+    const eyeRects = (cs: Call[]) =>
+      cs.filter(c => c.method === 'fillRect' && (c.args as number[])[2] === 2 && (c.args as number[])[3] === 2);
+    expect(eyeRects(downCalls).length).toBe(2);
+    expect(eyeRects(upCalls).length).toBe(0);
   });
 });
 
