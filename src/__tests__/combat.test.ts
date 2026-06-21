@@ -1622,3 +1622,55 @@ describe('CombatEngine — nextAttackBonus actually affects damage and resets af
     expect(engine.state.nextAttackBonus).toBe(0);
   });
 });
+
+describe('CombatEngine — Pin stun lasts exactly 1 turn', () => {
+  it('turnsRemaining=1 — increasing to 2 would skip the enemy twice, breaking balance', () => {
+    // Pin applies STUN. The existing test only asserts STUN exists but not its duration.
+    // If turnsRemaining were changed from 1 to 2 or 3 (accidentally doubling the skip window)
+    // no previous test would catch it. This pins the contract.
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    player.state.level = 3;
+    player.state.agi = 10; // ensures player goes first (ranged: agi >= enemy agi)
+    mockAttacks([0, 0, 0]); // consume the free opening shot fired by the RANGED constructor
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerUseAbility(); // Pin
+    const stun = engine.state.enemyStatusEffects.find(e => e.type === StatusEffectType.STUN);
+    expect(stun).toBeDefined();
+    expect(stun!.turnsRemaining).toBe(1);
+  });
+});
+
+describe('CombatEngine — Revenant Knight phase-2 attack 1.1× ATK multiplier', () => {
+  it('phase-2 attack applies floor(ATK * 1.1) — pins exact damage dealt', () => {
+    // Revenant Knight ATK=10. floor(10 * 1.1) = 11. playerEffectiveDef = 3 + 1 = 4.
+    // Variance = floor(0.5 * 4) - 1 = 1. damage = max(1, 11 - 4 + 1) = 8.
+    // Without the 1.1× multiplier: max(1, 10 - 4 + 1) = 7 — test fails.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → attack; variance=1; no crit (0.5 < 0 = false)
+    const player = makePlayer(); // effectiveDef = def(3) + leather_vest.defBonus(1) = 4
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.REVENANT_KNIGHT));
+    // Revenant Knight agi=4 > player agi=3 → engine starts in ENEMY_ACTION
+    engine.state.enemyHp = 10; // < 50% of 60 — already in phase 2
+    engine.state.enemyIsPhaseTwo = true;
+    const hpBefore = engine.state.playerHp;
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(hpBefore - 8);
+  });
+});
+
+describe('CombatEngine — default AI desperate attack 1.5× ATK multiplier', () => {
+  it('desperate attack applies floor(ATK * 1.5) — pins exact damage dealt', () => {
+    // Bandit ATK=6. floor(6 * 1.5) = 9. playerEffectiveDef = 3 + 1 = 4.
+    // Variance = floor(0.1 * 4) - 1 = -1. damage = max(1, 9 - 4 + (-1)) = max(1, 4) = 4.
+    // Without the 1.5× multiplier: max(1, 6 - 4 - 1) = max(1, 1) = 1 — test fails.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.30 → desperate; variance=-1; no crit
+    const player = makePlayer(); // effectiveDef = 4
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    // Bandit agi=3 == player agi=3 → player goes first → need to force ENEMY_ACTION
+    engine.state.enemyHp = 2; // < 25% of 18 → desperate attack
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    const hpBefore = engine.state.playerHp;
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(hpBefore - 4);
+  });
+});
