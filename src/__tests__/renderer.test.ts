@@ -340,35 +340,147 @@ describe('drawPlayer — gender', () => {
 });
 
 // ---------------------------------------------------------------------------
-// drawEnemy — all types produce draw calls
+// drawEnemy — exact body colors and distinguishing visual contracts
+//
+// Replaces shallow "fills body rect" checks with pinned exact-color assertions
+// so that swapping enemy body colors is caught immediately.  The color values
+// are taken directly from the COLORS palette in renderer.ts.
 // ---------------------------------------------------------------------------
-describe('drawEnemy — all enemy types produce draw calls', () => {
-  it('WOLF fills body rect', () => {
+describe('drawEnemy — WOLF body color and red eyes', () => {
+  it('body is wolf-grey (#6b6b6b) at (4,12,24,14)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.WOLF, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 4 &&
+      (c.args as number[])[1] === 12 &&
+      (c.args as number[])[2] === 24 &&
+      (c.args as number[])[3] === 14 &&
+      c.fillStyle === '#6b6b6b'
+    );
+    expect(body).toBeDefined();
   });
-  it('BANDIT fills body rect', () => {
+
+  it('eye fillRect uses wolfEyes red (#cc3333)', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.WOLF, 0, 0);
+    // Eye is a 2x2 fillRect drawn with wolfEyes color
+    const eye = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[2] === 2 &&
+      (c.args as number[])[3] === 2 &&
+      c.fillStyle === '#cc3333'
+    );
+    expect(eye).toBeDefined();
+  });
+});
+
+describe('drawEnemy — BANDIT body color', () => {
+  it('body is bandit dark-red (#8b2500) at (6,10,20,18)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.BANDIT, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 6 &&
+      (c.args as number[])[1] === 10 &&
+      (c.args as number[])[2] === 20 &&
+      (c.args as number[])[3] === 18 &&
+      c.fillStyle === '#8b2500'
+    );
+    expect(body).toBeDefined();
   });
-  it('BANDIT_ARCHER fills body rect', () => {
+
+  it('BANDIT draws no stroke call (no bow — face arc uses fill, not stroke)', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.BANDIT, 0, 0);
+    expect(calls.some(c => c.method === 'stroke')).toBe(false);
+  });
+});
+
+describe('drawEnemy — BANDIT_ARCHER body color and bow', () => {
+  it('body is bandit dark-red (#8b2500) at (6,10,20,18)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.BANDIT_ARCHER, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 6 &&
+      (c.args as number[])[1] === 10 &&
+      (c.args as number[])[2] === 20 &&
+      (c.args as number[])[3] === 18 &&
+      c.fillStyle === '#8b2500'
+    );
+    expect(body).toBeDefined();
   });
-  it('SKELETON fills body rect', () => {
+
+  it('BANDIT_ARCHER uses stroke (bow arc) but BANDIT does not', () => {
+    // The bow is drawn with ctx.arc() + ctx.stroke(); the face uses arc + fill.
+    // Both bandits have the face arc, but only the archer adds a stroke call.
+    const { ctx: archerCtx, calls: archerCalls } = makeCtx();
+    const { ctx: banditCtx, calls: banditCalls } = makeCtx();
+    drawEnemy(archerCtx, EnemyType.BANDIT_ARCHER, 0, 0);
+    drawEnemy(banditCtx, EnemyType.BANDIT, 0, 0);
+    expect(archerCalls.some(c => c.method === 'stroke')).toBe(true);
+    expect(banditCalls.some(c => c.method === 'stroke')).toBe(false);
+  });
+});
+
+describe('drawEnemy — SKELETON body color', () => {
+  it('ribcage is bone-white (#e8e8d8) at (8,10,16,14)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.SKELETON, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const ribcage = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 8 &&
+      (c.args as number[])[1] === 10 &&
+      (c.args as number[])[2] === 16 &&
+      (c.args as number[])[3] === 14 &&
+      c.fillStyle === '#e8e8d8'
+    );
+    expect(ribcage).toBeDefined();
   });
-  it('WILD_BOAR fills body rect', () => {
+
+  it('skeleton is distinct from wolf — different dominant body color', () => {
+    const { ctx: wolfCtx, calls: wolfCalls } = makeCtx();
+    const { ctx: skCtx, calls: skCalls } = makeCtx();
+    drawEnemy(wolfCtx, EnemyType.WOLF, 0, 0);
+    drawEnemy(skCtx, EnemyType.SKELETON, 0, 0);
+    const wolfBodyColors = wolfCalls.filter(c => c.method === 'fillRect').map(c => c.fillStyle);
+    const skBodyColors   = skCalls.filter(c => c.method === 'fillRect').map(c => c.fillStyle);
+    expect(wolfBodyColors[0]).not.toBe(skBodyColors[0]);
+  });
+});
+
+describe('drawEnemy — WILD_BOAR body color', () => {
+  it('body is boar-brown (#6b4423) at (4,12,24,12)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.WILD_BOAR, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 4 &&
+      (c.args as number[])[1] === 12 &&
+      (c.args as number[])[2] === 24 &&
+      (c.args as number[])[3] === 12 &&
+      c.fillStyle === '#6b4423'
+    );
+    expect(body).toBeDefined();
   });
-  it('REVENANT_KNIGHT fills body rect', () => {
+
+  it('boar tusks are bone-white (#e8e8d8), distinguishing it from wolf and bandit', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.WILD_BOAR, 0, 0);
+    // Tusks: 2x4 fillRect with skeletonBody color (#e8e8d8)
+    const tusk = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[2] === 2 &&
+      (c.args as number[])[3] === 4 &&
+      c.fillStyle === '#e8e8d8'
+    );
+    expect(tusk).toBeDefined();
+  });
+});
+
+describe('drawEnemy — REVENANT_KNIGHT fills body rect', () => {
+  it('fills body rect', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
     expect(calls.some(c => c.method === 'fillRect')).toBe(true);
