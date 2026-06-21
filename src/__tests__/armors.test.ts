@@ -25,9 +25,14 @@ describe('ARMORS data', () => {
     expect(ARMORS.shadow_cloak.source).toBe('chest');
   });
 
-  it('higher-tier armors have more defBonus', () => {
-    expect(ARMORS.chain_mail.defBonus).toBeGreaterThan(ARMORS.leather_vest.defBonus);
-    expect(ARMORS.iron_plate.defBonus).toBeGreaterThan(ARMORS.chain_mail.defBonus);
+  it('pins exact defBonus values: leather_vest=1, chain_mail=3, iron_plate=5, shadow_cloak=2', () => {
+    // Relational ordering is insufficient — the combat damage formula subtracts
+    // effectiveDef from attackPower, so each armor's exact bonus is a behavioral
+    // contract. Changing any of these silently alters all combat outcomes.
+    expect(ARMORS.leather_vest.defBonus).toBe(1);
+    expect(ARMORS.chain_mail.defBonus).toBe(3);
+    expect(ARMORS.iron_plate.defBonus).toBe(5);
+    expect(ARMORS.shadow_cloak.defBonus).toBe(2);
   });
 });
 
@@ -111,11 +116,14 @@ describe('PlayerManager armor methods', () => {
     expect(p.ownsArmor('iron_plate')).toBe(false);
   });
 
-  it('getEffectiveDef increases after equipping better armor', () => {
+  it('getEffectiveDef is exact state.def + armor.defBonus: iron_plate gives 3+5=8', () => {
+    // toBeGreaterThan would pass even if the formula doubled the bonus or used
+    // additive XP scaling. The exact value 8 pins the contract: effectiveDef = def + defBonus.
     const p = makePlayer();
-    const defBefore = p.getEffectiveDef();
     p.equipArmor('iron_plate');
-    expect(p.getEffectiveDef()).toBeGreaterThan(defBefore);
+    expect(p.state.def).toBe(3);
+    expect(p.getArmor().defBonus).toBe(5);
+    expect(p.getEffectiveDef()).toBe(8);
   });
 });
 
