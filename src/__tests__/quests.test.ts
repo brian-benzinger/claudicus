@@ -1,0 +1,165 @@
+import { describe, it, expect } from 'vitest';
+import { QUESTS, MAIN_QUEST, createDefaultQuests } from '../data/quests';
+import { EnemyType } from '../types';
+import { getWeapon } from '../data/weapons';
+
+// ---------------------------------------------------------------------------
+// QUESTS data — pin exact behavioral contracts for all six quest definitions.
+//
+// These tests intentionally use hard-coded literal values (not dynamic reads
+// from the same constant) so that a silent change to quests.ts is caught
+// immediately.  The pattern mirrors enemies.test.ts and armors.test.ts.
+// ---------------------------------------------------------------------------
+
+describe('QUESTS — exact contract table for all six quests', () => {
+  it('defines exactly six quests', () => {
+    expect(Object.keys(QUESTS)).toHaveLength(6);
+  });
+
+  it('forest_menace: kill_any, goalCount=5, rewardGold=50, rewardWeaponId=iron_longsword', () => {
+    const q = QUESTS.forest_menace;
+    expect(q.id).toBe('forest_menace');
+    expect(q.name).toBe('The Forest Menace');
+    expect(q.goalType).toBe('kill_any');
+    expect(q.goalCount).toBe(5);
+    expect(q.goalEnemyTypes).toBeUndefined();
+    expect(q.rewardGold).toBe(50);
+    expect(q.rewardWeaponId).toBe('iron_longsword');
+    expect(q.rewardPotions).toBeUndefined();
+  });
+
+  it('bandit_steel: kill_type [BANDIT,BANDIT_ARCHER], goalCount=3, rewardGold=30, rewardWeaponId=hand_axe', () => {
+    const q = QUESTS.bandit_steel;
+    expect(q.id).toBe('bandit_steel');
+    expect(q.name).toBe('Bandit Steel');
+    expect(q.goalType).toBe('kill_type');
+    expect(q.goalCount).toBe(3);
+    expect(q.goalEnemyTypes).toEqual([EnemyType.BANDIT, EnemyType.BANDIT_ARCHER]);
+    expect(q.rewardGold).toBe(30);
+    expect(q.rewardWeaponId).toBe('hand_axe');
+    expect(q.rewardPotions).toBeUndefined();
+  });
+
+  it('boar_problem: kill_type [WILD_BOAR], goalCount=2, rewardGold=25, rewardPotions=3', () => {
+    const q = QUESTS.boar_problem;
+    expect(q.id).toBe('boar_problem');
+    expect(q.name).toBe('The Boar Problem');
+    expect(q.goalType).toBe('kill_type');
+    expect(q.goalCount).toBe(2);
+    expect(q.goalEnemyTypes).toEqual([EnemyType.WILD_BOAR]);
+    expect(q.rewardGold).toBe(25);
+    expect(q.rewardPotions).toBe(3);
+    expect(q.rewardWeaponId).toBeUndefined();
+  });
+
+  it('quiet_dead: kill_type [SKELETON], goalCount=2, rewardGold=40, no weapon/potion reward', () => {
+    const q = QUESTS.quiet_dead;
+    expect(q.id).toBe('quiet_dead');
+    expect(q.name).toBe('Silence the Unquiet Dead');
+    expect(q.goalType).toBe('kill_type');
+    expect(q.goalCount).toBe(2);
+    expect(q.goalEnemyTypes).toEqual([EnemyType.SKELETON]);
+    expect(q.rewardGold).toBe(40);
+    expect(q.rewardWeaponId).toBeUndefined();
+    expect(q.rewardPotions).toBeUndefined();
+  });
+
+  it('wolves_gate: kill_type [WOLF], goalCount=3, rewardGold=20, rewardWeaponId=dagger', () => {
+    const q = QUESTS.wolves_gate;
+    expect(q.id).toBe('wolves_gate');
+    expect(q.name).toBe('Wolves at the Gate');
+    expect(q.goalType).toBe('kill_type');
+    expect(q.goalCount).toBe(3);
+    expect(q.goalEnemyTypes).toEqual([EnemyType.WOLF]);
+    expect(q.rewardGold).toBe(20);
+    expect(q.rewardWeaponId).toBe('dagger');
+    expect(q.rewardPotions).toBeUndefined();
+  });
+
+  it('revenant_threat: kill_type [REVENANT_KNIGHT], goalCount=1, rewardGold=30, rewardPotions=2', () => {
+    const q = QUESTS.revenant_threat;
+    expect(q.id).toBe('revenant_threat');
+    expect(q.name).toBe('The Revenant Threat');
+    expect(q.goalType).toBe('kill_type');
+    expect(q.goalCount).toBe(1);
+    expect(q.goalEnemyTypes).toEqual([EnemyType.REVENANT_KNIGHT]);
+    expect(q.rewardGold).toBe(30);
+    expect(q.rewardPotions).toBe(2);
+    expect(q.rewardWeaponId).toBeUndefined();
+  });
+});
+
+describe('QUESTS — NPC wiring', () => {
+  it('every quest has a non-empty npcId and npcName', () => {
+    for (const [id, q] of Object.entries(QUESTS)) {
+      expect(q.npcId.length, `${id}.npcId`).toBeGreaterThan(0);
+      expect(q.npcName.length, `${id}.npcName`).toBeGreaterThan(0);
+    }
+  });
+
+  it('each quest has a non-empty description', () => {
+    for (const [id, q] of Object.entries(QUESTS)) {
+      expect(q.description.length, `${id}.description`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('QUESTS — reward cross-reference integrity', () => {
+  it('every rewardWeaponId maps to a real weapon (not the rusty_shortsword fallback)', () => {
+    for (const [id, q] of Object.entries(QUESTS)) {
+      if (q.rewardWeaponId) {
+        const w = getWeapon(q.rewardWeaponId);
+        expect(
+          w.id,
+          `Quest "${id}" rewardWeaponId "${q.rewardWeaponId}" falls back to rusty_shortsword — weapon is missing`
+        ).toBe(q.rewardWeaponId);
+      }
+    }
+  });
+
+  it('every kill_type quest lists at least one enemy type', () => {
+    for (const [id, q] of Object.entries(QUESTS)) {
+      if (q.goalType === 'kill_type') {
+        expect(
+          q.goalEnemyTypes?.length,
+          `Quest "${id}" is kill_type but has no goalEnemyTypes`
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('kill_any quests have no goalEnemyTypes', () => {
+    for (const [id, q] of Object.entries(QUESTS)) {
+      if (q.goalType === 'kill_any') {
+        expect(q.goalEnemyTypes, `Quest "${id}" is kill_any but lists enemy types`).toBeUndefined();
+      }
+    }
+  });
+});
+
+describe('MAIN_QUEST alias', () => {
+  it('is an alias for forest_menace', () => {
+    expect(MAIN_QUEST).toBe(QUESTS.forest_menace);
+  });
+});
+
+describe('createDefaultQuests', () => {
+  it('creates one entry per quest, all in the initial uncompleted state', () => {
+    const state = createDefaultQuests();
+    expect(Object.keys(state)).toHaveLength(Object.keys(QUESTS).length);
+    for (const id of Object.keys(QUESTS)) {
+      expect(state[id], `${id} missing from createDefaultQuests()`).toBeDefined();
+      expect(state[id].started).toBe(false);
+      expect(state[id].count).toBe(0);
+      expect(state[id].completed).toBe(false);
+      expect(state[id].rewardClaimed).toBe(false);
+    }
+  });
+
+  it('returns independent objects each call', () => {
+    const a = createDefaultQuests();
+    const b = createDefaultQuests();
+    a.forest_menace.count = 99;
+    expect(b.forest_menace.count).toBe(0);
+  });
+});
