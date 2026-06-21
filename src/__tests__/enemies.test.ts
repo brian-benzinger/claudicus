@@ -49,18 +49,31 @@ describe('createEnemy', () => {
 });
 
 describe('ENEMY_DEFS', () => {
-  it('defines all enemy types', () => {
-    const types = [EnemyType.WOLF, EnemyType.BANDIT, EnemyType.BANDIT_ARCHER, EnemyType.SKELETON, EnemyType.WILD_BOAR, EnemyType.REVENANT_KNIGHT];
-    for (const type of types) {
-      expect(ENEMY_DEFS[type]).toBeDefined();
+  it('pins exact stat contracts for every enemy type', () => {
+    const expected: Array<{ type: EnemyType; name: string; hp: number; atk: number; def: number; agi: number; xp: number; gold: number }> = [
+      { type: EnemyType.WOLF,            name: 'Wolf',            hp: 12, atk: 5,  def: 1, agi: 5, xp: 8,  gold: 3  },
+      { type: EnemyType.BANDIT,          name: 'Bandit',          hp: 18, atk: 6,  def: 3, agi: 3, xp: 12, gold: 10 },
+      { type: EnemyType.BANDIT_ARCHER,   name: 'Bandit Archer',   hp: 14, atk: 7,  def: 2, agi: 4, xp: 14, gold: 8  },
+      { type: EnemyType.SKELETON,        name: 'Skeleton',        hp: 20, atk: 5,  def: 4, agi: 2, xp: 15, gold: 5  },
+      { type: EnemyType.WILD_BOAR,       name: 'Wild Boar',       hp: 15, atk: 7,  def: 2, agi: 2, xp: 10, gold: 0  },
+      { type: EnemyType.REVENANT_KNIGHT, name: 'Revenant Knight', hp: 60, atk: 10, def: 6, agi: 4, xp: 80, gold: 50 },
+    ];
+    for (const row of expected) {
+      const def = ENEMY_DEFS[row.type];
+      expect(def, `ENEMY_DEFS[${row.type}] should be defined`).toBeDefined();
+      expect(def.name, `${row.type} name`).toBe(row.name);
+      expect(def.hp,   `${row.type} hp`).toBe(row.hp);
+      expect(def.atk,  `${row.type} atk`).toBe(row.atk);
+      expect(def.def,  `${row.type} def`).toBe(row.def);
+      expect(def.agi,  `${row.type} agi`).toBe(row.agi);
+      expect(def.xp,   `${row.type} xp`).toBe(row.xp);
+      expect(def.gold, `${row.type} gold`).toBe(row.gold);
     }
   });
 
-  it('all enemies have positive stats', () => {
-    for (const def of Object.values(ENEMY_DEFS)) {
-      expect(def.hp).toBeGreaterThan(0);
-      expect(def.atk).toBeGreaterThan(0);
-      expect(def.xp).toBeGreaterThan(0);
+  it('every def has a type field matching its key', () => {
+    for (const [key, def] of Object.entries(ENEMY_DEFS)) {
+      expect(def.type).toBe(key);
     }
   });
 });
