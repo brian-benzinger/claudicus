@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { drawPlayer, drawTile, drawEnemy } from '../renderer';
-import { TileType, EnemyType, WeaponSpeed } from '../types';
+import { TileType, EnemyType, WeaponSpeed, TILE_SIZE } from '../types';
 
 // ---------------------------------------------------------------------------
 // Minimal canvas mock that records every draw call
 // ---------------------------------------------------------------------------
-type Call = { method: string; args: unknown[] };
+type Call = { method: string; args: unknown[]; fillStyle?: string };
 
 function makeCtx() {
   const calls: Call[] = [];
+  let _fillStyle = '';
+
   const record =
     (method: string) =>
     (...args: unknown[]) => {
@@ -16,15 +18,16 @@ function makeCtx() {
     };
 
   const ctx = {
-    // state
-    fillStyle: '',
+    // state — fillStyle backed by a variable so fillRect can snapshot it at call time
+    get fillStyle() { return _fillStyle; },
+    set fillStyle(v: string) { _fillStyle = v; },
     strokeStyle: '',
     lineWidth: 1,
     globalAlpha: 1,
     font: '',
     textAlign: 'left' as CanvasTextAlign,
-    // draw ops
-    fillRect: record('fillRect'),
+    // draw ops — fillRect snapshots the active fillStyle for per-tile color assertions
+    fillRect: (...args: unknown[]) => { calls.push({ method: 'fillRect', args, fillStyle: _fillStyle }); },
     strokeRect: record('strokeRect'),
     beginPath: record('beginPath'),
     arc: record('arc'),
@@ -95,22 +98,128 @@ describe('drawTile — TREE determinism', () => {
 });
 
 // ---------------------------------------------------------------------------
-// drawTile — other tile types produce draw calls
+// drawTile — base background color and full-tile coverage per tile type
 // ---------------------------------------------------------------------------
-describe('drawTile — all tile types produce draw calls', () => {
-  const allTypes: TileType[] = [
-    TileType.GRASS, TileType.DIRT, TileType.COBBLESTONE, TileType.WATER,
-    TileType.WALL, TileType.TREE, TileType.FENCE, TileType.DARK_GRASS,
-    TileType.ROCK, TileType.BUILDING_WALL, TileType.DOOR, TileType.ROOF,
-    TileType.WELL, TileType.GATE,
-  ];
-  for (const type of allTypes) {
-    it(`TileType ${type} fills the tile background`, () => {
-      const { ctx, calls } = makeCtx();
-      drawTile(ctx, type, 0, 0);
-      expect(calls.some(c => c.method === 'fillRect')).toBe(true);
-    });
-  }
+describe('drawTile — base background color per tile type', () => {
+  // Helpers that inspect the FIRST fillRect call, which is always the background fill.
+  const firstFillRect = (calls: Call[]) => calls.find(c => c.method === 'fillRect');
+
+  // Non-zero position so coordinate passthrough is also verified.
+  const tx = 64, ty = 96;
+
+  it('GRASS: base fill is grass-green (#4a7c23) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.GRASS, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#4a7c23');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('DARK_GRASS: base fill is dark-grass-green (#3d6b1c) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.DARK_GRASS, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#3d6b1c');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('DIRT: base fill is dirt-brown (#8b7355) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.DIRT, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#8b7355');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('COBBLESTONE: base fill is grey (#6b6b6b) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.COBBLESTONE, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#6b6b6b');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('WATER: base fill is deep-blue (#2e5a8b) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.WATER, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#2e5a8b');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('WALL: base fill is wall-grey (#5c5c5c) covering the full tile', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.WALL, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#5c5c5c');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('BUILDING_WALL: shares WALL rendering — base fill is wall-grey (#5c5c5c)', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.BUILDING_WALL, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#5c5c5c');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('TREE: base fill is dark-grass-green (#3d6b1c) — grass underlay beneath the canopy', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.TREE, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#3d6b1c');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('FENCE: base fill is grass-green (#4a7c23) — grass visible around the posts', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.FENCE, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#4a7c23');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('ROCK: base fill is dark-grass-green (#3d6b1c) — grass underlay beneath the rock', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.ROCK, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#3d6b1c');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('DOOR: base fill is grass-green (#4a7c23) — grass surrounding the door frame', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.DOOR, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#4a7c23');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('WELL: base fill is grass-green (#4a7c23) — grass around the well base', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.WELL, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#4a7c23');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  it('GATE: base fill is dirt-brown (#8b7355) — dirt beneath the gate posts', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.GATE, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#8b7355');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
+
+  // ROOF has no dedicated case in drawTile and falls through to the default placeholder.
+  // This test pins that behavior so any future ROOF implementation is noticed.
+  it('ROOF: no dedicated renderer case — falls to magenta placeholder (#ff00ff)', () => {
+    const { ctx, calls } = makeCtx();
+    drawTile(ctx, TileType.ROOF, tx, ty);
+    const fr = firstFillRect(calls);
+    expect(fr?.fillStyle).toBe('#ff00ff');
+    expect(fr?.args).toEqual([tx, ty, TILE_SIZE, TILE_SIZE]);
+  });
 });
 
 // ---------------------------------------------------------------------------
