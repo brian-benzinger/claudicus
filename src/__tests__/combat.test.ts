@@ -1560,3 +1560,65 @@ describe('CombatEngine — Revenant Knight phase-2 BLEED refreshes rather than s
     expect(bleeds[0].turnsRemaining).toBe(3);
   });
 });
+
+describe('CombatEngine — nextAttackBonus actually affects damage and resets after use', () => {
+  // nextAttackBonus is set by playerDefend (+1) and wolf howl (-2), but no prior
+  // test verifies that it changes the damage dealt on the next attack.  These tests
+  // exercise the full path from bonus → damage calculation → reset.
+  //
+  // Setup: makePlayer() starts with STR=5 and rusty_shortsword (damageBonus=2,
+  // missChance=0, critChance=0). makeEnemy(SKELETON) has DEF=4.
+  // Baseline damage (variance=0, no bonus): max(1, (5+2) - 4 + 0) = 3.
+  // mockAttacks([miss, variance, crit]):
+  //   miss=0   → 0 < missChance(0) = false → no miss
+  //   variance=0.25 → floor(0.25×4)−1 = 0  → variance = 0
+  //   crit=0   → 0 < critChance(0) = false → no crit
+
+  it('defend bonus (+1) increases next attack damage by exactly 1', () => {
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.nextAttackBonus = 1;
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+
+    mockAttacks([0, 0.25, 0]);
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+
+    // attackPower = (5+2) + 1 = 8; damage = max(1, 8-4+0) = 4 (not 3)
+    expect(engine.state.enemyHp).toBe(hpBefore - 4);
+  });
+
+  it('nextAttackBonus is reset to 0 after the attack consumes it', () => {
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.nextAttackBonus = 1;
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+
+    mockAttacks([0, 0.25, 0]);
+    engine.playerAttack();
+
+    expect(engine.state.nextAttackBonus).toBe(0);
+  });
+
+  it('wolf howl penalty (-2) reduces next attack damage by exactly 2', () => {
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.nextAttackBonus = -2;
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+
+    mockAttacks([0, 0.25, 0]);
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+
+    // attackPower = (5+2) + (-2) = 5; damage = max(1, 5-4+0) = 1 (not 3)
+    expect(engine.state.enemyHp).toBe(hpBefore - 1);
+  });
+
+  it('penalty (-2) is also reset to 0 after the attack consumes it', () => {
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.nextAttackBonus = -2;
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+
+    mockAttacks([0, 0.25, 0]);
+    engine.playerAttack();
+
+    expect(engine.state.nextAttackBonus).toBe(0);
+  });
+});
