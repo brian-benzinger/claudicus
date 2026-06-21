@@ -245,10 +245,15 @@ describe('NpcManager.buySelectedItem', () => {
     const player = makePlayer();
     player.state.gold = 999;
     mgr.openShop(NpcRole.SHOP_WEAPONS);
+    const item = mgr.shopItems[0];
     mgr.buySelectedItem(player);
+    const goldAfterFirstBuy = player.state.gold;
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
     expect(result.message).toContain('already own');
+    // Gold must not be charged a second time when the purchase is rejected.
+    expect(player.state.gold).toBe(goldAfterFirstBuy);
+    expect(player.state.gold).toBe(999 - item.cost);
   });
 
   it('purchases a potion successfully', () => {
@@ -257,9 +262,12 @@ describe('NpcManager.buySelectedItem', () => {
     player.state.potions = 0;
     player.state.gold = 10;
     mgr.openShop(NpcRole.SHOP_POTIONS);
+    const potionCost = mgr.shopItems[0].cost;
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(true);
     expect(player.state.potions).toBe(1);
+    // Gold must be deducted — the potion's cost is the contract.
+    expect(player.state.gold).toBe(10 - potionCost);
   });
 
   it('fails when potion inventory is full', () => {
@@ -270,6 +278,9 @@ describe('NpcManager.buySelectedItem', () => {
     mgr.openShop(NpcRole.SHOP_POTIONS);
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
+    // A rejected purchase must leave both potions and gold completely unchanged.
+    expect(player.state.potions).toBe(10);
+    expect(player.state.gold).toBe(100);
   });
 });
 
@@ -463,9 +474,14 @@ describe('NpcManager.claimQuestReward', () => {
 
   it('fails when quest not completed', () => {
     const mgr = new NpcManager();
-    const result = mgr.claimQuestReward(makeQuestState(), makePlayer(), testQuestDef);
+    const player = makePlayer();
+    const quest = makeQuestState();
+    const result = mgr.claimQuestReward(quest, player, testQuestDef);
     expect(result.success).toBe(false);
     expect(result.rewards).toHaveLength(0);
+    // Rejection must be a pure no-op: no gold granted, no reward flag set.
+    expect(player.state.gold).toBe(10);
+    expect(quest.rewardClaimed).toBe(false);
   });
 
   it('fails when reward already claimed', () => {
