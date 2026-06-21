@@ -472,6 +472,28 @@ describe('NpcManager.claimQuestReward', () => {
     expect(result.rewards[0]).toContain(String(testQuestDef.rewardGold));
   });
 
+  it('reward weapon is equipped immediately, not just added to inventory', () => {
+    // claimQuestReward calls equipWeapon(), not addWeaponToInventory().
+    // If this changed, the player would own the weapon but still fight with
+    // their previous one — a silent behavioral regression mirroring the
+    // "purchasing armor equips it immediately" contract in the armor shop tests.
+    const mgr = new NpcManager();
+    const player = makePlayer(); // starts wielding rusty_shortsword
+    const quest = makeQuestState({ started: true, completed: true });
+    mgr.claimQuestReward(quest, player, testQuestDef); // forest_menace → iron_longsword
+    expect(player.state.weaponId).toBe(testQuestDef.rewardWeaponId); // must be EQUIPPED, not just owned
+  });
+
+  it('wolves_gate reward dagger is equipped, not just added to inventory', () => {
+    // Covers a second quest that grants a different weapon (dagger), confirming
+    // the equip-immediately contract holds regardless of which weapon is rewarded.
+    const mgr = new NpcManager();
+    const player = makePlayer(); // starts wielding rusty_shortsword
+    const quest = makeQuestState({ started: true, completed: true });
+    mgr.claimQuestReward(quest, player, QUESTS.wolves_gate); // wolves_gate → dagger
+    expect(player.state.weaponId).toBe(QUESTS.wolves_gate.rewardWeaponId); // 'dagger' must be EQUIPPED
+  });
+
   it('fails when quest not completed', () => {
     const mgr = new NpcManager();
     const player = makePlayer();
