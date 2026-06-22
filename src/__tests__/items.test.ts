@@ -34,11 +34,31 @@ describe('openChest', () => {
     expect(result.messages[0]).toContain('Dagger');
   });
 
+  it('chest weapon is added to the weapons array and previous weapon is preserved', () => {
+    // openChest calls equipWeapon(), which adds to the weapons array without removing
+    // existing weapons.  If this changed to a replace-style update, the player would
+    // lose their previous weapon from inventory — a silent regression that this test pins.
+    const player = makePlayer(); // starts with rusty_shortsword
+    openChest(makeChest([{ type: 'weapon', weaponId: 'dagger' }]), player);
+    expect(player.state.weapons).toContain('dagger');          // new weapon added
+    expect(player.state.weapons).toContain('rusty_shortsword'); // old weapon preserved
+  });
+
   it('equips armor and returns message', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'armor', armorId: 'shadow_cloak' }]), player);
     expect(player.state.armorId).toBe('shadow_cloak');
     expect(result.messages[0]).toContain('Shadow Cloak');
+  });
+
+  it('chest armor is added to the armors array and previous armor is preserved', () => {
+    // openChest calls equipArmor(), which adds to the armors array without removing
+    // existing armors.  If this changed to a replace-style update, the player would
+    // lose their previous armor from inventory — a silent regression that this test pins.
+    const player = makePlayer(); // starts with leather_vest
+    openChest(makeChest([{ type: 'armor', armorId: 'shadow_cloak' }]), player);
+    expect(player.state.armors).toContain('shadow_cloak');   // new armor added
+    expect(player.state.armors).toContain('leather_vest');    // old armor preserved
   });
 
   it('ignores a weapon loot entry with no weaponId', () => {
