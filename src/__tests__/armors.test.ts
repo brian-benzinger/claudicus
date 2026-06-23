@@ -46,6 +46,8 @@ describe('getArmor', () => {
   it('falls back to leather_vest for unknown ids', () => {
     const a = getArmor('does_not_exist');
     expect(a.id).toBe('leather_vest');
+    expect(a.name).toBe('Leather Vest');
+    expect(a.defBonus).toBe(1);
   });
 });
 

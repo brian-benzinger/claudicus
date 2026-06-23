@@ -82,5 +82,5 @@ describe('constants', () => {
   it('CANVAS_WIDTH is 960', () => expect(CANVAS_WIDTH).toBe(960));
   it('CANVAS_HEIGHT is 640', () => expect(CANVAS_HEIGHT).toBe(640));
   it('MAX_POTIONS is 10', () => expect(MAX_POTIONS).toBe(10));
-  it('SAVE_VERSION is defined', () => expect(SAVE_VERSION).toBeGreaterThan(0));
+  it('SAVE_VERSION is 6', () => expect(SAVE_VERSION).toBe(6));
 });
