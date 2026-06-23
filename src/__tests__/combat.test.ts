@@ -1476,9 +1476,9 @@ describe('CombatEngine — Wolf howl overrides a defend bonus', () => {
 
 describe('CombatEngine — Bandit Archer arrow ignoresDefense=0.3 vs knife ignoresDefense=0', () => {
   it('arrow deals strictly more damage than knife against a player with non-zero effective DEF', () => {
-    // Arrow turn (odd): executeEnemyAttack(1, 0.3) → effectiveDef = 4 * 0.7 = 2.8
+    // Arrow turn (odd): executeEnemyAttack(1, 0.3) → effectiveDef = 4 * 0.7 = 2.8 → floored to integer
     // Knife turn (even): executeEnemyAttack(1, 0)  → effectiveDef = 4 * 1.0 = 4.0
-    // With ATK=7 and variance=1 (random=0.5): arrowDmg=5.2 > knifeDmg=4.
+    // With ATK=7 and variance=1 (random=0.5): arrowDmg=floor(5.2)=5 > knifeDmg=4.
     // This would fail if ignoresDefense were removed from the archer's ranged attack.
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const player = makePlayer(); // effectiveDef = state.def(3) + leatherVest(1) = 4
@@ -1495,6 +1495,24 @@ describe('CombatEngine — Bandit Archer arrow ignoresDefense=0.3 vs knife ignor
     const knifeDrop = hpBeforeKnife - engine.state.playerHp;
 
     expect(arrowDrop).toBeGreaterThan(knifeDrop);
+  });
+
+  it('arrow damage is a whole number — not fractional despite ignoresDefense=0.3', () => {
+    // Bandit Archer ATK=7, ignoresDefense=0.3. Player effectiveDef = def(3) + leather_vest(1) = 4.
+    // effectiveDef = 4 * (1-0.3) = 2.8 — a non-integer.
+    // Without Math.floor in calcDamage: damage = max(1, 7-2.8+1) = 5.2 → HP becomes 34.8 (fractional).
+    // The log would then print "deals 5.2 damage" and HP bars would show decimals.
+    // With Math.floor: damage = max(1, floor(5.2)) = 5 → HP stays integer.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // variance = floor(0.5*4)-1 = 1, no crit
+    const player = makePlayer(); // effectiveDef = 4
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT_ARCHER));
+    const hpBefore = engine.state.playerHp;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // turn 1: arrow
+    const damage = hpBefore - engine.state.playerHp;
+    // Pinned: ATK=7 - effectiveDef=2.8 + variance=1 = 5.2 → floor → 5.
+    expect(damage).toBe(5);
+    expect(Number.isInteger(engine.state.playerHp)).toBe(true);
   });
 });
 

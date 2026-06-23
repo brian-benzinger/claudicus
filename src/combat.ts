@@ -84,7 +84,7 @@ export class CombatEngine {
   ): { damage: number; crit: boolean } {
     const effectiveDef = defense * (1 - ignoresDefense);
     const variance = Math.floor(Math.random() * 4) - 1; // -1 to +2
-    let damage = Math.max(1, attackPower - effectiveDef + variance);
+    let damage = Math.max(1, Math.floor(attackPower - effectiveDef + variance));
 
     const crit = Math.random() < critChance;
     if (crit) damage *= 2;
