@@ -94,6 +94,10 @@ describe('openChest', () => {
       player
     );
     expect(result.messages.length).toBe(2);
+    expect(result.messages[0]).toBe('Found 10 gold!');
+    expect(result.messages[1]).toBe('Found 1 Health Potion!');
+    expect(player.state.gold).toBe(20);
+    expect(player.state.potions).toBe(4);
   });
 
   it('singular potion message for amount=1', () => {

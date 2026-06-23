@@ -419,10 +419,10 @@ describe('MapManager.updateCamera / tileToScreen', () => {
 
   it('tileToScreen reflects camera offset when map is larger than canvas', () => {
     const mgr = makeForestManager();
-    // Player at tile (20,15): camera.x = 20*32 - 480 = 160, camera.y = 15*32 - 320 = 160
+    // Player at tile (20,15): targetX = 20*32 + TILE_SIZE/2 - CANVAS_WIDTH/2 = 640+16-480 = 176
     mgr.updateCamera(20, 15);
-    expect(mgr.camera.x).toBeGreaterThan(0);
-    expect(mgr.camera.y).toBeGreaterThan(0);
+    expect(mgr.camera.x).toBe(176);
+    expect(mgr.camera.y).toBe(176);
     const pos = mgr.tileToScreen(5, 5);
     expect(pos.x).toBeCloseTo(5 * TILE_SIZE - mgr.camera.x);
     expect(pos.y).toBeCloseTo(5 * TILE_SIZE - mgr.camera.y);
