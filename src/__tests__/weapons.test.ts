@@ -15,6 +15,9 @@ describe('getWeapon', () => {
   it('falls back to rusty_shortsword for unknown id', () => {
     const w = getWeapon('nonexistent_weapon');
     expect(w.id).toBe('rusty_shortsword');
+    expect(w.name).toBe('Rusty Shortsword');
+    expect(w.damageBonus).toBe(2);
+    expect(w.speed).toBe(WeaponSpeed.NORMAL);
   });
 
   it('returns all expected weapons', () => {
