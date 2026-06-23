@@ -550,8 +550,8 @@ describe('Status effects — BLEED', () => {
     const bleedEffect = engine.state.playerStatusEffects[0];
     expect(bleedEffect?.turnsRemaining).toBe(2); // decremented from 3
     expect(engine.state.log.some(l => l.includes('bleed'))).toBe(true);
-    // bleed deals exactly 2 HP — player HP must have dropped by at least that much
-    expect(hpBefore - engine.state.playerHp).toBeGreaterThanOrEqual(2);
+    // bleed(2) + skeleton attack(2, random=0.5 → variance=1, atk5 - def4 + 1 = 2) = 4 total
+    expect(hpBefore - engine.state.playerHp).toBe(4);
   });
 
   it('BLEED deals exactly 2 damage — no more, no less', () => {
@@ -1265,8 +1265,8 @@ describe('CombatEngine — player attack into a defending enemy', () => {
     // playerAttack() must reset the flag before striking — removing this reset
     // would cause executePlayerAttack to double the enemy's DEF, breaking the game flow.
     expect(e.state.enemyDefending).toBe(false);
-    // The attack must have connected and reduced enemy HP.
-    expect(e.state.enemyHp).toBeLessThan(hpBefore);
+    // str(5)+damageBonus(2)=7, variance=floor(0*4)-1=-1, def=4 → max(1,7-4-1)=2; hp 20→18
+    expect(e.state.enemyHp).toBe(18);
     // Turn must advance to the animating phase.
     expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
@@ -1500,7 +1500,8 @@ describe('CombatEngine — Bandit Archer arrow ignoresDefense=0.3 vs knife ignor
     engine.enemyTurn(); // turn 2: knife (ignoresDefense=0)
     const knifeDrop = hpBeforeKnife - engine.state.playerHp;
 
-    expect(arrowDrop).toBeGreaterThan(knifeDrop);
+    expect(arrowDrop).toBe(5); // floor(7 - 4*0.7 + 1) = floor(5.2) = 5
+    expect(knifeDrop).toBe(4); // floor(7 - 4*1.0 + 1) = 4
   });
 
   it('arrow damage is a whole number — not fractional despite ignoresDefense=0.3', () => {
