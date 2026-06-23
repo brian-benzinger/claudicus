@@ -12,7 +12,7 @@ function makePlayer() {
 describe('ARMORS data', () => {
   it('defines leather_vest as the starting armor', () => {
     expect(ARMORS.leather_vest).toBeDefined();
-    expect(ARMORS.leather_vest.defBonus).toBeGreaterThan(0);
+    expect(ARMORS.leather_vest.defBonus).toBe(1);
     expect(ARMORS.leather_vest.source).toBe('start');
   });
 
@@ -54,7 +54,7 @@ describe('getArmor', () => {
 describe('getShopArmors', () => {
   it('returns only shop-source armors', () => {
     const shop = getShopArmors();
-    expect(shop.length).toBeGreaterThan(0);
+    expect(shop.length).toBe(2); // chain_mail + iron_plate
     shop.forEach(a => expect(a.source).toBe('shop'));
   });
 

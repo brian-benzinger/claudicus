@@ -137,7 +137,8 @@ describe('CombatEngine.playerAttack', () => {
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
     const initialHp = engine.state.enemyHp;
     engine.playerAttack(); // moves to PLAYER_ANIMATING
-    expect(engine.state.enemyHp).toBeLessThan(initialHp); // first attack dealt damage
+    // dagger: miss=0(no miss), variance=floor(0*4)-1=-1, crit=0(<0.3→crit) → damage=max(1,6-4-1)=1×2=2
+    expect(engine.state.enemyHp).toBe(18); // initialHp(20) - 2 = 18
     const hpAfterFirstAttack = engine.state.enemyHp;
     engine.playerAttack(); // should do nothing (wrong phase)
     expect(engine.state.enemyHp).toBe(hpAfterFirstAttack);
@@ -323,7 +324,8 @@ describe('CombatEngine.enemyTurn', () => {
     engine.playerDefend(); // advance to ENEMY_ACTION
     const hpBefore = engine.state.playerHp;
     engine.enemyTurn();
-    expect(engine.state.playerHp).toBeLessThan(hpBefore);
+    // skeleton: atk(5)-effectiveDef(1)+var(1)=5, halved by defend → floor(5*0.5)=2 dmg → 40-2=38
+    expect(engine.state.playerHp).toBe(38);
   });
 
   it('transitions to PLAYER_ACTION after enemy attacks', () => {
@@ -671,7 +673,8 @@ describe('Enemy AI — Wolf howl', () => {
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     const hpBefore = engine.state.playerHp;
     engine.enemyTurn();
-    expect(engine.state.playerHp).toBeLessThan(hpBefore);
+    // wolf: atk(5)-effectiveDef(1)+var(1)=5 dmg → 40-5=35
+    expect(engine.state.playerHp).toBe(35);
   });
 });
 
@@ -685,7 +688,8 @@ describe('Enemy AI — Bandit Archer alternating', () => {
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn(); // enemyTurnCount becomes 1 (odd)
     expect(engine.state.log.some(l => l.includes('arrow'))).toBe(true);
-    expect(engine.state.playerHp).toBeLessThan(hpBefore); // arrow must deal damage
+    // archer arrow: atk(7)-effectiveDef(1*0.7)+var(1)=floor(7.3)=7 dmg → 40-7=33
+    expect(engine.state.playerHp).toBe(33);
   });
 
   it('uses melee attack (logs "knife") on even turns', () => {
@@ -700,7 +704,8 @@ describe('Enemy AI — Bandit Archer alternating', () => {
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn(); // turn 2 (even → knife)
     expect(engine.state.log.some(l => l.includes('knife'))).toBe(true);
-    expect(engine.state.playerHp).toBeLessThan(hpBeforeKnife); // knife must deal damage
+    // archer knife: atk(7)-effectiveDef(1)+var(1)=7 dmg → 33-7=26
+    expect(engine.state.playerHp).toBe(26);
   });
 });
 
@@ -1448,9 +1453,10 @@ describe('CombatEngine — ignoresDefense formula in executePlayerAttack', () =>
     rustyEngine.playerAttack();
     const rustyDmg = rustyHpBefore - rustyEngine.state.enemyHp;
 
-    // mace ignores 50% of def=4 (saves 2 points of absorbed damage) and has
-    // higher damageBonus (+5 vs +2), so mace must always out-damage rusty here.
-    expect(maceDmg).toBeGreaterThan(rustyDmg);
+    // mace: str(5)+bonus(5)=10, effectiveDef=4*0.5=2, var=0 → damage=8
+    // rusty: str(5)+bonus(2)=7, effectiveDef=4, var=0 → damage=3
+    expect(maceDmg).toBe(8);
+    expect(rustyDmg).toBe(3);
   });
 });
 
