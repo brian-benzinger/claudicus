@@ -308,16 +308,32 @@ describe('drawPlayer — with weaponSpeed', () => {
 // drawPlayer — gender avatars
 // ---------------------------------------------------------------------------
 describe('drawPlayer — gender', () => {
-  it('male avatar fills body rect', () => {
+  it('male avatar body is playerBody color (#4a3728) at (6,10,20,18)', () => {
     const { ctx, calls } = makeCtx();
     drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'male');
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 6 &&
+      (c.args as number[])[1] === 10 &&
+      (c.args as number[])[2] === 20 &&
+      (c.args as number[])[3] === 18 &&
+      c.fillStyle === '#4a3728'
+    );
+    expect(body).toBeDefined();
   });
 
-  it('female avatar fills body rect', () => {
+  it('female avatar body is playerBodyFemale color (#2e4a6b) at (7,10,18,14)', () => {
     const { ctx, calls } = makeCtx();
     drawPlayer(ctx, 0, 0, 0, 'down', undefined, undefined, 'female');
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const body = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 7 &&
+      (c.args as number[])[1] === 10 &&
+      (c.args as number[])[2] === 18 &&
+      (c.args as number[])[3] === 14 &&
+      c.fillStyle === '#2e4a6b'
+    );
+    expect(body).toBeDefined();
   });
 
   it('female avatar produces more arc calls (hair)', () => {
@@ -479,11 +495,33 @@ describe('drawEnemy — WILD_BOAR body color', () => {
   });
 });
 
-describe('drawEnemy — REVENANT_KNIGHT fills body rect', () => {
-  it('fills body rect', () => {
+describe('drawEnemy — REVENANT_KNIGHT armour color and glowing eyes', () => {
+  it('torso plate is dark-steel (#3a3a4a) at (7,9,18,16)', () => {
     const { ctx, calls } = makeCtx();
     drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
-    expect(calls.some(c => c.method === 'fillRect')).toBe(true);
+    const torso = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 7 &&
+      (c.args as number[])[1] === 9 &&
+      (c.args as number[])[2] === 18 &&
+      (c.args as number[])[3] === 16 &&
+      c.fillStyle === '#3a3a4a'
+    );
+    expect(torso).toBeDefined();
+  });
+
+  it('glowing eyes are red (#cc2200) at (12,6,3,2)', () => {
+    const { ctx, calls } = makeCtx();
+    drawEnemy(ctx, EnemyType.REVENANT_KNIGHT, 0, 0);
+    const eye = calls.find(c =>
+      c.method === 'fillRect' &&
+      (c.args as number[])[0] === 12 &&
+      (c.args as number[])[1] === 6 &&
+      (c.args as number[])[2] === 3 &&
+      (c.args as number[])[3] === 2 &&
+      c.fillStyle === '#cc2200'
+    );
+    expect(eye).toBeDefined();
   });
 });
 
