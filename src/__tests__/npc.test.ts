@@ -423,7 +423,7 @@ describe('revenant_threat quest definition', () => {
   it('has a potion reward', async () => {
     const { QUESTS } = await import('../data/quests');
     const q = QUESTS.revenant_threat;
-    expect(q.rewardPotions).toBeGreaterThan(0);
+    expect(q.rewardPotions).toBe(2);
   });
 });
 
