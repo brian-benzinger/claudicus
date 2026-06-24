@@ -206,10 +206,12 @@ describe('NpcManager.getCurrentLine — paired vs single line', () => {
 
 describe('NpcManager shop', () => {
   it('opens potion shop with correct item', () => {
+    // Pins the full ShopItem contract: a cost regression (e.g. 5 → 50) or name
+    // change would silently pass a type-only check but must fail here.
     const mgr = new NpcManager();
     mgr.openShop(NpcRole.SHOP_POTIONS);
     expect(mgr.shopItems.length).toBe(1);
-    expect(mgr.shopItems[0].type).toBe('potion');
+    expect(mgr.shopItems[0]).toEqual({ name: 'Health Potion', cost: 5, type: 'potion' });
   });
 
   it('moveShopCursor wraps around', () => {
