@@ -98,6 +98,20 @@ describe('PlayerManager.usePotion', () => {
     expect(p.state.hp).toBe(10 + POTION_HEAL);
   });
 
+  it('caps heal at maxHp — does not overshoot when hp + POTION_HEAL > maxHp', () => {
+    // maxHp=40, POTION_HEAL=20. Taking 5 damage leaves hp=35; 35+20=55 > maxHp.
+    // If usePotion() ever sets hp directly (hp += POTION_HEAL) instead of routing
+    // through heal(), this test fails while the existing 30-damage test stays green
+    // (10 + 20 = 30 < maxHp, so the cap is never exercised by it).
+    const p = makePlayer();
+    p.takeDamage(5); // hp = 35
+    const potionsBefore = p.state.potions;
+    const result = p.usePotion();
+    expect(result).toBe(true);
+    expect(p.state.potions).toBe(potionsBefore - 1); // potion consumed
+    expect(p.state.hp).toBe(p.state.maxHp);          // capped at 40, not 55
+  });
+
   it('returns false with no potions', () => {
     const p = makePlayer();
     p.state.potions = 0;
