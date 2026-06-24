@@ -121,7 +121,9 @@ Weapons define the player's primary attack in combat. Each has distinct trade-of
 | Hand Axe | STR + 6 | Normal | 20% chance to miss | 35g | Blacksmith |
 | Dagger | STR + 1 | Fast | Always strikes first; 30% crit chance (2x damage) | 20g | Blacksmith |
 | Hunting Bow | STR + 3 | Ranged | Free first strike before combat starts | 25g | Blacksmith |
-| Halberd | STR + 7 | Slow | 15% chance to miss; highest raw damage | 50g | Chest (forest) |
+| Halberd | STR + 7 | Slow | 15% chance to miss | — | Chest (forest) |
+| War Axe | STR + 8 | Slow | 10% miss, 10% crit (2x damage), ignores 20% DEF | — | Crafting (Forge) |
+| War Halberd | STR + 9 | Slow | 10% chance to miss; highest raw damage | — | Level 10 reward |
 
 ### Weapon Properties
 
@@ -204,12 +206,7 @@ On player HP reaching 0:
 | Bandit Archer | 14 | 7 | 2 | 4 | 14 | 8 | Forest — bandit camp |
 | Skeleton | 20 | 5 | 4 | 2 | 15 | 5 | Forest — chapel |
 | Wild Boar | 15 | 7 | 2 | 2 | 10 | 0 | Forest (uncommon) |
-
-### Future Boss (Dungeon Phase)
-
-| Enemy | HP | ATK | DEF | AGI | XP | Gold |
-|-------|-----|-----|-----|-----|----|------|
-| The Revenant Knight | 60 | 10 | 6 | 4 | 80 | 50 |
+| Revenant Knight | 60 | 10 | 6 | 4 | 80 | 50 | Forest — chapel (boss) |
 
 ## NPCs
 
