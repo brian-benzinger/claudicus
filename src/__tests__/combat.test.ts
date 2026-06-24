@@ -1897,3 +1897,54 @@ describe('CombatEngine.playerUseAbility — weapon ability executes over class a
     expect(engine.state.enemyStatusEffects.some(e => e.type === StatusEffectType.WEAKEN)).toBe(false);
   });
 });
+
+describe('CombatEngine — skeleton heals AND attacks on the same 3rd turn', () => {
+  it('when random >= 0.40, skeleton heals then also attacks in the same turn (independent branches)', () => {
+    // skeletonAI(): if (turnCount%3===0) { heal }; if (random<0.40) { defend } else { attack }.
+    // The heal and the attack/defend branches are NOT mutually exclusive — healing does not
+    // return early or else-gate the attack check. If the code were refactored to
+    // `if (healed) { return; }` or `if (healTurn) { heal } else { attack }`, the player
+    // would take 0 damage on turn 3 while this test would still have passed with the old
+    // check-only-enemyHp approach. This test pins both effects happen in the same turn.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // 0.5 >= 0.40 → attack (not defend)
+    const player = makeFastPlayer(); // dagger FAST: no Math.random in constructor
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    engine.state.enemyHp = 12;      // below maxHp(20) so healing has room
+    engine.state.enemyTurnCount = 2; // next enemyTurn() increments to 3 → heal turn
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    const playerHpBefore = engine.state.playerHp;
+
+    engine.enemyTurn();
+
+    // Healing branch fired: 12 + 5 = 17
+    expect(engine.state.enemyHp).toBe(17);
+    expect(engine.state.log.some(l => l.includes('mends'))).toBe(true);
+    // Attack branch also fired independently: player HP decreased
+    expect(engine.state.playerHp).toBeLessThan(playerHpBefore);
+  });
+});
+
+describe('CombatEngine — BRIGAND class has no flee modifier', () => {
+  it('BRIGAND flee chance equals the 50% base — random just-above and just-below both behave as expected', () => {
+    // Scout gets +0.15, Warrior gets -0.1, BRIGAND gets 0 (no entry in playerFlee).
+    // Pins that if a classBonus for BRIGAND were accidentally added, a random value
+    // just above the base 0.5 threshold would succeed instead of fail (catching the regression).
+    // Player agi(3) === BANDIT agi(3) → agiBonus = 0. fleeChance = 0.5 + 0 + 0 = 0.5.
+    const makeBrigandEngine = () => {
+      const p = makePlayer(); // agi=3, rusty_shortsword NORMAL
+      p.state.classPath = ClassPath.BRIGAND;
+      // BANDIT agi=3 == player agi=3 → no agi bonus; NORMAL weapon + equal agi → PLAYER_ACTION
+      return new CombatEngine(p, makeEnemy(EnemyType.BANDIT));
+    };
+
+    // random=0.49 < 0.5 → flee succeeds (base threshold met)
+    vi.spyOn(Math, 'random').mockReturnValue(0.49);
+    expect(makeBrigandEngine().playerFlee()).toBe(true);
+
+    vi.restoreAllMocks();
+
+    // random=0.51 > 0.5 → flee fails (BRIGAND adds no bonus to shift this over 0.51)
+    vi.spyOn(Math, 'random').mockReturnValue(0.51);
+    expect(makeBrigandEngine().playerFlee()).toBe(false);
+  });
+});
