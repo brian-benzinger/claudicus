@@ -40,7 +40,21 @@ describe('save and load', () => {
     expect(data).not.toBeNull();
     expect(data!.player.gold).toBe(999);
     expect(data!.quests['forest_menace'].started).toBe(true);
-    expect(data!.world.openedChests).toContain('chest_1');
+    expect(data!.world.openedChests).toEqual(['chest_1']);
+  });
+
+  it('round-trips defeatedEnemies — a defeated enemy must not reappear after save/load', () => {
+    // defeatedEnemies is the only WorldState array with no round-trip coverage.
+    // The map-filter test (MapManager "filters out defeated enemies") works entirely
+    // in memory; it never calls save() or load().  If save() dropped defeatedEnemies
+    // (e.g. after a refactor that cherry-picked fields), the map filter would still
+    // pass but enemies would silently reappear after every load — undetected.
+    const world = createDefaultWorld();
+    world.defeatedEnemies.push('enemy_forest_1');
+    save(createDefaultPlayer(), createDefaultQuests(), world);
+    const data = load();
+    expect(data).not.toBeNull();
+    expect(data!.world.defeatedEnemies).toEqual(['enemy_forest_1']);
   });
 
   it('stores the current SAVE_VERSION', () => {
