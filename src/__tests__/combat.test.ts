@@ -2217,3 +2217,74 @@ describe('CombatEngine — Revenant Knight phase 2 raise cursed blade sets enemy
     expect(engine.state.log.some(l => l.includes('cursed blade'))).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// war_halberd — pins all three special stat values at their exact boundary values.
+//
+// war_halberd stats: damageBonus=9 (highest of any weapon), SLOW,
+// missChance=0.1, critChance=0, ignoresDefense=0.
+// war_axe (the only comparable weapon) has critChance=0.1 and ignoresDefense=0.2.
+// war_halberd zeros both those fields — a silent copy-paste of war_axe values
+// would change combat outcomes without any existing test catching it.
+//
+// Setup: player.state.agi=10, REVENANT_KNIGHT (agi=4).
+// SLOW: playerTurn = 10 > 4+3=7 → player goes first, no phase forcing needed.
+// attackPower = str(5) + damageBonus(9) = 14.
+// effectiveDef = def(6) * (1-0) = 6.          [ignoresDefense=0 → full DEF]
+// variance=0: varRoll=0.25 → floor(0.25*4)-1 = 0.
+// damage = max(1, floor(14-6+0)) = 8.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — war_halberd (ignoresDefense=0, missChance=0.1, critChance=0)', () => {
+  function makeWarHalberdPlayer() {
+    const p = makePlayer(); // str=5
+    p.equipWeapon('war_halberd');
+    p.state.agi = 10; // SLOW: 10 > REVENANT_KNIGHT.agi(4)+3=7 → player goes first
+    return p;
+  }
+
+  it('ignoresDefense=0 against def=6 yields floor(14 - 6 + 0) = 8, not 9', () => {
+    // effectiveDef = 6*(1-0) = 6 → damage = floor(8.0) = 8.
+    // If ignoresDefense were accidentally set to 0.2 (like war_axe):
+    // effectiveDef = 6*0.8 = 4.8 → damage = floor(9.2) = 9. The 0 factor must survive.
+    mockAttacks([0.15, 0.25, 0.15]); // no miss (≥0.1), variance=0, crit roll irrelevant (critChance=0)
+    const engine = new CombatEngine(makeWarHalberdPlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8);
+  });
+
+  it('misses when miss random < missChance(0.1) — enemy hp is unchanged', () => {
+    // missChance=0.1: roll 0.05 < 0.1 → miss. If missChance were 0, the weapon
+    // would never miss and executePlayerAttack would never early-return.
+    vi.spyOn(Math, 'random').mockReturnValue(0.05); // 0.05 < 0.1 → miss
+    const engine = new CombatEngine(makeWarHalberdPlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(engine.state.enemyHp).toBe(hpBefore);
+    expect(engine.state.log.some(l => l.includes('misses'))).toBe(true);
+  });
+
+  it('critChance=0 — never crits even when crit random is exactly 0', () => {
+    // The crit check is `random() < critChance`. For critChance=0, even roll=0 gives
+    // `0 < 0 = false`, so a crit is impossible. If critChance were accidentally set to
+    // 0.1 (like war_axe), roll=0 would satisfy 0 < 0.1 → crit → damage doubles to 16.
+    mockAttacks([0.15, 0.25, 0.0]); // no miss, variance=0, crit roll=0 (still < critChance=0? No)
+    const engine = new CombatEngine(makeWarHalberdPlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8); // base damage, not doubled to 16
+    expect(engine.state.log.some(l => l.includes('Critical'))).toBe(false);
+  });
+
+  it('does NOT miss when miss random equals missChance(0.1) — pins the exact upper boundary', () => {
+    // roll=0.10 satisfies 0.10 >= 0.10 → no miss. Together with the miss test (0.05 < 0.1
+    // → miss) this pins both sides of the 0.1 threshold. If missChance were widened to
+    // 0.15, both tests would still pass — but narrowing to 0.05 would make this test fail.
+    mockAttacks([0.10, 0.25, 0.15]); // at-threshold: 0.10 >= 0.1 → no miss; variance=0; no crit
+    const engine = new CombatEngine(makeWarHalberdPlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8); // damage dealt, not a miss
+  });
+});
