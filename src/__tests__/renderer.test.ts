@@ -278,7 +278,12 @@ describe('drawPlayer — with weaponSpeed', () => {
     drawPlayer(noWeapon,   100, 100, 0, 'right');
     drawPlayer(withWeapon, 100, 100, 0, 'right', WeaponSpeed.NORMAL);
 
-    expect(withWeaponCalls.length).toBeGreaterThan(noWeaponCalls.length);
+    // Male facing right, no weapon: body fillRect + strokeRect + head (beginPath+arc+fill) +
+    // eye fillRect + 2 leg fillRects = 8 calls.
+    // NORMAL weapon adds: save + handle (beginPath+moveTo+lineTo+stroke) +
+    // blade (beginPath+moveTo+lineTo+stroke) + crossguard (beginPath+moveTo+lineTo+stroke) + restore = 14 calls.
+    expect(noWeaponCalls.length).toBe(8);
+    expect(withWeaponCalls.length).toBe(22);
   });
 
   it('RANGED weapon draws an arc (bow curve)', () => {
@@ -361,7 +366,11 @@ describe('drawPlayer — gender', () => {
     const { ctx: withWeapon, calls: withWeaponCalls } = makeCtx();
     drawPlayer(noWeapon,   0, 0, 0, 'right', undefined,          undefined, 'female');
     drawPlayer(withWeapon, 0, 0, 0, 'right', WeaponSpeed.NORMAL, undefined, 'female');
-    expect(withWeaponCalls.length).toBeGreaterThan(noWeaponCalls.length);
+    // Female facing right, no weapon: hair (beginPath+arc+fill+2×fillRect) + tunic fillRect +
+    // dress (beginPath+3×lineTo+closePath+fill) + strokeRect + head (beginPath+arc+fill) +
+    // ponytail (4×fillRect) + eye fillRect = 22 calls; NORMAL weapon adds 14 = 36.
+    expect(noWeaponCalls.length).toBe(22);
+    expect(withWeaponCalls.length).toBe(36);
   });
 });
 
@@ -546,8 +555,11 @@ describe('drawEnemy — REVENANT_KNIGHT visual details', () => {
     drawEnemy(skCtx, EnemyType.SKELETON, 0, 0);
     drawEnemy(rkCtx, EnemyType.REVENANT_KNIGHT, 0, 0);
 
-    // Revenant Knight has sword, shield, pauldrons, outline — more draw calls
-    expect(rkCalls.length).toBeGreaterThan(skCalls.length);
+    // Skeleton: ribcage + 4 rib lines + skull (beginPath+arc+fill) + 2 eye sockets + jaw + 2 arms + 2 legs = 15
+    // Revenant Knight: torso + chest plate + helmet + visor + 2 eyes + 2 pauldrons +
+    // 2 arms + 2 legs + sword + crossguard + shield + emblem (beginPath+arc+fill) + 2 strokeRects = 20
+    expect(skCalls.length).toBe(15);
+    expect(rkCalls.length).toBe(20);
   });
 
   it('draws an arc (glowing emblem on shield)', () => {
