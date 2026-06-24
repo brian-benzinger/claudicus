@@ -1805,3 +1805,61 @@ describe('CombatEngine — WEAKEN does not decrement during a stunned enemy turn
     expect(weaken!.turnsRemaining).toBe(3); // unchanged — tickEnemyEffects never ran
   });
 });
+
+// ---------------------------------------------------------------------------
+// Weapon ability vs. class ability priority
+//
+// getAvailableAbility() checks the level >= 3 weapon-ability branch FIRST.
+// If the equipped weapon has an ability, it is returned and the class-ability
+// branch is never reached — even when the player has chosen a class.
+// A reordering of those two if-blocks would silently change gameplay (class
+// abilities would always shadow weapon abilities), so pin the priority here.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine.getAvailableAbility — weapon ability takes priority over class ability at level 3+', () => {
+  it('Brigand at level 3 with dagger returns Backstab, not Intimidate', () => {
+    const player = makeFastPlayer(); // dagger, FAST → player goes first
+    player.state.level = 3;
+    player.state.classPath = ClassPath.BRIGAND;
+    const engine = new CombatEngine(player, makeEnemy());
+    expect(engine.getAvailableAbility()).toBe('Backstab');
+  });
+
+  it('Warrior at level 3 with mace returns Shatter, not Shield Bash', () => {
+    const player = makePlayer();
+    player.equipWeapon('mace');
+    player.state.agi = 10; // SLOW: playerAgi(10) > enemyAgi(4)+3 → player goes first
+    player.state.level = 3;
+    player.state.classPath = ClassPath.WARRIOR;
+    const engine = new CombatEngine(player, makeEnemy());
+    expect(engine.getAvailableAbility()).toBe('Shatter');
+  });
+
+  it('Scout at level 3 with hunting_bow returns Pin, not Ambush', () => {
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    player.state.agi = 10;
+    player.state.level = 3;
+    player.state.classPath = ClassPath.SCOUT;
+    mockAttacks([0, 0, 0]); // opening-shot randoms: miss=0, variance=0, crit=0
+    const engine = new CombatEngine(player, makeEnemy());
+    expect(engine.getAvailableAbility()).toBe('Pin');
+  });
+});
+
+describe('CombatEngine.playerUseAbility — weapon ability executes over class ability at level 3+', () => {
+  // Brigand Intimidate applies WEAKEN and logs "Intimidate!".
+  // Backstab logs a backstab flavor and deals damage instead.
+  // If the priority ever flips, WEAKEN would appear and no backstab message would.
+  it('Brigand at level 3 with dagger executes Backstab (not Intimidate) on playerUseAbility', () => {
+    const player = makeFastPlayer(); // dagger, FAST → PLAYER_ACTION phase
+    player.state.level = 3;
+    player.state.classPath = ClassPath.BRIGAND;
+    mockAttacks([0, 0.25, 0.5]); // miss=0(no miss), variance=0, crit=0.5(≥0.3 → no crit)
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerUseAbility();
+    expect(engine.state.log.some(l => l.includes('backstab') || l.includes('off-guard'))).toBe(true);
+    expect(engine.state.log.some(l => l.toLowerCase().includes('intimidate'))).toBe(false);
+    expect(engine.state.enemyStatusEffects.some(e => e.type === StatusEffectType.WEAKEN)).toBe(false);
+  });
+});
