@@ -256,4 +256,37 @@ describe('InputManager', () => {
       expect(input.isHeld('x')).toBe(true);
     });
   });
+
+  describe('game-key preventDefault contract', () => {
+    it('calls preventDefault for every recognized game key', () => {
+      // If any of these keys stop calling preventDefault the browser may scroll the
+      // page (arrows/space), trigger navigation (escape), or fire other built-in
+      // actions during gameplay — a silent UX regression that the state-change tests
+      // above cannot catch because they never inspect event.defaultPrevented.
+      const gameKeys = [
+        'w', 'a', 's', 'd',
+        'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        ' ', 'Enter', 'Escape',
+        '1', '2', '3', '4', '5',
+        'i', 'm', 'q',
+      ];
+
+      for (const key of gameKeys) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented, `preventDefault not called for key "${key}"`).toBe(true);
+      }
+    });
+
+    it('does NOT call preventDefault for non-game keys', () => {
+      // Blocking non-game keys would interfere with browser shortcuts, clipboard
+      // operations, dev tools, and any text input present in the page.
+      const nonGameKeys = ['x', 'c', 'v'];
+      for (const key of nonGameKeys) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented, `preventDefault incorrectly called for non-game key "${key}"`).toBe(false);
+      }
+    });
+  });
 });
