@@ -908,7 +908,7 @@ describe('CombatEngine.playerUseAbility — Shatter (mace)', () => {
     player.equipWeapon('mace');
     player.state.agi = 10;
     player.state.level = 3;
-    const enemy = makeEnemy(EnemyType.WOLF); // Wolf has DEF = 0
+    const enemy = makeEnemy(EnemyType.WOLF); // Wolf has DEF = 1; min(2,1)=1 → reduced to 0
     const engine = new CombatEngine(player, enemy);
     engine.playerUseAbility();
     expect(engine.state.enemy.def).toBe(0);
@@ -1740,5 +1740,68 @@ describe('CombatEngine — default AI desperate attack 1.5× ATK multiplier', ()
     const hpBefore = engine.state.playerHp;
     engine.enemyTurn();
     expect(engine.state.playerHp).toBe(hpBefore - 4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Flee chance — AGI bonus
+// The flee formula: fleeChance = base(0.5) + agiBonus + classBonus
+// where agiBonus = player.agi > enemy.agi ? 0.2 : 0 (strict greater-than).
+// Prior tests cover Scout (+0.15) and Warrior (-0.1) class modifiers but do not
+// isolate the AGI bonus branch.  These tests pin it at the boundary.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine.playerFlee — AGI bonus (+0.2 when player agi strictly exceeds enemy agi)', () => {
+  it('flee succeeds at roll=0.55 when player agi(5) > enemy agi(3) provides the +0.2 bonus', () => {
+    // fleeChance = 0.5 + 0.2 = 0.70. roll=0.55 < 0.70 → success.
+    // Without the bonus: fleeChance=0.50, 0.55 >= 0.50 → failure.
+    const player = makePlayer(); // agi=3 by default
+    player.state.agi = 5; // strictly above BANDIT agi(3)
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT)); // agi=3
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.55);
+    expect(engine.playerFlee()).toBe(true);
+  });
+
+  it('flee fails at roll=0.55 when player agi equals enemy agi (strict > means equal gives no bonus)', () => {
+    // agiBonus = player.agi > enemy.agi ? 0.2 : 0. Equal agi → 0.
+    // fleeChance = 0.5, roll=0.55 >= 0.5 → failure.
+    const player = makePlayer(); // agi=3
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT)); // agi=3, equal
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.55);
+    expect(engine.playerFlee()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STUN + WEAKEN interaction — WEAKEN does not consume a turn while enemy is stunned
+//
+// tickEnemyEffects() (which decrements WEAKEN) only runs in update() when
+// transitioning out of ENEMY_ANIMATING.  When the enemy is stunned, enemyTurn()
+// sets phase directly to PLAYER_ACTION and returns early, skipping ENEMY_ANIMATING
+// entirely.  Contract: WEAKEN turnsRemaining is NOT decremented on a stunned turn.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — WEAKEN does not decrement during a stunned enemy turn', () => {
+  it('WEAKEN turnsRemaining stays at 3 when the enemy is simultaneously stunned', () => {
+    // Scenario: player applied both WEAKEN (3 turns) and STUN (1 turn) on the same
+    // enemy turn.  On the next enemy turn, the stun fires first, phase goes directly
+    // to PLAYER_ACTION (no ENEMY_ANIMATING transition), so tickEnemyEffects() never
+    // runs.  WEAKEN's 3 turns are preserved — the stun did not "burn" one of them.
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.enemyStatusEffects.push(
+      { type: StatusEffectType.WEAKEN, turnsRemaining: 3, magnitude: 3 },
+      { type: StatusEffectType.STUN,   turnsRemaining: 1 }
+    );
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+
+    expect(engine.state.enemyStatusEffects.find(e => e.type === StatusEffectType.STUN))
+      .toBeUndefined(); // stun consumed (1 → 0 → removed)
+
+    const weaken = engine.state.enemyStatusEffects.find(e => e.type === StatusEffectType.WEAKEN);
+    expect(weaken).toBeDefined();
+    expect(weaken!.turnsRemaining).toBe(3); // unchanged — tickEnemyEffects never ran
   });
 });
