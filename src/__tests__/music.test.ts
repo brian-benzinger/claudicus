@@ -245,13 +245,19 @@ describe('MusicEngine — with mocked AudioContext', () => {
   });
 
   it('playSfx schedules oscillators for every SFX type', () => {
-    const sfx: SfxType[] = ['levelup', 'quest_complete', 'death', 'chest'];
-    for (const type of sfx) {
+    // Exact playNote call counts from music.ts — one oscillator per note.
+    const EXPECTED: Record<SfxType, number> = {
+      levelup:        5,  // C4 E4 G4 C5 G3
+      quest_complete: 6,  // G4 G4 G4 D5 G3 B3
+      death:          5,  // A4 G4 F4 D4 A2
+      chest:          3,  // E5 G4 C5
+    };
+    for (const [type, count] of Object.entries(EXPECTED) as [SfxType, number][]) {
       const engine = new MusicEngine();
       engine.init();
       engine.playSfx(type);
       const ctx = (engine as any).ctx as MockAudioContext;
-      expect(ctx.oscillators.length).toBeGreaterThan(0);
+      expect(ctx.oscillators.length, `'${type}' SFX should schedule ${count} oscillators`).toBe(count);
     }
   });
 
