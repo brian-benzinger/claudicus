@@ -139,6 +139,41 @@ describe('NpcManager.advanceDialog', () => {
     const mgr = new NpcManager();
     expect(mgr.advanceDialog()).toBe('done');
   });
+
+  it('advances exactly two lines per call — getCurrentLine shows the second page after advancing', () => {
+    // Contract: advanceDialog() moves currentLine by +2 each call.
+    // The existing test only checks the return value ('continue'), not the VISIBLE
+    // effect: which lines are displayed after the advance.  If currentLine were
+    // incremented by 1 (or 3) instead of 2, getCurrentLine() would expose the
+    // wrong page ('Second.\nThird.' or 'Fourth.') rather than the correct second
+    // page ('Third.\nFourth.').
+    const mgr = new NpcManager();
+    const npc = {
+      ...makeQuestNpc(),
+      dialogs: { default: ['First.', 'Second.', 'Third.', 'Fourth.'] },
+    };
+    mgr.startDialog(npc, makeQuests());
+    expect(mgr.getCurrentLine()).toBe('First.\nSecond.');  // initial first page
+    expect(mgr.advanceDialog()).toBe('continue');           // moves to index 2
+    expect(mgr.getCurrentLine()).toBe('Third.\nFourth.');  // second page, not 'Second.\nThird.'
+  });
+
+  it('final page shows a single unpaired line when dialog has an odd number of lines', () => {
+    // With 3 lines: the first advance moves from index 0 to index 2, showing
+    // lines[2] alone (lines[3] is undefined, so no pair).  A second advance moves
+    // to index 4 (>= 3 lines), reaching 'done'.  This pins the exact content of
+    // each page and verifies the end-of-dialog is reached after two advances.
+    const mgr = new NpcManager();
+    const npc = {
+      ...makeQuestNpc(),
+      dialogs: { default: ['Alpha.', 'Beta.', 'Gamma.'] },
+    };
+    mgr.startDialog(npc, makeQuests());
+    expect(mgr.getCurrentLine()).toBe('Alpha.\nBeta.');   // paired first page
+    expect(mgr.advanceDialog()).toBe('continue');          // moves to index 2
+    expect(mgr.getCurrentLine()).toBe('Gamma.');           // last single line, no pair
+    expect(mgr.advanceDialog()).toBe('done');              // index 4 >= 3 lines → done
+  });
 });
 
 describe('NpcManager.getSpeakerName', () => {
