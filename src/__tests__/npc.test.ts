@@ -554,6 +554,8 @@ describe('NpcManager.claimQuestReward', () => {
     expect(result.success).toBe(false);
     expect(result.rewards).toHaveLength(0);
     expect(player.state.gold).toBe(10); // gold must not be granted twice
+    // forest_menace also grants iron_longsword — the weapon must not be granted either
+    expect(player.ownsWeapon('iron_longsword')).toBe(false);
   });
 });
 
