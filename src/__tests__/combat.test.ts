@@ -1061,13 +1061,16 @@ describe('CombatEngine.playerUseAbility — Ambush (Scout)', () => {
     // No weapon ability (dagger at level 1 has no ability → class ability takes effect)
     player.state.level = 1; // below 3 so weapon ability doesn't kick in
     const engine = new CombatEngine(player, makeEnemy());
-    const hpBefore = engine.state.enemyHp;
+    // random=0.5: miss(0.5<0=false), variance=floor(0.5×4)−1=1, crit(0.5<1=true)
+    // attackPower=STR(5)+dagger.damageBonus(1)=6, def=4, base_dmg=max(1,6−4+1)=3, ×2 crit=6
+    // enemy HP: 20 − 6 = 14
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     engine.playerUseAbility();
     expect(engine.state.abilityUsedThisCombat).toBe(true);
     // forceCrit=true makes critChance=1 inside calcDamage — "Critical hit!" must appear.
     // If forceCrit is removed, this assertion fails (only ~30% chance of a crit with dagger).
     expect(engine.state.log.some(l => l.includes('Critical hit!'))).toBe(true);
-    expect(engine.state.enemyHp).toBeLessThan(hpBefore);
+    expect(engine.state.enemyHp).toBe(14);
     expect(engine.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
 
@@ -2045,8 +2048,9 @@ describe('CombatEngine — skeleton heals AND attacks on the same 3rd turn', () 
     // Healing branch fired: 12 + 5 = 17
     expect(engine.state.enemyHp).toBe(17);
     expect(engine.state.log.some(l => l.includes('mends'))).toBe(true);
-    // Attack branch also fired independently: player HP decreased
-    expect(engine.state.playerHp).toBeLessThan(playerHpBefore);
+    // Attack branch also fired independently: Skeleton ATK=5, playerDef=3+1=4,
+    // variance=floor(0.5×4)−1=1, damage=max(1,5−4+1)=2 → exact HP must drop by 2.
+    expect(engine.state.playerHp).toBe(38);
   });
 });
 
