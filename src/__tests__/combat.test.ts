@@ -1004,15 +1004,24 @@ describe('CombatEngine.playerUseAbility — Shield Bash (Warrior)', () => {
 });
 
 describe('CombatEngine.playerUseAbility — Ambush (Scout)', () => {
-  it('forces a critical hit and marks ability as used', () => {
-    const player = makeFastPlayer();
+  it('forces a critical hit — "Critical hit!" log entry and reduced enemy HP prove the crit executed', () => {
+    // The 'Ambush! Striking from the shadows...' entry is always logged when the ability
+    // triggers, so the old check `includes('Ambush') || includes('Critical')` was satisfied
+    // by the Ambush announcement alone — it passed even when forceCrit was absent.
+    // This version pins the actual contract: Ambush must produce a guaranteed critical hit.
+    const player = makeFastPlayer(); // dagger: missChance=0, so the attack always lands
     player.state.classPath = ClassPath.SCOUT;
     // No weapon ability (dagger at level 1 has no ability → class ability takes effect)
     player.state.level = 1; // below 3 so weapon ability doesn't kick in
     const engine = new CombatEngine(player, makeEnemy());
+    const hpBefore = engine.state.enemyHp;
     engine.playerUseAbility();
     expect(engine.state.abilityUsedThisCombat).toBe(true);
-    expect(engine.state.log.some(l => l.includes('Ambush') || l.includes('Critical'))).toBe(true);
+    // forceCrit=true makes critChance=1 inside calcDamage — "Critical hit!" must appear.
+    // If forceCrit is removed, this assertion fails (only ~30% chance of a crit with dagger).
+    expect(engine.state.log.some(l => l.includes('Critical hit!'))).toBe(true);
+    expect(engine.state.enemyHp).toBeLessThan(hpBefore);
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
 
   it('does nothing if ability already used this combat', () => {
