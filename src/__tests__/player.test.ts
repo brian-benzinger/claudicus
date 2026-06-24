@@ -341,6 +341,62 @@ describe('PlayerManager.respawn', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// DESIGN.md contract: "All stats/XP/items preserved" on death and respawn.
+// respawn() only changes HP, gold, position, and facing — it must NOT reset
+// level, XP, STR/DEF/AGI, potions, equipped weapon, or equipped armor.
+// These tests pin that contract so that accidentally appending a stat-reset or
+// inventory wipe to respawn() breaks a test rather than silently burning the
+// player's progress.
+// ---------------------------------------------------------------------------
+
+describe('PlayerManager.respawn — stats and inventory preserved', () => {
+  it('level is unchanged after respawn', () => {
+    const p = makePlayer();
+    p.gainXp(xpForLevel(1)); // level 1 → 2
+    expect(p.state.level).toBe(2);
+    p.takeDamage(p.state.hp); // kill
+    p.respawn();
+    expect(p.state.level).toBe(2);
+  });
+
+  it('XP is unchanged after respawn', () => {
+    const p = makePlayer();
+    p.gainXp(10); // 10 XP accumulated (no level-up yet)
+    expect(p.state.xp).toBe(10);
+    p.takeDamage(p.state.hp);
+    p.respawn();
+    expect(p.state.xp).toBe(10);
+  });
+
+  it('potions are unchanged after respawn', () => {
+    const p = makePlayer();
+    p.state.potions = 7;
+    p.takeDamage(p.state.hp);
+    p.respawn();
+    expect(p.state.potions).toBe(7);
+  });
+
+  it('equipped weapon is unchanged after respawn', () => {
+    const p = makePlayer();
+    p.equipWeapon('iron_longsword');
+    p.takeDamage(p.state.hp);
+    p.respawn();
+    expect(p.state.weaponId).toBe('iron_longsword');
+    expect(p.ownsWeapon('iron_longsword')).toBe(true);
+    expect(p.ownsWeapon('rusty_shortsword')).toBe(true);
+  });
+
+  it('equipped armor is unchanged after respawn', () => {
+    const p = makePlayer();
+    p.equipArmor('chain_mail');
+    p.takeDamage(p.state.hp);
+    p.respawn();
+    expect(p.state.armorId).toBe('chain_mail');
+    expect(p.ownsArmor('chain_mail')).toBe(true);
+  });
+});
+
 describe('PlayerManager.getXpProgress', () => {
   it('returns correct percent', () => {
     const p = makePlayer();
