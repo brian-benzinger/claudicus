@@ -1264,12 +1264,20 @@ describe('CombatEngine — dagger Backstab ability', () => {
     expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
 
-  it('Backstab goes for a backstab when the enemy did not defend', () => {
+  it('Backstab goes for a backstab when the enemy did not defend — pins damage, phase, and flag reset', () => {
+    // Contracts: uses 'backstab' flavor (not 'off-guard'), deals damage, transitions phase,
+    // and clears enemyJustDefended.  Also confirms critMultiplier=2 is active on this path:
+    // baseCrit = min(1, dagger.critChance(0.3) * 2) = 0.6; crit roll=0 < 0.6 → crit.
+    // attackPower = str(5)+damageBonus(1)=6; skeleton def=4; variance=floor(0*4)-1=-1;
+    // damage = max(1, 6-4-1)=1; crit doubles → 2; enemyHp = 20-2 = 18.
     const e = daggerEngine();
     e.state.enemyJustDefended = false;
     mockAttacks([0, 0, 0]);
     e.playerUseAbility();
     expect(e.state.log.some(l => l.includes('backstab'))).toBe(true);
+    expect(e.state.enemyHp).toBe(18);                          // damage was dealt (not just logged)
+    expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING); // state machine advanced
+    expect(e.state.enemyJustDefended).toBe(false);             // flag cleared by the ability
   });
 
   it('Backstab that drops the enemy logs a defeat', () => {
