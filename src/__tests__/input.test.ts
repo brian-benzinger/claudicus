@@ -249,6 +249,64 @@ describe('InputManager', () => {
     });
   });
 
+  describe('action key exclusivity', () => {
+    // Each action key must trigger exactly one helper and leave all others false.
+    // A swap or OR-expansion in any helper (e.g. action1 accidentally checking '2')
+    // would silently pass the individual happy-path tests above but fail here.
+
+    it('pressing a combat key (1) fires only action1, not other action helpers', () => {
+      press('1');
+      input.flushFrame();
+      expect(input.action1()).toBe(true);
+      expect(input.action2()).toBe(false);
+      expect(input.action3()).toBe(false);
+      expect(input.action4()).toBe(false);
+      expect(input.action5()).toBe(false);
+      expect(input.openInventory()).toBe(false);
+      expect(input.openQuestLog()).toBe(false);
+      expect(input.toggleMute()).toBe(false);
+    });
+
+    it('pressing a UI key (i) fires only openInventory, not combat or other UI helpers', () => {
+      press('i');
+      input.flushFrame();
+      expect(input.openInventory()).toBe(true);
+      expect(input.action1()).toBe(false);
+      expect(input.action2()).toBe(false);
+      expect(input.action3()).toBe(false);
+      expect(input.action4()).toBe(false);
+      expect(input.action5()).toBe(false);
+      expect(input.openQuestLog()).toBe(false);
+      expect(input.toggleMute()).toBe(false);
+    });
+
+    it('pressing a UI key (q) fires only openQuestLog, not combat or other UI helpers', () => {
+      press('q');
+      input.flushFrame();
+      expect(input.openQuestLog()).toBe(true);
+      expect(input.action1()).toBe(false);
+      expect(input.action2()).toBe(false);
+      expect(input.action3()).toBe(false);
+      expect(input.action4()).toBe(false);
+      expect(input.action5()).toBe(false);
+      expect(input.openInventory()).toBe(false);
+      expect(input.toggleMute()).toBe(false);
+    });
+
+    it('pressing a UI key (m) fires only toggleMute, not combat or other UI helpers', () => {
+      press('m');
+      input.flushFrame();
+      expect(input.toggleMute()).toBe(true);
+      expect(input.action1()).toBe(false);
+      expect(input.action2()).toBe(false);
+      expect(input.action3()).toBe(false);
+      expect(input.action4()).toBe(false);
+      expect(input.action5()).toBe(false);
+      expect(input.openInventory()).toBe(false);
+      expect(input.openQuestLog()).toBe(false);
+    });
+  });
+
   describe('non-game keys', () => {
     it('a key not in the game key list is still tracked as held', () => {
       // Non-game keys do not call preventDefault but are still added to held set.
