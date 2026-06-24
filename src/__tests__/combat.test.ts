@@ -1948,3 +1948,78 @@ describe('CombatEngine — BRIGAND class has no flee modifier', () => {
     expect(makeBrigandEngine().playerFlee()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// war_axe — pins all three special properties at their exact boundary values.
+//
+// war_axe stats: damageBonus=8, SLOW, missChance=0.1, critChance=0.1,
+// ignoresDefense=0.2.  The ignoresDefense tests only cover mace (0.5) and
+// rusty_shortsword (0); war_axe (0.2) is never tested in combat — a silent
+// change to any of its three special values would go undetected.
+//
+// Setup: player.state.agi=10, REVENANT_KNIGHT (agi=4).
+// SLOW: playerTurn = 10 > 4+3=7 → player goes first, no phase forcing needed.
+// attackPower = str(5) + damageBonus(8) = 13.
+// effectiveDef = def(6) * (1-0.2) = 4.8.
+// variance=0: random=0.25 → floor(0.25*4)-1 = 0.
+// damage = max(1, floor(13-4.8+0)) = max(1, floor(8.2)) = 8.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — war_axe (ignoresDefense=0.2, missChance=0.1, critChance=0.1)', () => {
+  function makeWarAxePlayer() {
+    const p = makePlayer(); // str=5
+    p.equipWeapon('war_axe');
+    p.state.agi = 10; // SLOW: 10 > REVENANT_KNIGHT.agi(4)+3=7 → player goes first
+    return p;
+  }
+
+  it('ignoresDefense=0.2 against def=6 yields floor(13 - 4.8 + 0) = 8, not 7', () => {
+    // effectiveDef = 6*(1-0.2) = 4.8 → damage = floor(8.2) = 8.
+    // Without ignoresDefense: floor(13-6+0) = 7. The 0.2 factor must survive.
+    mockAttacks([0.15, 0.25, 0.15]); // no miss (≥0.1), variance=0, no crit (≥0.1)
+    const engine = new CombatEngine(makeWarAxePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8);
+  });
+
+  it('misses when miss random < missChance(0.1) — enemy hp is unchanged', () => {
+    // missChance=0.1: roll 0.05 < 0.1 → miss. If missChance were set to 0,
+    // executePlayerAttack would never early-return and damage would always be dealt.
+    vi.spyOn(Math, 'random').mockReturnValue(0.05); // 0.05 < 0.1 → miss
+    const engine = new CombatEngine(makeWarAxePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(engine.state.enemyHp).toBe(hpBefore);
+    expect(engine.state.log.some(l => l.includes('misses'))).toBe(true);
+  });
+
+  it('crits when crit random < critChance(0.1) — damage is exactly doubled to 16', () => {
+    // critChance=0.1: roll 0.05 < 0.1 → crit. Base damage=8 (from test above); crit doubles to 16.
+    // If critChance were set to 0, 0.05 < 0 is never true and damage stays at 8.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.15)  // miss check: 0.15 >= 0.1 → no miss
+      .mockReturnValueOnce(0.25)  // variance: floor(1)-1 = 0
+      .mockReturnValueOnce(0.05); // crit check: 0.05 < 0.1 → crit
+    const engine = new CombatEngine(makeWarAxePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(16); // 8 * 2
+    expect(engine.state.log.some(l => l.includes('Critical'))).toBe(true);
+  });
+
+  it('does NOT crit when crit random >= critChance(0.1) — pins the exact upper boundary', () => {
+    // roll=0.10 satisfies 0.10 >= 0.10 → no crit. Guards against accidentally widening
+    // critChance (e.g. 0.1 → 0.2): if that change were made, 0.10 < 0.20 = true → crit
+    // → damage would be 16, not 8, and this test would fail.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.15)  // miss check: no miss
+      .mockReturnValueOnce(0.25)  // variance: 0
+      .mockReturnValueOnce(0.10); // crit check: 0.10 < 0.10 = false → no crit
+    const engine = new CombatEngine(makeWarAxePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(8); // base, not doubled
+    expect(engine.state.log.some(l => l.includes('Critical'))).toBe(false);
+  });
+});
