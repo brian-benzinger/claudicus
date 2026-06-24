@@ -424,6 +424,31 @@ describe('NpcManager.startDialog — bossNews override', () => {
     // Pending reward takes priority so player can claim it
     expect(mgr.getCurrentLine()).toBe('Well done!');
   });
+
+  it('bossNews overrides questInProgress when revenant is defeated and quest is in progress', () => {
+    // The `else if (revenantDefeated && bossNews)` branch in startDialog runs BEFORE
+    // the `else if (quest.started)` branch.  If that order were reversed, a player
+    // who is mid-quest when the revenant dies would see questInProgress instead of
+    // the world-changing bossNews — this test pins that priority.
+    const mgr = new NpcManager();
+    mgr.startDialog(
+      makeNpcWithBossNews(),
+      makeQuestsWithBossDefeated({ started: true, completed: false })
+    );
+    expect(mgr.getCurrentLine()).toBe('The Revenant Knight is slain! A legend walks among us!');
+  });
+
+  it('bossNews overrides questNotStarted when revenant is defeated and quest not yet begun', () => {
+    // The `else if (revenantDefeated && bossNews)` branch also runs BEFORE
+    // the default `questNotStarted` branch.  If that order were reversed, a player
+    // who has not yet accepted the quest would see questNotStarted instead of bossNews.
+    const mgr = new NpcManager();
+    mgr.startDialog(
+      makeNpcWithBossNews(),
+      makeQuestsWithBossDefeated({ started: false, completed: false })
+    );
+    expect(mgr.getCurrentLine()).toBe('The Revenant Knight is slain! A legend walks among us!');
+  });
 });
 
 // ---------------------------------------------------------------------------
