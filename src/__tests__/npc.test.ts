@@ -582,6 +582,28 @@ describe('NpcManager.claimQuestReward', () => {
     // forest_menace also grants iron_longsword — the weapon must not be granted either
     expect(player.ownsWeapon('iron_longsword')).toBe(false);
   });
+
+  it('quiet_dead (rewardGold=40, no weapon, no potions) — yields exactly 1 reward and does not alter inventory', () => {
+    // quiet_dead: rewardGold=40, rewardWeaponId=undefined, rewardPotions=undefined.
+    // Contract: both the weapon branch (`def.rewardWeaponId && ...`) and the potion
+    // branch (`def.rewardPotions && ...`) must short-circuit on undefined, producing
+    // exactly 1 reward message (gold only).  This is distinct from the "skips weapon
+    // when already owned" test: there the weaponId IS defined but ownership blocks it;
+    // here the weaponId is absent entirely, exercising the first && operand.
+    // If either branch failed to guard on undefined — e.g. by calling ownsWeapon(undefined)
+    // or addPotions(undefined) — player state would be silently corrupted.
+    const mgr = new NpcManager();
+    const player = makePlayer();                          // rusty_shortsword, 3 potions, 10 gold
+    const weaponsBefore = [...player.state.weapons];      // ['rusty_shortsword']
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, QUESTS.quiet_dead);
+    expect(result.success).toBe(true);
+    expect(result.rewards).toHaveLength(1);               // only gold — no weapon/potion messages
+    expect(result.rewards[0]).toContain('40');             // quiet_dead.rewardGold = 40
+    expect(player.state.gold).toBe(10 + 40);              // 40 gold added
+    expect(player.state.weapons).toEqual(weaponsBefore);  // no weapon added or equipped
+    expect(player.state.potions).toBe(3);                 // potion count unchanged
+  });
 });
 
 // ---------------------------------------------------------------------------
