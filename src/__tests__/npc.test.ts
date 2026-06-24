@@ -667,13 +667,23 @@ describe('NpcManager — armor shop', () => {
   }
 
   it('opens an armor shop after dialog completes', () => {
+    // Pins the exact armor shop inventory: two items, specific IDs, correct costs.
+    // `toBeGreaterThan(0)` would pass even if chain_mail or iron_plate were removed;
+    // pinning count=2 and both IDs catches silent inventory changes.
     const mgr = new NpcManager();
     mgr.startDialog(makeArmorNpc(), {});
     const result = mgr.advanceDialog();
     expect(result).toBe('shop');
     expect(mgr.isInShop).toBe(true);
-    expect(mgr.shopItems.length).toBeGreaterThan(0);
+    expect(mgr.shopItems.length).toBe(2);
     expect(mgr.shopItems.every(i => i.type === 'armor')).toBe(true);
+    const armorIds = mgr.shopItems.map(i => i.armorId);
+    expect(armorIds).toContain('chain_mail');
+    expect(armorIds).toContain('iron_plate');
+    const chainMail = mgr.shopItems.find(i => i.armorId === 'chain_mail')!;
+    const ironPlate = mgr.shopItems.find(i => i.armorId === 'iron_plate')!;
+    expect(chainMail.cost).toBe(40);
+    expect(ironPlate.cost).toBe(70);
   });
 
   it('marks owned armor via getShopItemsWithOwnership', () => {
