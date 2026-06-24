@@ -116,6 +116,32 @@ describe('CombatEngine constructor', () => {
     const engine = new CombatEngine(player, enemy);
     expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
   });
+
+  it('slow weapon: enemy goes first when playerAgi equals enemyAgi + 3 (strict > not >=)', () => {
+    // DESIGN.md: "Player goes second unless AGI is much higher (AGI > enemy AGI + 3)"
+    // The condition is strict >: playerAgi must be GREATER THAN enemyAgi+3, not equal to it.
+    // At exactly +3, the player does NOT meet the threshold — enemy goes first.
+    // This pins the boundary: if > were changed to >=, playerAgi=8 vs wolf(5)+3=8 would
+    // wrongly give the player first turn.
+    const player = makePlayer();
+    player.equipWeapon('mace'); // SLOW
+    player.state.agi = 8;       // wolf(5)+3 = 8: 8 > 8 is false → enemy goes first
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+  });
+
+  it('slow weapon: player goes first when playerAgi equals enemyAgi + 4 (just above threshold)', () => {
+    // One above the boundary: 9 > wolf(5)+3=8 is true → PLAYER_ACTION.
+    // Together with the at-threshold test above, these two pin the exact cutoff so that
+    // any off-by-one change to the condition (> vs >=, +3 vs +4) is immediately caught.
+    const player = makePlayer();
+    player.equipWeapon('mace'); // SLOW
+    player.state.agi = 9;       // 9 > wolf(5)+3=8 → player goes first
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
 });
 
 describe('CombatEngine.playerAttack', () => {
