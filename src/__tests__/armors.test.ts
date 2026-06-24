@@ -34,6 +34,19 @@ describe('ARMORS data', () => {
     expect(ARMORS.iron_plate.defBonus).toBe(5);
     expect(ARMORS.shadow_cloak.defBonus).toBe(2);
   });
+
+  it('pins exact cost values for all armors — shop prices are a game-balance contract', () => {
+    // Armor costs define player progression targets. A silent change (e.g. iron_plate
+    // 70 → 7 or chain_mail 40 → 400) would break the intended late-game economy with
+    // no other test catching it. Only shop armors have non-zero costs.
+    expect(ARMORS.chain_mail.cost).toBe(40);
+    expect(ARMORS.iron_plate.cost).toBe(70);
+    // Non-shop armors: leather_vest and studded_leather have no monetary cost;
+    // shadow_cloak is a chest item with a notional cost value of 35 (not sold, but priced).
+    expect(ARMORS.leather_vest.cost).toBe(0);
+    expect(ARMORS.shadow_cloak.cost).toBe(35);
+    expect(ARMORS.studded_leather.cost).toBe(0);
+  });
 });
 
 describe('getArmor', () => {

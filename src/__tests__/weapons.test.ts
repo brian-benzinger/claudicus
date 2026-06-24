@@ -74,6 +74,23 @@ describe('WEAPONS data integrity', () => {
   it('mace is slow speed', () => {
     expect(getWeapon('mace').speed).toBe(WeaponSpeed.SLOW);
   });
+
+  it('pins exact cost values for every weapon — shop prices are a game-balance contract', () => {
+    // Weapon costs drive the economy: players must earn gold to upgrade.
+    // A silent change (e.g. iron_longsword 30 → 300, or dagger 20 → 0) would
+    // make the shop unaffordable or trivially free — with no other test catching it.
+    // Shop weapons (ascending cost order):
+    expect(WEAPONS.dagger.cost).toBe(20);
+    expect(WEAPONS.hunting_bow.cost).toBe(25);
+    expect(WEAPONS.iron_longsword.cost).toBe(30);
+    expect(WEAPONS.hand_axe.cost).toBe(35);
+    expect(WEAPONS.mace.cost).toBe(40);
+    // Non-purchasable weapons must have cost=0 (no price leak into the shop)
+    expect(WEAPONS.rusty_shortsword.cost).toBe(0);
+    expect(WEAPONS.halberd.cost).toBe(50); // chest item — not sold, but has a notional value
+    expect(WEAPONS.war_axe.cost).toBe(0);
+    expect(WEAPONS.war_halberd.cost).toBe(0);
+  });
 });
 
 describe('war_axe weapon', () => {
