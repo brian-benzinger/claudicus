@@ -2417,3 +2417,102 @@ describe('CombatEngine — halberd (ignoresDefense=0, missChance=0.15, critChanc
     expect(hpBefore - engine.state.enemyHp).toBe(6); // damage dealt, not a miss
   });
 });
+
+// ---------------------------------------------------------------------------
+// hand_axe miss boundary — pins the exact < 0.2 threshold.
+//
+// hand_axe: damageBonus=6, NORMAL speed, missChance=0.20, critChance=0.
+// Existing miss tests use roll=0.1, which is well inside the miss zone.
+// Changing missChance from 0.20 to 0.15 would leave 0.1 < 0.15 still true —
+// neither existing test would catch the drift.  These two tests use rolls at
+// 0.199 (just below) and 0.200 (exactly at threshold) to pin both sides so
+// that ANY change to the 0.20 threshold is immediately caught.
+//
+// Setup: player agi=10, SKELETON (agi=2). NORMAL: 10 >= 2 → player goes first.
+// attackPower = str(5) + damageBonus(6) = 11.
+// effectiveDef = def(4) * (1-0) = 4. variance=0 (roll=0.25).
+// damage = max(1, 11-4+0) = 7.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — hand_axe miss boundary (missChance=0.2)', () => {
+  function makeHandAxePlayer() {
+    const p = makePlayer(); // str=5, agi=3
+    p.equipWeapon('hand_axe'); // missChance=0.20, NORMAL speed, damageBonus=6
+    p.state.agi = 10;           // NORMAL: 10 >= skeleton(2) → player goes first
+    return p;
+  }
+
+  it('misses at roll=0.199 (just below 0.2) — enemy HP is unchanged', () => {
+    // 0.199 < 0.20 = true → miss. If missChance were lowered to 0.15 (matching halberd),
+    // 0.199 < 0.15 = false → the attack would land and this test would fail.
+    vi.spyOn(Math, 'random').mockReturnValue(0.199);
+    const engine = new CombatEngine(makeHandAxePlayer(), makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(engine.state.enemyHp).toBe(hpBefore);
+    expect(engine.state.log.some(l => l.includes('misses'))).toBe(true);
+  });
+
+  it('does NOT miss at roll=0.200 (exactly at threshold) — pins the strict < 0.2 boundary', () => {
+    // 0.200 < 0.200 = false → no miss → damage=7 is dealt.
+    // If the condition changed to <= 0.2, roll=0.200 would miss (hp unchanged) and this
+    // test would fail.  Together with the just-below test, both sides of the exact threshold
+    // are pinned.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.200)  // miss check: 0.200 < 0.200 = false → no miss
+      .mockReturnValueOnce(0.25)   // variance: floor(0.25*4)-1 = 0
+      .mockReturnValueOnce(0.5);   // crit check: critChance=0 → never crits
+    const engine = new CombatEngine(makeHandAxePlayer(), makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(7); // str(5)+bonus(6)-def(4)+var(0) = 7
+    expect(engine.state.log.some(l => l.includes('misses'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dagger critChance boundary — pins the exact < 0.3 threshold.
+//
+// dagger: damageBonus=1, FAST, missChance=0, critChance=0.30.
+// Existing crit tests use roll=0.1 (crit) and roll=0.5 (no crit).
+// Changing critChance from 0.30 to 0.15 would leave 0.1 < 0.15 still true;
+// changing to 0.60 would leave 0.5 < 0.60 still true.  Neither drift is caught.
+// These two tests use rolls at 0.299 (just below) and 0.300 (exactly at) to
+// pin both sides so that ANY change to the 0.30 threshold is immediately caught.
+//
+// Setup: makeFastPlayer() = dagger FAST → PLAYER_ACTION phase at start.
+// attackPower = str(5) + damageBonus(1) = 6; skeleton def=4; variance=0 (roll=0.25).
+// non-crit damage = max(1, 6-4+0) = 2; crit damage = 2 * 2 = 4.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — dagger critChance boundary (critChance=0.3)', () => {
+  it('crits at roll=0.299 (just below 0.3) — damage is doubled to 4', () => {
+    // 0.299 < 0.30 = true → crit. If critChance were lowered to 0.20, 0.299 < 0.20 = false
+    // → no crit → damage stays at 2 and the expect(4) here would fail.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)      // miss check: 0 < 0 (missChance=0) = false → no miss
+      .mockReturnValueOnce(0.25)   // variance: floor(0.25*4)-1 = 0
+      .mockReturnValueOnce(0.299); // crit: 0.299 < 0.30 = true → crit
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(4); // 2 base × 2 crit multiplier
+    expect(engine.state.log.some(l => l.includes('Critical'))).toBe(true);
+  });
+
+  it('does NOT crit at roll=0.300 (exactly at threshold) — pins the strict < 0.3 boundary', () => {
+    // 0.300 < 0.300 = false → no crit → damage=2, not 4.
+    // If the condition changed to <= 0.3, roll=0.300 would crit (damage=4) and this test
+    // would fail.  Together with the just-below test, both sides of the exact threshold
+    // are pinned: any narrowing or widening of 0.30 breaks at least one of these two tests.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)      // miss check: no miss
+      .mockReturnValueOnce(0.25)   // variance: 0
+      .mockReturnValueOnce(0.300); // crit: 0.300 < 0.300 = false → no crit
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(2); // base damage, not doubled
+    expect(engine.state.log.some(l => l.includes('Critical'))).toBe(false);
+  });
+});
