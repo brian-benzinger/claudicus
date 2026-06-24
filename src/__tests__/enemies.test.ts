@@ -7,18 +7,19 @@ beforeEach(() => {
 });
 
 describe('createEnemy', () => {
-  it('creates an enemy with correct stats from ENEMY_DEFS', () => {
+  it('creates a wolf with correct stats', () => {
+    // Hard-coded to catch regressions in ENEMY_DEFS itself — reading from
+    // the same constant being tested would make this always pass.
     const wolf = createEnemy(EnemyType.WOLF, 3, 4);
-    const def = ENEMY_DEFS[EnemyType.WOLF];
     expect(wolf.type).toBe(EnemyType.WOLF);
-    expect(wolf.name).toBe(def.name);
-    expect(wolf.hp).toBe(def.hp);
-    expect(wolf.maxHp).toBe(def.hp);
-    expect(wolf.atk).toBe(def.atk);
-    expect(wolf.def).toBe(def.def);
-    expect(wolf.agi).toBe(def.agi);
-    expect(wolf.xp).toBe(def.xp);
-    expect(wolf.gold).toBe(def.gold);
+    expect(wolf.name).toBe('Wolf');
+    expect(wolf.hp).toBe(12);
+    expect(wolf.maxHp).toBe(12);
+    expect(wolf.atk).toBe(5);
+    expect(wolf.def).toBe(1);
+    expect(wolf.agi).toBe(5);
+    expect(wolf.xp).toBe(8);
+    expect(wolf.gold).toBe(3);
   });
 
   it('sets tile position correctly', () => {

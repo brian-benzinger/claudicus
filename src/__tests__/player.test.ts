@@ -112,11 +112,14 @@ describe('PlayerManager.usePotion', () => {
     expect(p.state.hp).toBe(p.state.maxHp);          // capped at 40, not 55
   });
 
-  it('returns false with no potions', () => {
+  it('returns false with no potions and leaves HP unchanged', () => {
     const p = makePlayer();
     p.state.potions = 0;
+    p.takeDamage(10); // hp = 30, so a heal would be visible
+    const hpBefore = p.state.hp;
     expect(p.usePotion()).toBe(false);
-    expect(p.state.hp).toBe(p.state.maxHp);
+    expect(p.state.hp).toBe(hpBefore);  // no restore happened
+    expect(p.state.potions).toBe(0);    // no potion consumed
   });
 });
 
