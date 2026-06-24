@@ -86,10 +86,10 @@ describe('drawTile — TREE determinism', () => {
     // Exactly 2 fillRects: the grass-base underlay and the trunk.  No other fillRect
     // exists in the TREE case, so >= 2 would pass even if one was accidentally dropped.
     expect(rects.length).toBe(2);
-    // At least 3 arcs: main canopy blob (always) + at least 1 extra blob from the loop
-    // (blobCount is always 2 or 3, loop starts at b=1) + the unconditional shadow blob.
-    // The prior >= 2 bound would survive removing the shadow or the loop body.
-    expect(arcs.length).toBeGreaterThanOrEqual(3);
+    // Exactly 3 arcs: tileX/tileY default to 0,0 so tilePrng(0,0) is deterministic,
+    // yielding blobCount=2 → 1 main blob + 1 loop blob + 1 unconditional shadow.
+    // The prior >= 3 bound would survive silently adding or dropping a blob.
+    expect(arcs.length).toBe(3);
   });
 
   it('does not throw for any grid-aligned position', () => {
