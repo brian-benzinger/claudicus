@@ -268,9 +268,10 @@ describe('drawPlayer — with weaponSpeed', () => {
         drawPlayer(ctx, 100, 100, 10, facing, speed);
         if (speed === WeaponSpeed.RANGED) {
           // Male default player has exactly 1 arc (head); bow adds a second arc.
-          // Failing with 1 means the bow arc was dropped.
+          // Failing with 1 means the bow arc was dropped; failing with 3+ means
+          // a duplicate bow arc was accidentally introduced.
           const arcCount = calls.filter(c => c.method === 'arc').length;
-          expect(arcCount).toBeGreaterThanOrEqual(2);
+          expect(arcCount).toBe(2);
         } else {
           // Melee blade uses moveTo+lineTo; male body without weapon has none.
           // Failing here means the blade drawing was dropped.

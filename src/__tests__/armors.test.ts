@@ -184,10 +184,13 @@ describe('CRAFT_RECIPES', () => {
     expect(recipe.cost.wolf_pelt).toBe(1);
   });
 
-  it('all recipes have a non-empty description', () => {
-    for (const r of CRAFT_RECIPES) {
-      expect(r.description.length).toBeGreaterThan(0);
-    }
+  it('all recipes have exact descriptions — the crafting UI displays these verbatim', () => {
+    // length>0 would pass if any description became "x" — pin exact strings so
+    // a rename or typo in the crafting menu text is caught immediately.
+    const descs = CRAFT_RECIPES.map(r => r.description);
+    expect(descs).toContain('3 Wolf Pelts → Studded Leather (DEF +2)');
+    expect(descs).toContain('2 Bandit Steel → Iron Longsword (ATK +4)');
+    expect(descs).toContain('2 Bandit Steel + 1 Wolf Pelt → War Axe (ATK +8)');
   });
 });
 
