@@ -440,10 +440,13 @@ describe('Duvain the Wanderer NPC placement', () => {
   it('has all required dialog states', async () => {
     const { FOREST_NPCS } = await import('../data/npcs');
     const duvain = FOREST_NPCS.find(n => n.id === 'duvain_wanderer')!;
-    expect(duvain.dialogs.questNotStarted?.length).toBeGreaterThan(0);
-    expect(duvain.dialogs.questInProgress?.length).toBeGreaterThan(0);
-    expect(duvain.dialogs.questComplete?.length).toBeGreaterThan(0);
-    expect(duvain.dialogs.questDone?.length).toBeGreaterThan(0);
+    // Pin exact line counts: questNotStarted=5 (intro+lore+description+warning+directions),
+    // questInProgress=3 (reminder+encouragement+send-off), questComplete=4 (reaction+action+outcome+reward),
+    // questDone=3 (epilogue). If the script changes, the contract breaks intentionally.
+    expect(duvain.dialogs.questNotStarted?.length).toBe(5);
+    expect(duvain.dialogs.questInProgress?.length).toBe(3);
+    expect(duvain.dialogs.questComplete?.length).toBe(4);
+    expect(duvain.dialogs.questDone?.length).toBe(3);
   });
 });
 
