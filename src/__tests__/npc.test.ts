@@ -802,3 +802,84 @@ describe('NpcManager.closeShop — dialog-to-shop-to-close lifecycle', () => {
     expect(mgr.getCurrentLine()).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// NPC data cross-reference integrity
+// Every quest NPC must have all four required dialog state keys, and the
+// questId / npcId wiring between VILLAGE_NPCS, FOREST_NPCS, and QUESTS must
+// be mutually consistent.  These tests catch silent regressions that would
+// cause the wrong dialog to display (falling back to "default") without any
+// runtime error.
+// ---------------------------------------------------------------------------
+describe('NPC data integrity — all quest NPCs have required dialog keys', () => {
+  it('every NPC with a questId has questNotStarted, questInProgress, questComplete, and questDone dialogs', async () => {
+    const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
+    const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
+    const questNpcs = allNpcs.filter(n => n.questId);
+    // Guard: if this ever becomes zero, the test would vacuously pass.
+    expect(questNpcs.length, 'there must be at least one quest NPC').toBeGreaterThan(0);
+    for (const npc of questNpcs) {
+      const id = npc.id;
+      expect(
+        npc.dialogs.questNotStarted?.length,
+        `NPC "${id}" (questId="${npc.questId}") missing questNotStarted dialog`
+      ).toBeGreaterThan(0);
+      expect(
+        npc.dialogs.questInProgress?.length,
+        `NPC "${id}" (questId="${npc.questId}") missing questInProgress dialog`
+      ).toBeGreaterThan(0);
+      expect(
+        npc.dialogs.questComplete?.length,
+        `NPC "${id}" (questId="${npc.questId}") missing questComplete dialog`
+      ).toBeGreaterThan(0);
+      expect(
+        npc.dialogs.questDone?.length,
+        `NPC "${id}" (questId="${npc.questId}") missing questDone dialog`
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('every NPC questId maps to a real quest in QUESTS', async () => {
+    const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
+    const { QUESTS } = await import('../data/quests');
+    const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
+    for (const npc of allNpcs) {
+      if (!npc.questId) continue;
+      expect(
+        QUESTS[npc.questId],
+        `NPC "${npc.id}" has questId="${npc.questId}" which does not exist in QUESTS`
+      ).toBeDefined();
+    }
+  });
+
+  it('every quest npcId maps to a real NPC in VILLAGE_NPCS or FOREST_NPCS', async () => {
+    const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
+    const { QUESTS } = await import('../data/quests');
+    const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
+    for (const [questId, quest] of Object.entries(QUESTS)) {
+      const npc = allNpcs.find(n => n.id === quest.npcId);
+      expect(
+        npc,
+        `Quest "${questId}" has npcId="${quest.npcId}" which does not match any NPC`
+      ).toBeDefined();
+    }
+  });
+
+  it('every quest NPC questId back-references a quest whose npcId points to that NPC', async () => {
+    const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
+    const { QUESTS } = await import('../data/quests');
+    const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
+    for (const npc of allNpcs) {
+      if (!npc.questId) continue;
+      const quest = QUESTS[npc.questId];
+      expect(
+        quest,
+        `NPC "${npc.id}" references questId="${npc.questId}" but that quest is not defined`
+      ).toBeDefined();
+      expect(
+        quest.npcId,
+        `Quest "${npc.questId}" npcId="${quest.npcId}" does not match the NPC that references it ("${npc.id}")`
+      ).toBe(npc.id);
+    }
+  });
+});
