@@ -770,3 +770,32 @@ describe('NpcManager — misc helpers', () => {
     expect(mgr.shopItems).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// closeShop — full dialog→shop→close lifecycle
+// ---------------------------------------------------------------------------
+describe('NpcManager.closeShop — dialog-to-shop-to-close lifecycle', () => {
+  it('getSpeakerName returns null after closeShop (dialogState is reset)', () => {
+    // closeShop() sets `this.dialogState = null`. Without that reset, getSpeakerName()
+    // would still return the shop NPC's name after the player exits the shop, causing
+    // the speaker nameplate to persist in the UI during post-shop overworld play.
+    const mgr = new NpcManager();
+    mgr.startDialog(makeShopNpc(NpcRole.SHOP_WEAPONS), makeQuests());
+    expect(mgr.getSpeakerName()).toBe('Shopkeeper'); // dialog is live before the advance
+    mgr.advanceDialog(); // currentLine steps past dialog end → 'shop' returned, shop opened
+    // dialogState is intentionally kept here so the shop knows which NPC started it
+    mgr.closeShop();
+    expect(mgr.getSpeakerName()).toBeNull(); // null only because closeShop cleared dialogState
+  });
+
+  it('getCurrentLine returns null after closeShop (no stale dialog text)', () => {
+    // Companion to the above: dialog text must also be gone once the shop closes.
+    // If dialogState were NOT cleared, getCurrentLine() would return `undefined` (lines
+    // indexed past end) rather than null — which can surface as "undefined" in the UI.
+    const mgr = new NpcManager();
+    mgr.startDialog(makeShopNpc(NpcRole.SHOP_WEAPONS), makeQuests());
+    mgr.advanceDialog(); // → 'shop'
+    mgr.closeShop();
+    expect(mgr.getCurrentLine()).toBeNull();
+  });
+});
