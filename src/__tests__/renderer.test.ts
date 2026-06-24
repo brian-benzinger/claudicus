@@ -83,8 +83,13 @@ describe('drawTile — TREE determinism', () => {
 
     const rects = calls.filter(c => c.method === 'fillRect');
     const arcs  = calls.filter(c => c.method === 'arc');
-    expect(rects.length).toBeGreaterThanOrEqual(2); // grass base + trunk
-    expect(arcs.length).toBeGreaterThanOrEqual(2);  // main blob + shadow
+    // Exactly 2 fillRects: the grass-base underlay and the trunk.  No other fillRect
+    // exists in the TREE case, so >= 2 would pass even if one was accidentally dropped.
+    expect(rects.length).toBe(2);
+    // At least 3 arcs: main canopy blob (always) + at least 1 extra blob from the loop
+    // (blobCount is always 2 or 3, loop starts at b=1) + the unconditional shadow blob.
+    // The prior >= 2 bound would survive removing the shadow or the loop body.
+    expect(arcs.length).toBeGreaterThanOrEqual(3);
   });
 
   it('does not throw for any grid-aligned position', () => {
@@ -343,7 +348,12 @@ describe('drawPlayer — gender', () => {
     drawPlayer(femaleCtx, 0, 0, 0, 'down', undefined, undefined, 'female');
     const maleArcs   = maleCalls.filter(c => c.method === 'arc').length;
     const femaleArcs = femaleCalls.filter(c => c.method === 'arc').length;
-    expect(femaleArcs).toBeGreaterThan(maleArcs);
+    // Male: exactly 1 arc (head circle only — no hair arc).
+    // Female: exactly 2 arcs (hair-behind-head circle + head circle).
+    // Purely relational (female > male) would pass even if, e.g., male mistakenly
+    // gained a hair arc, leaving female with 3 and male with 2.
+    expect(maleArcs).toBe(1);
+    expect(femaleArcs).toBe(2);
   });
 
   it('female avatar with weapon produces more draw calls than without', () => {
