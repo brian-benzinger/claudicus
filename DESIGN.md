@@ -306,6 +306,10 @@ interface SaveData {
 | 2 | Combat | Defend |
 | 3 | Combat | Use Potion |
 | 4 | Combat | Flee |
+| 5 | Combat | Use class/weapon ability (when available) |
+| i | Any | Open inventory |
+| q | Any | Open quest log |
+| m | Any | Toggle music mute |
 | Escape | Any | Pause menu (save/quit) |
 
 ## Rendering
@@ -382,20 +386,21 @@ Claudicus/
 │   ├── input.ts            # Keyboard input manager
 │   ├── player.ts           # Player state, movement, leveling
 │   ├── combat.ts           # Turn-based combat engine
-│   ├── map.ts              # Map data, tile rendering, collision
-│   ├── camera.ts           # Viewport/camera following player
-│   ├── npc.ts              # NPC definitions, dialog system
-│   ├── enemies.ts          # Enemy types, spawning, AI
-│   ├── items.ts            # Weapons, potions, chests
+│   ├── map.ts              # Map management, tile collision, chest interaction
+│   ├── music.ts            # Procedural music engine (Web Audio API)
+│   ├── npc.ts              # NPC dialog, shop, and quest-reward logic
+│   ├── items.ts            # Chest loot and item-description helpers
 │   ├── ui.ts               # HUD, menus, dialog rendering
 │   ├── renderer.ts         # Sprite drawing functions (all code-drawn)
 │   ├── save.ts             # localStorage save/load
 │   └── data/
-│       ├── maps.ts         # Map tile arrays
-│       ├── weapons.ts      # Weapon definitions
-│       ├── enemies.ts      # Enemy stat tables
-│       ├── npcs.ts         # NPC data and dialogs
-│       └── quests.ts       # Quest definitions
+│       ├── maps.ts         # Map tile arrays and transition portals
+│       ├── weapons.ts      # Weapon stat definitions
+│       ├── armors.ts       # Armor stat definitions
+│       ├── enemies.ts      # Enemy stat tables and factory
+│       ├── npcs.ts         # NPC data and dialog scripts
+│       ├── quests.ts       # Quest definitions and state helpers
+│       └── recipes.ts      # Crafting recipes (forge)
 └── README.md
 ```
 
