@@ -1174,6 +1174,10 @@ describe('CombatEngine — bleed can kill the player on their enemy turn', () =>
     e.state.playerStatusEffects.push({ type: StatusEffectType.BLEED, turnsRemaining: 2 });
     e.enemyTurn();
     expect(e.state.phase).toBe(CombatPhase.DONE);
+    // Bleed specifically drained the remaining 1 HP (2 dmg tick reduces to 0)
+    expect(e.state.playerHp).toBe(0);
+    // The bleed tick message must appear before the death message — bleed was the killer
+    expect(e.state.log.some(l => l.includes('bleed for 2'))).toBe(true);
     expect(e.state.log.some(l => l.includes('fallen'))).toBe(true);
   });
 });
