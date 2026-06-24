@@ -449,6 +449,25 @@ describe('CombatEngine.computeRewards', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
     expect(engine.computeRewards().gold).toBe(0);
   });
+
+  it('gold drops at roll=0.499 (just below threshold) but NOT at roll=0.5 — pins the exact < 0.5 boundary', () => {
+    // Existing tests use roll=0.1 (drop) and roll=0.9 (no drop); neither constrains the
+    // threshold range: changing 0.5 → 0.4 or 0.6 would still pass both.  Rolls of 0.499
+    // (success) and 0.5 (failure) pin the exact '< 0.5' condition:
+    //   – if threshold became 0.4: 0.499 < 0.4 is false → gold=0 → first expect fails
+    //   – if threshold became 0.6: 0.5 < 0.6 is true  → gold=3 → second expect fails
+    const enemy = makeEnemy(EnemyType.WOLF); // gold=3
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.499);
+    const engine1 = new CombatEngine(makePlayer(), enemy);
+    expect(engine1.computeRewards().gold).toBe(3); // 0.499 < 0.5 → gold drops
+
+    vi.restoreAllMocks();
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const engine2 = new CombatEngine(makePlayer(), enemy);
+    expect(engine2.computeRewards().gold).toBe(0); // 0.5 < 0.5 is false → no gold (strict <)
+  });
 });
 
 describe('CombatEngine.getRecentLog', () => {
@@ -873,6 +892,34 @@ describe('Enemy AI — Revenant Knight phase 2', () => {
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn();
     expect(engine.state.playerStatusEffects.some(e => e.type === StatusEffectType.BLEED)).toBe(false);
+  });
+
+  it('does NOT trigger at exactly 50% HP (HP=30/60) — pins the strict < 0.5 boundary', () => {
+    // All existing phase-2 tests use HP at 40% or below; none verify that the
+    // boundary falls at strictly < 50%, not <= 50%.  Changing `< 0.5` to `<= 0.5`
+    // would make HP=30 (exactly 50%) trigger phase 2 — this test catches that regression.
+    // REVENANT_KNIGHT maxHp=60; 30/60 = 0.5 exactly; 0.5 < 0.5 is false → no trigger.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 → attack (not brace)
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT); // maxHp=60
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 30; // exactly 50% — must NOT trigger phase 2
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.enemyIsPhaseTwo).toBe(false);
+    expect(engine.state.log.some(l => l.includes('fury'))).toBe(false);
+  });
+
+  it('DOES trigger at HP=29/60 (just below 50%) — the other side of the exact boundary', () => {
+    // Companion to the above: 29/60 ≈ 0.4833 < 0.5 → triggers phase 2.
+    // Together these two tests pin the exact < 0.5 threshold with no room for an off-by-one.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 → attack; phase-2 < 0.90 → also attack
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT); // maxHp=60
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 29; // 29/60 ≈ 0.483 < 0.5 → must trigger phase 2
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.enemyIsPhaseTwo).toBe(true);
+    expect(engine.state.log.some(l => l.includes('fury'))).toBe(true);
   });
 });
 
