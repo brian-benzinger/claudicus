@@ -790,3 +790,114 @@ describe('Entity spawn placement - no blocking tiles', () => {
     expect(dungeonTransition!.targetMap).toBe('dungeon');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Transition exact-value contracts — pin trigger tile and destination spawn
+//
+// The existing getTransition test is circular (finds t from transitions[0] then
+// asserts found.targetMap === t.targetMap — always true regardless of the value).
+// The forest→dungeon test does the same (finds by targetMap === 'dungeon' then
+// re-checks targetMap === 'dungeon').  Neither test pins the actual coordinate
+// values, so:
+//   • swapping tileX/Y moves the gate silently,
+//   • changing spawnX/Y teleports the player into a wall,
+//   • losing the second forest transition goes undetected.
+// These tests use literal expected values so any change to maps.ts is caught.
+// ---------------------------------------------------------------------------
+describe('MapManager — transition exact-value contracts', () => {
+  it('village has exactly 1 transition: (28,17) → forest, spawn (4,2)', () => {
+    const mgr = makeMapManager(); // village
+    expect(mgr.currentMap.transitions).toHaveLength(1);
+    const t = mgr.currentMap.transitions[0];
+    expect(t.tileX).toBe(28);
+    expect(t.tileY).toBe(17);
+    expect(t.targetMap).toBe('forest');
+    expect(t.spawnX).toBe(4);
+    expect(t.spawnY).toBe(2);
+  });
+
+  it('forest has exactly 2 transitions — one to village and one to dungeon', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    expect(mgr.currentMap.transitions).toHaveLength(2);
+    const targets = mgr.currentMap.transitions.map(t => t.targetMap).sort();
+    expect(targets).toEqual(['dungeon', 'village']);
+  });
+
+  it('forest→village transition: (4,1) → village, spawn (27,17)', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const t = mgr.currentMap.transitions.find(t => t.targetMap === 'village')!;
+    expect(t).toBeDefined();
+    expect(t.tileX).toBe(4);
+    expect(t.tileY).toBe(1);
+    expect(t.spawnX).toBe(27);
+    expect(t.spawnY).toBe(17);
+  });
+
+  it('forest→dungeon transition: (34,25) → dungeon, spawn (3,2)', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const t = mgr.currentMap.transitions.find(t => t.targetMap === 'dungeon')!;
+    expect(t).toBeDefined();
+    expect(t.tileX).toBe(34);
+    expect(t.tileY).toBe(25);
+    expect(t.spawnX).toBe(3);
+    expect(t.spawnY).toBe(2);
+  });
+
+  it('dungeon has exactly 1 transition: (3,1) → forest, spawn (34,25)', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('dungeon');
+    expect(mgr.currentMap.transitions).toHaveLength(1);
+    const t = mgr.currentMap.transitions[0];
+    expect(t.tileX).toBe(3);
+    expect(t.tileY).toBe(1);
+    expect(t.targetMap).toBe('forest');
+    expect(t.spawnX).toBe(34);
+    expect(t.spawnY).toBe(25);
+  });
+
+  it('all transition trigger tiles are walkable on their source map', () => {
+    // A non-walkable trigger tile would trap the player: they could never stand
+    // on the tile to activate the zone change.
+    const cases: Array<{ map: string; tileX: number; tileY: number }> = [
+      { map: 'village', tileX: 28, tileY: 17 },
+      { map: 'forest',  tileX:  4, tileY:  1 },
+      { map: 'forest',  tileX: 34, tileY: 25 },
+      { map: 'dungeon', tileX:  3, tileY:  1 },
+    ];
+    for (const { map, tileX, tileY } of cases) {
+      const world = createDefaultWorld();
+      const mgr = new MapManager(world);
+      mgr.loadMap(map);
+      expect(
+        mgr.isWalkable(tileX, tileY),
+        `${map} transition at (${tileX},${tileY}) must be walkable`
+      ).toBe(true);
+    }
+  });
+
+  it('all transition spawn points are walkable on the destination map', () => {
+    // A non-walkable spawn point teleports the player into a wall.
+    const cases: Array<{ targetMap: string; spawnX: number; spawnY: number }> = [
+      { targetMap: 'forest',  spawnX:  4, spawnY:  2 },  // from village
+      { targetMap: 'village', spawnX: 27, spawnY: 17 },  // from forest
+      { targetMap: 'dungeon', spawnX:  3, spawnY:  2 },  // from forest
+      { targetMap: 'forest',  spawnX: 34, spawnY: 25 },  // from dungeon
+    ];
+    for (const { targetMap, spawnX, spawnY } of cases) {
+      const world = createDefaultWorld();
+      const mgr = new MapManager(world);
+      mgr.loadMap(targetMap);
+      expect(
+        mgr.isWalkable(spawnX, spawnY),
+        `Spawn (${spawnX},${spawnY}) on ${targetMap} must be walkable`
+      ).toBe(true);
+    }
+  });
+});
