@@ -44,8 +44,8 @@ describe('getShopWeapons', () => {
     expect(ids).not.toContain('war_axe');           // source: chest (crafted only)
   });
 
-  it('returns at least one weapon', () => {
-    expect(getShopWeapons().length).toBeGreaterThan(0);
+  it('returns exactly 5 shop weapons (iron_longsword, mace, hand_axe, dagger, hunting_bow)', () => {
+    expect(getShopWeapons().length).toBe(5);
   });
 });
 
