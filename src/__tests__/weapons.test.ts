@@ -45,7 +45,11 @@ describe('getShopWeapons', () => {
   });
 
   it('returns exactly 5 shop weapons (iron_longsword, mace, hand_axe, dagger, hunting_bow)', () => {
-    expect(getShopWeapons().length).toBe(5);
+    // Pin the exact set and insertion order — wrong members or duplicates would silently
+    // pass a length-only check while breaking the shop UI contract.
+    expect(getShopWeapons().map(w => w.id)).toEqual([
+      'iron_longsword', 'mace', 'hand_axe', 'dagger', 'hunting_bow',
+    ]);
   });
 });
 
