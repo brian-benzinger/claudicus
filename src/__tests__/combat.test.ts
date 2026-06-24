@@ -2023,3 +2023,89 @@ describe('CombatEngine — war_axe (ignoresDefense=0.2, missChance=0.1, critChan
     expect(engine.state.log.some(l => l.includes('Critical'))).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// enemyJustDefended contract — pins that enemy AI branches set the flag
+//
+// Existing "enemy defends" tests only assert `enemyDefending === true`.
+// The Backstab ability reads a separate flag, `enemyJustDefended`, to choose
+// its flavor text ("off-guard" vs "backstab").  If any AI branch dropped the
+// `this.state.enemyJustDefended = true` assignment, the flag would never be
+// set by actual gameplay, and Backstab would always show the wrong flavor —
+// yet all existing tests would still pass (they set the flag manually).
+// These tests pin the contract across three AI profiles plus an integration
+// path that exercises the full pipeline: enemy defends → flag set → Backstab
+// reads it.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — skeleton defend sets enemyJustDefended', () => {
+  it('enemyJustDefended is true after the skeleton raises its shield of bones', () => {
+    // skeletonAI random < 0.40 → defend branch; sets both enemyDefending and
+    // enemyJustDefended.  Existing tests only check enemyDefending; dropping
+    // the enemyJustDefended assignment would make Backstab show the wrong flavor
+    // without failing any prior test.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // 0.1 < 0.40 → skeleton defends
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+  });
+});
+
+describe('CombatEngine — wild boar stamp sets enemyJustDefended', () => {
+  it('enemyJustDefended is true after the wild boar stamps its hooves', () => {
+    // wildBoarAI random >= 0.90 → stamp branch; sets enemyJustDefended alongside
+    // enemyDefending.  Mirrors the skeleton contract above for the boar profile.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.95); // 0.95 >= 0.90 → stamp
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+  });
+});
+
+describe('CombatEngine — default AI (BANDIT) brace sets enemyJustDefended', () => {
+  it('enemyJustDefended is true after the bandit braces for your attack', () => {
+    // defaultEnemyAI: hpPercent >= 0.25 and random < 0.20 → defend branch.
+    // Bandit full HP = 18; 0.1 < 0.20 → brace.  Same flag contract as the
+    // skeleton and boar profiles.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.BANDIT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // full HP, 0.1 < 0.20 → defend
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+  });
+});
+
+describe('CombatEngine — Backstab "off-guard" flavor via actual skeleton defend turn', () => {
+  it('skeleton defends → enemyJustDefended stays true → Backstab shows "off-guard" not "backstab"', () => {
+    // Integration test: prior Backstab tests set enemyJustDefended manually.
+    // This test exercises the full pipeline so that removing the assignment from
+    // skeletonAI (or the check from Backstab) breaks the test, not just one side.
+    //
+    // Setup: dagger-wielding level-3 player (Backstab unlocked; dagger is FAST
+    // so the constructor starts in PLAYER_ACTION).  Force skeleton to defend.
+    // After the enemy turn, call playerUseAbility() — must show 'off-guard'.
+    const player = makeFastPlayer(); // dagger, FAST → PLAYER_ACTION at start
+    player.state.level = 3;         // unlock Backstab
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+
+    // Enemy turn: skeleton defends (random=0.1 < 0.40)
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // sets enemyJustDefended=true, phase→PLAYER_ACTION
+
+    expect(engine.state.enemyJustDefended).toBe(true);
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+
+    // Player Backstab: must see "off-guard" because the skeleton just defended
+    vi.restoreAllMocks();
+    mockAttacks([0, 0.25, 0.9]); // no miss; variance=0; no crit (0.9 >= 0.6)
+    engine.playerUseAbility();
+    expect(engine.state.log.some(l => l.includes('off-guard'))).toBe(true);
+    expect(engine.state.log.some(l => l.includes('backstab'))).toBe(false);
+  });
+});
