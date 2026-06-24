@@ -310,6 +310,19 @@ describe('CombatEngine.playerPotion', () => {
     engine.playerPotion();
     expect(player.state.potions).toBe(potionsBefore - 1);
   });
+
+  it('logs the exact HP-restored message with the post-heal value', () => {
+    // Contract: the combat log shows "You drink a potion. HP restored to <hp>." so the
+    // player knows their current HP without opening the inventory.  If the message is
+    // reformatted or the HP value is omitted, the UI feedback degrades silently.
+    // player.hp starts at 40; take 10 → 30; potion heals 20 → 40 (at maxHp).
+    const player = makeFastPlayer();
+    player.takeDamage(10); // hp = 30
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerPotion(); // heals to 40; state.playerHp synced
+    const expectedHp = engine.state.playerHp; // 40
+    expect(engine.state.log.some(l => l === `You drink a potion. HP restored to ${expectedHp}.`)).toBe(true);
+  });
 });
 
 describe('CombatEngine.playerFlee', () => {
@@ -322,12 +335,33 @@ describe('CombatEngine.playerFlee', () => {
     expect(engine.getResult()).toBe('fled');
   });
 
+  it('logs "You flee from battle!" on a successful flee', () => {
+    // Contract: the player reads this exact message in the combat log when they escape.
+    // If the string changes (e.g. "You escaped!" or the word order shifts) the UI breaks
+    // silently and no other test catches it — this one does.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.playerFlee();
+    expect(engine.state.log.some(l => l === 'You flee from battle!')).toBe(true);
+  });
+
   it('fails when random is above flee chance', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
     const result = engine.playerFlee();
     expect(result).toBe(false);
     expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+  });
+
+  it('logs "Failed to escape!" and sets playerTurn=false on a failed flee', () => {
+    // Contract: the player reads this exact message when they fail to flee.
+    // playerTurn=false is also checked because it drives the enemy turn in the
+    // animation loop — if it stays true the enemy would never act after a failed flee.
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.playerFlee();
+    expect(engine.state.log.some(l => l === 'Failed to escape!')).toBe(true);
+    expect(engine.state.playerTurn).toBe(false);
   });
 });
 
@@ -909,12 +943,14 @@ describe('CombatEngine.playerUseAbility — Shatter (mace)', () => {
     player.equipWeapon('mace');
     player.state.agi = 10;
     player.state.level = 3;
-    const enemy = makeEnemy(EnemyType.SKELETON); // DEF = 3
+    const enemy = makeEnemy(EnemyType.SKELETON); // DEF = 4 (pinned in enemies.test.ts)
     const engine = new CombatEngine(player, enemy);
-    const defBefore = engine.state.enemy.def;
+    const defBefore = engine.state.enemy.def; // 4
     engine.playerUseAbility();
-    expect(engine.state.enemy.def).toBe(Math.max(0, defBefore - 2));
+    // Shatter reduces by exactly 2; concrete pin rather than mirroring the formula.
+    expect(engine.state.enemy.def).toBe(defBefore - 2); // 4 - 2 = 2
     expect(engine.state.log.some(l => l.includes('Shatter'))).toBe(true);
+    expect(engine.state.log.some(l => l.includes('DEF reduced by 2'))).toBe(true);
   });
 
   it('does not reduce enemy DEF below 0', () => {
