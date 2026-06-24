@@ -407,11 +407,17 @@ describe('PlayerManager.getXpProgress', () => {
     expect(prog.percent).toBe(40);
   });
 
-  it('caps percent at 100', () => {
+  it('caps percent at 100 but still reports real current and needed values', () => {
+    // xpForLevel(1) = 25; 9999 / 25 * 100 = 39996 without the cap.
+    // If getXpProgress() ever clamped `current` to `needed` when capping the
+    // display (returning { current: 25, needed: 25, percent: 100 }), the UI
+    // would show the wrong XP amount and this test would catch it.
     const p = makePlayer();
     p.state.xp = 9999;
     const prog = p.getXpProgress();
     expect(prog.percent).toBe(100);
+    expect(prog.current).toBe(9999);
+    expect(prog.needed).toBe(25);
   });
 });
 
