@@ -885,3 +885,83 @@ describe('NPC data integrity — all quest NPCs have required dialog keys', () =
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Potion shop capacity boundary — pins the exact >= 10 threshold
+//
+// Existing tests cover potions=0 (happy path) and potions=10 (full).
+// Neither alone rules out an off-by-one: changing >= 10 to >= 9 would
+// still pass the full-at-10 test (10 >= 9 = true → correct refusal) while
+// silently refusing the purchase at potions=9.  The test below pins the
+// exact boundary: potions=9 must still succeed and reach exactly 10.
+// ---------------------------------------------------------------------------
+describe('NpcManager.buySelectedItem — potion cap boundary', () => {
+  it('purchase succeeds when potions is exactly 9 (one below the 10-slot cap)', () => {
+    // At potions=9: the check `potions >= 10` is false → purchase proceeds.
+    // If the threshold were changed to >= 9, this test would fail (9 >= 9 → refused).
+    // Together with the existing potions=10 refusal test, these two pin the
+    // exact threshold to ">= 10" with no room for an off-by-one.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 9;
+    player.state.gold = 100;
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(player.state.potions).toBe(10); // exactly at cap, not 11
+    expect(player.state.gold).toBe(95);    // 5 gold spent on the potion
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SHOP_CRAFT dialog-state lifecycle — immediate clear vs. deferred closeShop
+//
+// SHOP_WEAPONS / SHOP_POTIONS / SHOP_ARMOR keep dialogState alive after
+// advanceDialog() returns 'shop' so the speaker nameplate remains visible
+// while the player browses, cleared only when closeShop() is called.
+//
+// SHOP_CRAFT is different: it sets dialogState = null before returning 'craft'
+// so the speaker nameplate disappears the moment crafting begins, without
+// needing a closeShop() call.  If this were changed to match the shop pattern
+// (keeping dialogState), the UI would show a stale NPC name during crafting.
+// ---------------------------------------------------------------------------
+describe('NpcManager.advanceDialog — SHOP_CRAFT clears dialogState immediately', () => {
+  it('getSpeakerName() and getCurrentLine() return null immediately after "craft" is returned', () => {
+    const mgr = new NpcManager();
+    const forgeNpc = {
+      id: 'gretta_anvil',
+      name: "Gretta's Forge",
+      tileX: 22,
+      tileY: 4,
+      role: NpcRole.SHOP_CRAFT,
+      color: '#555',
+      dialogs: { default: ['The forge burns hot.'] },
+    };
+    mgr.startDialog(forgeNpc, {});
+    expect(mgr.getSpeakerName()).toBe("Gretta's Forge"); // name visible before dialog ends
+    const result = mgr.advanceDialog();
+    expect(result).toBe('craft');
+    // dialogState must be null immediately — no closeShop() call required
+    expect(mgr.getSpeakerName()).toBeNull();
+    expect(mgr.getCurrentLine()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// claimQuestReward potion message format
+//
+// Existing tests check result.rewards.length and result.rewards[0] (gold) but
+// do not pin result.rewards[1] (the potion message).  If the message changed
+// from "Received 3 Health Potions!" to a different format or count, the reward
+// dialog shown to the player would be wrong with no test catching it.
+// ---------------------------------------------------------------------------
+describe('NpcManager.claimQuestReward — potion reward message format', () => {
+  it('second reward message is "Received N Health Potions!" for the boar_problem quest', () => {
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 0;
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, QUESTS.boar_problem); // gives 3 potions
+    expect(result.rewards[1]).toBe('Received 3 Health Potions!');
+  });
+});
