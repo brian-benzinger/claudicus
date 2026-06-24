@@ -1222,6 +1222,25 @@ describe('CombatEngine — dagger Backstab ability', () => {
     expect(e.state.enemyHp).toBe(0);
     expect(e.state.log.some(l => l.includes('is defeated'))).toBe(true);
   });
+
+  it('Backstab doubles the dagger crit chance — crits at values between 0.3 and 0.6', () => {
+    // dagger.critChance=0.3; Backstab applies critMultiplier=2 → effective critChance=0.6.
+    // A crit roll of 0.5 misses the base threshold (0.5 >= 0.3 → no crit for a regular attack)
+    // but falls within the Backstab range (0.5 < 0.6 → crit). If critMultiplier were ever
+    // dropped to 1 this test would fail: damage would be 2 (no crit) instead of 4 (crit).
+    const e = daggerEngine(); // level 3, dagger, PLAYER_ACTION phase
+    e.state.enemyJustDefended = false;
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)    // miss check: 0 < 0 (missChance) → no miss
+      .mockReturnValueOnce(0.25) // variance: floor(0.25*4)-1 = 0
+      .mockReturnValueOnce(0.5); // crit: 0.5 < 0.6 (doubled) → CRIT; 0.5 >= 0.3 so base rate wouldn't crit
+    const hpBefore = e.state.enemyHp;
+    e.playerUseAbility();
+    const damage = hpBefore - e.state.enemyHp;
+    // str(5)+dagger bonus(1)−skeleton def(4)+var(0) = 2 base; crit doubles → 4
+    expect(damage).toBe(4);
+    expect(e.state.log.some(l => l.includes('Critical'))).toBe(true);
+  });
 });
 
 describe('CombatEngine — Mace Shatter on already-broken armor', () => {
