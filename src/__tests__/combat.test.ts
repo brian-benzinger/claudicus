@@ -2153,3 +2153,41 @@ describe('CombatEngine — Backstab "off-guard" flavor via actual skeleton defen
     expect(engine.state.log.some(l => l.includes('backstab'))).toBe(false);
   });
 });
+
+describe('CombatEngine — Revenant Knight phase 1 brace sets enemyJustDefended', () => {
+  it('enemyJustDefended is true after the Revenant Knight braces in phase 1', () => {
+    // revenantKnightAI phase 1 (hp >= 50%): random < 0.25 → brace branch.
+    // The branch sets both enemyDefending and enemyJustDefended.  The existing
+    // "phase one braces for the attack" test only checks enemyDefending.  If the
+    // enemyJustDefended assignment were removed here, Backstab against the boss
+    // would always show the wrong "backstab" flavor instead of "off-guard" —
+    // yet no prior test would catch it.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // full HP, 0.1 < 0.25 → phase-1 brace
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+    expect(engine.state.log.some(l => l.includes('braces'))).toBe(true);
+  });
+});
+
+describe('CombatEngine — Revenant Knight phase 2 raise cursed blade sets enemyJustDefended', () => {
+  it('enemyJustDefended is true after the Revenant Knight raises its cursed blade in phase 2', () => {
+    // revenantKnightAI phase 2 (hp < 50%): random >= 0.90 → defend branch.
+    // The branch sets both enemyDefending and enemyJustDefended.  The existing
+    // "phase two can raise its cursed blade" test only checks enemyDefending.
+    // Dropping the enemyJustDefended assignment would silently break the Backstab
+    // off-guard flavor for the Revenant Knight's phase-2 defend, undetected by any
+    // other test.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.REVENANT_KNIGHT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.state.enemyHp = 10;         // < 50% of 60 → phase 2 active
+    engine.state.enemyIsPhaseTwo = true;
+    vi.spyOn(Math, 'random').mockReturnValue(0.95); // 0.95 >= 0.90 → phase-2 defend
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+    expect(engine.state.log.some(l => l.includes('cursed blade'))).toBe(true);
+  });
+});
