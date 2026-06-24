@@ -45,9 +45,12 @@ describe('CombatEngine constructor', () => {
     expect(engine.state.enemyHp).toBe(enemy.hp);
   });
 
-  it('adds appearance message to log', () => {
-    const engine = new CombatEngine(makePlayer(), makeEnemy());
-    expect(engine.state.log[0]).toContain('appears');
+  it('adds appearance message naming the enemy to the log', () => {
+    // Contract: constructor logs exactly "A <name> appears!" so the player knows
+    // who they're fighting. A rename or dropped-name bug must not pass silently.
+    const enemy = makeEnemy();
+    const engine = new CombatEngine(makePlayer(), enemy);
+    expect(engine.state.log[0]).toBe(`A ${enemy.name} appears!`);
   });
 
   it('starts in PLAYER_ACTION phase for fast weapon', () => {
