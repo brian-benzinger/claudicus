@@ -705,19 +705,14 @@ describe('PlayerManager titles', () => {
     expect(p.state.activeTitle).toBe('wolfsbane');
   });
 
-  it('TITLES constant defines all four titles', () => {
-    expect(TITLES.wolfsbane).toBeDefined();
-    expect(TITLES.bandit_hunter).toBeDefined();
-    expect(TITLES.grave_robber).toBeDefined();
-    expect(TITLES.survivor).toBeDefined();
-  });
-
-  it('each TITLES entry has id, label, and requirement', () => {
-    for (const def of Object.values(TITLES)) {
-      expect(def.id.length).toBeGreaterThan(0);
-      expect(def.label.length).toBeGreaterThan(0);
-      expect(def.requirement.length).toBeGreaterThan(0);
-    }
+  it('TITLES constant defines all four titles with exact id, label, and requirement', () => {
+    // toBeDefined + length>0 would pass if any field were renamed or its text changed.
+    // These exact values are the behavioral contract: the UI displays label and
+    // requirement to the player, and earnedTitles keys must match the id.
+    expect(TITLES.wolfsbane).toEqual({ id: 'wolfsbane', label: 'Wolfsbane', requirement: '5 wolves slain' });
+    expect(TITLES.bandit_hunter).toEqual({ id: 'bandit_hunter', label: 'Bandit Hunter', requirement: '5 bandits slain' });
+    expect(TITLES.grave_robber).toEqual({ id: 'grave_robber', label: 'Grave Robber', requirement: '3 chests opened' });
+    expect(TITLES.survivor).toEqual({ id: 'survivor', label: 'Survivor', requirement: 'Survive 3 fights at ≤5 HP' });
   });
 });
 
