@@ -170,6 +170,43 @@ describe('PlayerManager.equipWeapon / ownsWeapon', () => {
     const p = makePlayer();
     expect(p.ownsWeapon('iron_longsword')).toBe(false);
   });
+
+  it('equipping a new weapon preserves the previous weapon in state.weapons', () => {
+    // equipWeapon() should add the new weapon to the owned list without
+    // removing any existing weapon.  If the implementation ever swapped
+    // state.weapons to [newId] only, this contract catches that regression.
+    const p = makePlayer(); // starts with rusty_shortsword
+    p.equipWeapon('iron_longsword');
+    expect(p.ownsWeapon('rusty_shortsword')).toBe(true);
+    expect(p.ownsWeapon('iron_longsword')).toBe(true);
+    expect(p.state.weaponId).toBe('iron_longsword');
+  });
+});
+
+describe('PlayerManager.equipArmor / ownsArmor', () => {
+  it('equips armor, sets armorId, and adds to armors array', () => {
+    const p = makePlayer();
+    p.equipArmor('iron_plate');
+    expect(p.state.armorId).toBe('iron_plate');
+    expect(p.ownsArmor('iron_plate')).toBe(true);
+  });
+
+  it('returns false for armor not in inventory', () => {
+    const p = makePlayer();
+    expect(p.ownsArmor('iron_plate')).toBe(false);
+  });
+
+  it('equipping a new armor preserves the previous armor in state.armors', () => {
+    // equipArmor() should add the new armor to the owned list without
+    // removing any existing armor.  If the implementation ever swapped
+    // state.armors to [newId] only, the player would silently lose their
+    // previous armor from inventory — this contract catches that regression.
+    const p = makePlayer(); // starts with leather_vest
+    p.equipArmor('iron_plate');
+    expect(p.ownsArmor('leather_vest')).toBe(true);
+    expect(p.ownsArmor('iron_plate')).toBe(true);
+    expect(p.state.armorId).toBe('iron_plate');
+  });
 });
 
 describe('PlayerManager.gainXp / checkLevelUp', () => {
@@ -332,6 +369,19 @@ describe('PlayerManager.computeWeaponDamage', () => {
     const p = makePlayer();
     p.equipWeapon('iron_longsword'); // damageBonus=4
     expect(p.computeWeaponDamage()).toBe(9); // 5 + 4
+  });
+});
+
+describe('PlayerManager.getEffectiveDef', () => {
+  it('adds base def stat and equipped armor defBonus', () => {
+    const p = makePlayer(); // def=3, leather_vest defBonus=1
+    expect(p.getEffectiveDef()).toBe(4);
+  });
+
+  it('updates when armor is swapped', () => {
+    const p = makePlayer(); // def=3
+    p.equipArmor('iron_plate'); // defBonus=5
+    expect(p.getEffectiveDef()).toBe(8); // 3 + 5
   });
 });
 
