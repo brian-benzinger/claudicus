@@ -735,6 +735,23 @@ describe('Enemy AI — Skeleton healing', () => {
     engine.enemyTurn(); // turn 1 — no heal
     expect(engine.state.log.some(l => l.includes('mends'))).toBe(false);
   });
+
+  it('skeleton heal is capped at maxHp — 17 HP + 5 must not overflow to 22', () => {
+    // The companion test above uses hp=15 so 15+5=20=maxHp exactly, meaning
+    // Math.min has no observable effect there.  At 17 HP, 17+5=22 > maxHp=20,
+    // so this test requires the Math.min(enemy.maxHp, ...) cap to actually fire.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // > 0.40 → skeleton attacks (not defends)
+    const enemy = makeEnemy(EnemyType.SKELETON);
+    enemy.hp = 17; // 17 + 5 = 22 > maxHp=20; cap must clamp to 20
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 17;
+
+    for (let t = 0; t < 3; t++) {
+      engine.state.phase = CombatPhase.ENEMY_ACTION;
+      engine.enemyTurn();
+    }
+    expect(engine.state.enemyHp).toBe(20); // min(maxHp=20, 17+5=22) = 20, not 22
+  });
 });
 
 describe('Enemy AI — Wild Boar charge', () => {
