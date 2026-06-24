@@ -598,6 +598,34 @@ describe('PlayerManager.loadState / reset', () => {
   });
 });
 
+describe('PlayerManager.gainXp — single level-up per call', () => {
+  // gainXp() calls checkLevelUp() exactly once — it is NOT loop-based.
+  // xpForLevel(1)=25 (level 2 threshold), xpForLevel(2)=50 (level 3 threshold).
+  // The Revenant Knight gives 80 XP: a level-1 player would theoretically have
+  // enough XP for two level-ups in one kill, but the engine applies only one.
+  // If checkLevelUp() were changed to loop, level would jump to 3 and xp to 5
+  // instead of level=2 and xp=50 — this test would fail, catching the regression.
+
+  it('granting XP sufficient for two level-ups applies only one level-up', () => {
+    const p = makePlayer(); // level=1, xp=0
+    // 75 XP = 25 (level 2 threshold) + 50 (level 3 threshold) — covers both levels
+    p.gainXp(75);
+    expect(p.state.level).toBe(2);         // only one level-up applied
+    expect(p.state.xp).toBe(50);           // 75 - 25 leftover; level 3 NOT triggered
+  });
+
+  it('leftover XP from a large gain is preserved exactly for the next kill', () => {
+    // Companion to the above: the 50 XP remainder must be stored precisely so
+    // the next gainXp(1) tips the player over the level-3 threshold (50 XP needed).
+    const p = makePlayer(); // level=1
+    p.gainXp(75);           // level 1→2, xp leftover = 50
+    expect(p.state.xp).toBe(50);           // exactly 50, not 0 or any other value
+    const reward = p.gainXp(1);            // 50+1=51 >= xpForLevel(2)=50 → level 2→3
+    expect(p.state.level).toBe(3);
+    expect(reward).not.toBeNull();
+  });
+});
+
 describe('PlayerManager.addArmorToInventory / addWeaponToInventory', () => {
   it('adds armor without equipping it', () => {
     const p = makePlayer();
