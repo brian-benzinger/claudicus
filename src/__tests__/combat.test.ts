@@ -77,6 +77,20 @@ describe('CombatEngine constructor', () => {
     expect(engine.state.freeHitUsed).toBe(true);
   });
 
+  it('ranged opening shot reduces enemy HP by the calculated amount', () => {
+    // Pins that the opening shot actually executes damage, not just sets a flag.
+    // hunting_bow: str(5)+damageBonus(3)=8 attackPower; skeleton def=4; variance=floor(0*4)-1=-1
+    // damage = max(1, 8-4-1) = 3; no crit (critChance=0). If executePlayerAttack were ever
+    // skipped or made a no-op for the free hit, enemyHp would stay at 20 and this test fails.
+    mockAttacks([0, 0, 0]); // miss=0 (no miss), variance=0→-1, crit=0 (no crit)
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    const enemy = makeEnemy(); // skeleton: hp=20, def=4
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.enemyHp).toBe(17); // 20 - 3 damage from opening shot
+    expect(engine.state.log.some(l => l.includes('3 damage'))).toBe(true);
+  });
+
   it('starts in ENEMY_ACTION for normal weapon when enemy agi exceeds player agi', () => {
     // rusty_shortsword (NORMAL): playerTurn = playerAgi >= enemyAgi = 3 >= 5 = false → ENEMY_ACTION
     const player = makePlayer(); // agi=3, rusty_shortsword (NORMAL speed)
@@ -1197,6 +1211,26 @@ describe('CombatEngine — status effect refresh and expiry', () => {
     const weaken = e.state.enemyStatusEffects.filter(s => s.type === StatusEffectType.WEAKEN);
     expect(weaken.length).toBe(1);
     expect(weaken[0].magnitude).toBe(3);
+    expect(weaken[0].turnsRemaining).toBe(3);
+  });
+
+  it('Intimidate refresh resets turnsRemaining to 3, not accumulated', () => {
+    // If applyStatusEffect accumulated turns (existing.turnsRemaining += new.turnsRemaining)
+    // instead of resetting (= new.turnsRemaining), re-applying mid-duration would extend
+    // WEAKEN beyond the stated 3-turn contract. This test catches that regression.
+    const p = makePlayer();
+    p.state.classPath = ClassPath.BRIGAND;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility(); // first Intimidate: turnsRemaining = 3
+    // Simulate one enemy turn passing: tick the counter down to 2
+    e.state.enemyStatusEffects[0].turnsRemaining = 2;
+    // Re-apply Intimidate: should RESET to 3, not accumulate to 2+3=5
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.playerUseAbility();
+    const weaken = e.state.enemyStatusEffects.filter(s => s.type === StatusEffectType.WEAKEN);
+    expect(weaken.length).toBe(1);
+    expect(weaken[0].turnsRemaining).toBe(3); // reset, not 2+3=5
   });
 
   it('WEAKEN expiry is announced when it ticks to zero', () => {
