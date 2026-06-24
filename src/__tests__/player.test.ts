@@ -461,6 +461,32 @@ describe('Level rewards', () => {
       expect(def.label.length).toBeGreaterThan(0);
     }
   });
+
+  it('level 5 grants +7 total STR (+2 base + 5 bonus) and +10 total maxHp (+5 base + 5 bonus)', () => {
+    // LEVEL_REWARDS[5] = { bonusStr: 5, bonusHp: 5 }. If either bonus were silently removed the
+    // player would arrive at level 5 with less STR/maxHp than the label "+5 STR, +5 Max HP" promises.
+    const p = makePlayer();
+    levelTo(p, 4);
+    const strBefore = p.state.str;
+    const maxHpBefore = p.state.maxHp;
+    p.gainXp(xpForLevel(4)); // level 4 → 5
+    // base per-level: +2 STR, +5 maxHp; reward: +5 STR, +5 maxHp
+    expect(p.state.str).toBe(strBefore + 2 + 5);
+    expect(p.state.maxHp).toBe(maxHpBefore + 5 + 5);
+  });
+
+  it('level 8 grants +6 total DEF (+1 base + 5 bonus) and +15 total maxHp (+5 base + 10 bonus)', () => {
+    // LEVEL_REWARDS[8] = { bonusDef: 5, bonusHp: 10 }. If either bonus were silently removed the
+    // player would arrive at level 8 with less DEF/maxHp than the label "+5 DEF, +10 Max HP" promises.
+    const p = makePlayer();
+    levelTo(p, 7);
+    const defBefore = p.state.def;
+    const maxHpBefore = p.state.maxHp;
+    p.gainXp(xpForLevel(7)); // level 7 → 8
+    // base per-level: +1 DEF, +5 maxHp; reward: +5 DEF, +10 maxHp
+    expect(p.state.def).toBe(defBefore + 1 + 5);
+    expect(p.state.maxHp).toBe(maxHpBefore + 5 + 10);
+  });
 });
 
 describe('PlayerManager.chooseClass', () => {
