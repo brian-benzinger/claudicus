@@ -263,10 +263,19 @@ describe('drawPlayer — with weaponSpeed', () => {
 
   for (const facing of facings) {
     for (const speed of speeds) {
-      it(`WeaponSpeed.${WeaponSpeed[speed]} facing ${facing} produces draw calls`, () => {
+      it(`WeaponSpeed.${WeaponSpeed[speed]} facing ${facing} renders weapon-specific draw ops`, () => {
         const { ctx, calls } = makeCtx();
         drawPlayer(ctx, 100, 100, 10, facing, speed);
-        expect(calls.length).toBeGreaterThan(0);
+        if (speed === WeaponSpeed.RANGED) {
+          // Male default player has exactly 1 arc (head); bow adds a second arc.
+          // Failing with 1 means the bow arc was dropped.
+          const arcCount = calls.filter(c => c.method === 'arc').length;
+          expect(arcCount).toBeGreaterThanOrEqual(2);
+        } else {
+          // Melee blade uses moveTo+lineTo; male body without weapon has none.
+          // Failing here means the blade drawing was dropped.
+          expect(calls.some(c => c.method === 'moveTo')).toBe(true);
+        }
       });
     }
   }
