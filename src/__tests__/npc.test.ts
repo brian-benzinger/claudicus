@@ -870,6 +870,17 @@ describe('NpcManager.closeShop — dialog-to-shop-to-close lifecycle', () => {
 // cause the wrong dialog to display (falling back to "default") without any
 // runtime error.
 // ---------------------------------------------------------------------------
+// Exact dialog-line counts for every quest NPC, all four state keys.
+// A silent trim or addition of lines in npcs.ts will be caught immediately.
+const QUEST_DIALOG_LENGTHS: Record<string, { questNotStarted: number; questInProgress: number; questComplete: number; questDone: number }> = {
+  elder_aldric:    { questNotStarted:  8, questInProgress: 6, questComplete: 9, questDone: 5 },
+  gretta_smith:    { questNotStarted: 10, questInProgress: 6, questComplete: 7, questDone: 5 },
+  old_marta:       { questNotStarted: 10, questInProgress: 6, questComplete: 8, questDone: 5 },
+  brother_tomas:   { questNotStarted:  9, questInProgress: 8, questComplete: 8, questDone: 6 },
+  farmer_wulf:     { questNotStarted: 11, questInProgress: 7, questComplete: 8, questDone: 6 },
+  duvain_wanderer: { questNotStarted:  5, questInProgress: 3, questComplete: 4, questDone: 3 },
+};
+
 describe('NPC data integrity — all quest NPCs have required dialog keys', () => {
   it('every NPC with a questId has questNotStarted, questInProgress, questComplete, and questDone dialogs', async () => {
     const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
@@ -879,22 +890,23 @@ describe('NPC data integrity — all quest NPCs have required dialog keys', () =
     expect(questNpcs.length).toBe(6);
     for (const npc of questNpcs) {
       const id = npc.id;
+      const expected = QUEST_DIALOG_LENGTHS[id];
       expect(
         npc.dialogs.questNotStarted?.length,
-        `NPC "${id}" (questId="${npc.questId}") missing questNotStarted dialog`
-      ).toBeGreaterThan(0);
+        `NPC "${id}" questNotStarted length`
+      ).toBe(expected.questNotStarted);
       expect(
         npc.dialogs.questInProgress?.length,
-        `NPC "${id}" (questId="${npc.questId}") missing questInProgress dialog`
-      ).toBeGreaterThan(0);
+        `NPC "${id}" questInProgress length`
+      ).toBe(expected.questInProgress);
       expect(
         npc.dialogs.questComplete?.length,
-        `NPC "${id}" (questId="${npc.questId}") missing questComplete dialog`
-      ).toBeGreaterThan(0);
+        `NPC "${id}" questComplete length`
+      ).toBe(expected.questComplete);
       expect(
         npc.dialogs.questDone?.length,
-        `NPC "${id}" (questId="${npc.questId}") missing questDone dialog`
-      ).toBeGreaterThan(0);
+        `NPC "${id}" questDone length`
+      ).toBe(expected.questDone);
     }
   });
 

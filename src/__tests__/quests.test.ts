@@ -138,13 +138,21 @@ describe('QUESTS — reward cross-reference integrity', () => {
     }
   });
 
-  it('every kill_type quest lists at least one enemy type', () => {
+  it('every kill_type quest lists the exact expected enemy types', () => {
+    // Pin exact goalEnemyTypes counts: a silent addition or removal of a type is caught.
+    const KILL_TYPE_ENEMY_COUNTS: Record<string, number> = {
+      bandit_steel:    2,
+      boar_problem:    1,
+      quiet_dead:      1,
+      wolves_gate:     1,
+      revenant_threat: 1,
+    };
     for (const [id, q] of Object.entries(QUESTS)) {
       if (q.goalType === 'kill_type') {
         expect(
           q.goalEnemyTypes?.length,
-          `Quest "${id}" is kill_type but has no goalEnemyTypes`
-        ).toBeGreaterThan(0);
+          `Quest "${id}" goalEnemyTypes count`
+        ).toBe(KILL_TYPE_ENEMY_COUNTS[id]);
       }
     }
   });
