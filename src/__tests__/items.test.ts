@@ -128,7 +128,15 @@ describe('openChest', () => {
     expect(result.messages[0]).toBe('Found 1 Health Potion!');
   });
 
-  it('plural potion message for amount>1', () => {
+  it('plural potion message for amount=2 — pins the exact > 1 boundary', () => {
+    // amount=3 tests the plural branch but not its lower bound.
+    // If the condition were accidentally `> 2`, amount=2 would produce the wrong
+    // singular form "Found 2 Health Potion!" and this test would catch it.
+    const result = openChest(makeChest([{ type: 'potion', amount: 2 }]), makePlayer());
+    expect(result.messages[0]).toBe('Found 2 Health Potions!');
+  });
+
+  it('plural potion message for amount>2', () => {
     const result = openChest(makeChest([{ type: 'potion', amount: 3 }]), makePlayer());
     expect(result.messages[0]).toBe('Found 3 Health Potions!');
   });
