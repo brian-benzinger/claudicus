@@ -745,6 +745,44 @@ describe('Status effects — WEAKEN', () => {
     engine.update();
     expect(engine.state.enemyStatusEffects[0].turnsRemaining).toBe(1);
   });
+
+  it('WEAKEN with magnitude 3 reduces the actual player HP by exactly 3 — not the unweckened 6', () => {
+    // Contract: executeEnemyAttack() reads the WEAKEN magnitude and subtracts it from
+    // the enemy's attackPower before calculating damage.  The existing test in this block
+    // checks only the log message ("deals 3"), not the playerHp field.  If WEAKEN were
+    // applied to the log string but not to the actual damage path — or if atkReduction
+    // were read correctly but subtracted from the wrong variable — the log would still
+    // say "3" while the player takes full ATK damage.  This test catches that regression.
+    //
+    // Bandit ATK=6, player.def=0, effectiveDef=leatherVest(1)=1, random=0.5 → variance=1.
+    // Without WEAKEN: attackPower=6, damage=max(1,6-1+1)=6 → playerHp=40-6=34.
+    // With WEAKEN(3): attackPower=max(1,6-3)=3, damage=max(1,3-1+1)=3 → playerHp=40-3=37.
+    const player = makeFastPlayer();
+    player.state.def = 0; // effectiveDef = 0 + leatherVest(1) = 1
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyStatusEffects.push({ type: StatusEffectType.WEAKEN, turnsRemaining: 3, magnitude: 3 });
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(37); // 40 - 3 (weakened), not 40 - 6 (unweckened)
+  });
+
+  it('without WEAKEN the same Bandit attack deals 6 damage — confirms the weakened baseline is meaningful', () => {
+    // Companion to the WEAKEN HP test: pins the unweakened damage so the two values
+    // (37 weakened vs 34 unweakened) are each grounded.  If the formula changed so that
+    // an unweakened Bandit also dealt only 3 damage, the weakened test above would pass
+    // vacuously.  Together these two tests pin that WEAKEN actually reduces damage.
+    //
+    // Same setup (player.def=0, random=0.5) but no WEAKEN effect.
+    // attackPower=6, damage=max(1,6-1+1)=6 → playerHp=40-6=34.
+    const player = makeFastPlayer();
+    player.state.def = 0;
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(34); // 40 - 6 (full ATK)
+  });
 });
 
 // ---------------------------------------------------------------------------
