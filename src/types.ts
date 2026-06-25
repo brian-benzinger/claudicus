@@ -139,7 +139,7 @@ export interface Weapon {
   critChance: number;      // 0-1, chance for 2x damage
   ignoresDefense: number;  // 0-1, portion of DEF to ignore (mace = 0.5)
   cost: number;
-  source: 'shop' | 'chest' | 'start';
+  source: 'shop' | 'chest' | 'start' | 'reward';
 }
 
 // Enemy stat definition (template)
