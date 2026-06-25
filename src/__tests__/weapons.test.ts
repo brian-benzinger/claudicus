@@ -54,16 +54,24 @@ describe('getShopWeapons', () => {
 });
 
 describe('WEAPONS data integrity', () => {
-  it('every weapon has required fields', () => {
+  it('every weapon has required fields with valid types and values', () => {
+    const validSpeeds = new Set(Object.values(WeaponSpeed));
+    const validSources = new Set<string>(['start', 'shop', 'chest', 'reward']);
     for (const w of Object.values(WEAPONS)) {
-      expect(w.id).toBeTruthy();
-      expect(w.name).toBeTruthy();
-      expect(w.missChance).toBeGreaterThanOrEqual(0);
-      expect(w.missChance).toBeLessThan(1);
-      expect(w.critChance).toBeGreaterThanOrEqual(0);
-      expect(w.critChance).toBeLessThan(1);
-      expect(w.ignoresDefense).toBeGreaterThanOrEqual(0);
-      expect(w.ignoresDefense).toBeLessThanOrEqual(1);
+      expect(typeof w.id, `${w.id}: id must be string`).toBe('string');
+      expect(w.id.length, `${w.id}: id must be non-empty`).toBeGreaterThan(0);
+      expect(typeof w.name, `${w.id}: name must be string`).toBe('string');
+      expect(w.name.length, `${w.id}: name must be non-empty`).toBeGreaterThan(0);
+      expect(typeof w.damageBonus, `${w.id}: damageBonus must be number`).toBe('number');
+      expect(w.damageBonus, `${w.id}: damageBonus must be ≥0`).toBeGreaterThanOrEqual(0);
+      expect(validSpeeds.has(w.speed), `${w.id}: speed "${w.speed}" must be a valid WeaponSpeed`).toBe(true);
+      expect(validSources.has(w.source), `${w.id}: source "${w.source}" must be one of: start, shop, chest, reward`).toBe(true);
+      expect(w.missChance, `${w.id}: missChance`).toBeGreaterThanOrEqual(0);
+      expect(w.missChance, `${w.id}: missChance`).toBeLessThan(1);
+      expect(w.critChance, `${w.id}: critChance`).toBeGreaterThanOrEqual(0);
+      expect(w.critChance, `${w.id}: critChance`).toBeLessThan(1);
+      expect(w.ignoresDefense, `${w.id}: ignoresDefense`).toBeGreaterThanOrEqual(0);
+      expect(w.ignoresDefense, `${w.id}: ignoresDefense`).toBeLessThanOrEqual(1);
     }
   });
 
