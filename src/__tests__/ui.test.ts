@@ -247,10 +247,10 @@ describe('UIRenderer.drawCombatMenu — combat action labels', () => {
     const { ctx, textCalls } = makeCtx();
     ui.drawCombatMenu(ctx, 0);
     const texts = textCalls.map(c => c.text);
-    expect(texts.some(t => t.includes('Attack'))).toBe(true);
-    expect(texts.some(t => t.includes('Defend'))).toBe(true);
-    expect(texts.some(t => t.includes('Potion'))).toBe(true);
-    expect(texts.some(t => t.includes('Flee'))).toBe(true);
+    expect(texts).toContain('[1] Attack');
+    expect(texts).toContain('[2] Defend');
+    expect(texts).toContain('[3] Potion (0)');
+    expect(texts).toContain('[4] Flee');
   });
 });
 
@@ -300,7 +300,7 @@ describe('UIRenderer.drawDialogBox — content contracts', () => {
     // must appear so the player knows how to advance.
     const { ctx, textCalls } = makeCtx();
     ui.drawDialogBox(ctx, 'Guard', 'Halt.');
-    expect(textCalls.some(c => c.text.includes('SPACE'))).toBe(true);
+    expect(textCalls.some(c => c.text === '[SPACE] to continue')).toBe(true);
   });
 
   it('suppresses "[SPACE] to continue" while the text is still being revealed', () => {
