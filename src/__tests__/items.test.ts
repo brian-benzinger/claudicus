@@ -125,13 +125,12 @@ describe('openChest', () => {
 
   it('singular potion message for amount=1', () => {
     const result = openChest(makeChest([{ type: 'potion', amount: 1 }]), makePlayer());
-    expect(result.messages[0]).not.toContain('Potions');
-    expect(result.messages[0]).toContain('Potion');
+    expect(result.messages[0]).toBe('Found 1 Health Potion!');
   });
 
   it('plural potion message for amount>1', () => {
     const result = openChest(makeChest([{ type: 'potion', amount: 3 }]), makePlayer());
-    expect(result.messages[0]).toContain('Potions');
+    expect(result.messages[0]).toBe('Found 3 Health Potions!');
   });
 
   it('defaults to 1 potion when amount is omitted', () => {
@@ -139,7 +138,7 @@ describe('openChest', () => {
     const before = player.state.potions;
     const result = openChest(makeChest([{ type: 'potion' }]), player);
     expect(player.state.potions).toBe(before + 1);
-    expect(result.messages[0]).toContain('1 Health Potion');
+    expect(result.messages[0]).toBe('Found 1 Health Potion!');
   });
 
   it('defaults to 0 gold when amount is omitted', () => {
@@ -147,7 +146,7 @@ describe('openChest', () => {
     const before = player.state.gold;
     const result = openChest(makeChest([{ type: 'gold' }]), player);
     expect(player.state.gold).toBe(before);
-    expect(result.messages[0]).toContain('0 gold');
+    expect(result.messages[0]).toBe('Found 0 gold!');
   });
 });
 
