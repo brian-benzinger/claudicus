@@ -1061,3 +1061,33 @@ describe('NpcManager.claimQuestReward — potion reward message format', () => {
     expect(result.rewards[1]).toBe('Received 3 Health Potions!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// NPC dialog content contract — every dialog line must be a non-empty string
+//
+// The line-count test above checks QUEST NPC array lengths but passes if those
+// arrays contain only empty strings ''.  If dialog text were accidentally
+// cleared (bulk replace, bad merge, or truncation in npcs.ts), the player
+// would see blank dialog boxes with no indication of what broke.  This test
+// checks the actual string content of every dialog key across ALL NPCs so that
+// any silent text corruption fails immediately.
+// ---------------------------------------------------------------------------
+describe('NPC data integrity — all dialog lines are non-empty strings', () => {
+  it('every dialog line in VILLAGE_NPCS and FOREST_NPCS is a non-empty, non-whitespace string', async () => {
+    const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
+    const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
+    const dialogKeys = ['default', 'questNotStarted', 'questInProgress', 'questComplete', 'questDone', 'bossNews'] as const;
+    for (const npc of allNpcs) {
+      for (const key of dialogKeys) {
+        const lines = npc.dialogs[key];
+        if (!lines) continue;
+        for (let i = 0; i < lines.length; i++) {
+          expect(
+            lines[i].trim().length,
+            `NPC "${npc.id}" dialogs.${key}[${i}] must be a non-empty string, got: ${JSON.stringify(lines[i])}`
+          ).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+});
