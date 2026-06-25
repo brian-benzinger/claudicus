@@ -216,7 +216,8 @@ export class NpcManager {
 
     if (def.rewardPotions && def.rewardPotions > 0) {
       player.addPotions(def.rewardPotions);
-      rewards.push(`Received ${def.rewardPotions} Health Potions!`);
+      const label = def.rewardPotions === 1 ? 'Health Potion' : 'Health Potions';
+      rewards.push(`Received ${def.rewardPotions} ${label}!`);
     }
 
     quest.rewardClaimed = true;

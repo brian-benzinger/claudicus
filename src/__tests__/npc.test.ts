@@ -522,6 +522,33 @@ describe('NpcManager.claimQuestReward', () => {
     expect(player.state.potions).toBe(QUESTS.boar_problem.rewardPotions);
     expect(result.rewards).toHaveLength(2);
     expect(result.rewards[0]).toBe(`Received ${QUESTS.boar_problem.rewardGold} gold!`);
+    // Pin the exact potion message — must say "Potions" (plural) for count=3.
+    expect(result.rewards[1]).toBe('Received 3 Health Potions!');
+  });
+
+  it('potion reward message uses plural "Potions" for count=2 (revenant_threat)', () => {
+    // revenant_threat: rewardPotions=2. Pins the exact message text so a change to
+    // "Health Potion" (always singular) would be caught.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 0;
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player, QUESTS.revenant_threat);
+    expect(player.state.potions).toBe(2);
+    expect(result.rewards[1]).toBe('Received 2 Health Potions!');
+  });
+
+  it('potion reward message uses singular "Potion" when rewardPotions=1', () => {
+    // No existing quest gives exactly 1 potion, but the message must be grammatical.
+    // Without the singular/plural branch, this would produce "1 Health Potions!" (wrong).
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 0;
+    const quest = makeQuestState({ started: true, completed: true });
+    const singlePotionQuest = { ...QUESTS.boar_problem, rewardPotions: 1 };
+    const result = mgr.claimQuestReward(quest, player, singlePotionQuest);
+    expect(player.state.potions).toBe(1);
+    expect(result.rewards[1]).toBe('Received 1 Health Potion!');
   });
 
   it('skips weapon reward when player already owns it, returning only gold message', () => {
