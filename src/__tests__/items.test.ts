@@ -17,21 +17,21 @@ describe('openChest', () => {
     const before = player.state.potions;
     const result = openChest(makeChest([{ type: 'potion', amount: 2 }]), player);
     expect(player.state.potions).toBe(before + 2);
-    expect(result.messages[0]).toContain('Potion');
+    expect(result.messages[0]).toBe('Found 2 Health Potions!');
   });
 
   it('adds gold and returns message', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'gold', amount: 25 }]), player);
     expect(player.state.gold).toBe(35);
-    expect(result.messages[0]).toContain('25 gold');
+    expect(result.messages[0]).toBe('Found 25 gold!');
   });
 
   it('equips weapon and returns message', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'weapon', weaponId: 'dagger' }]), player);
     expect(player.state.weaponId).toBe('dagger');
-    expect(result.messages[0]).toContain('Dagger');
+    expect(result.messages[0]).toBe('Found Dagger!');
   });
 
   it('chest weapon is added to the weapons array and previous weapon is preserved', () => {
@@ -48,7 +48,7 @@ describe('openChest', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'armor', armorId: 'shadow_cloak' }]), player);
     expect(player.state.armorId).toBe('shadow_cloak');
-    expect(result.messages[0]).toContain('Shadow Cloak');
+    expect(result.messages[0]).toBe('Found Shadow Cloak!');
   });
 
   it('chest armor is added to the armors array and previous armor is preserved', () => {
@@ -64,14 +64,14 @@ describe('openChest', () => {
   it('ignores a weapon loot entry with no weaponId', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'weapon' }]), player);
-    expect(result.messages[0]).toContain('empty');
+    expect(result.messages[0]).toBe('The chest is empty.');
     expect(player.state.weaponId).toBe('rusty_shortsword');
   });
 
   it('ignores an armor loot entry with no armorId', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'armor' }]), player);
-    expect(result.messages[0]).toContain('empty');
+    expect(result.messages[0]).toBe('The chest is empty.');
     expect(player.state.armorId).toBe('leather_vest');
   });
 
@@ -79,7 +79,7 @@ describe('openChest', () => {
     const player = makePlayer();
     const result = openChest(makeChest([{ type: 'antique_coin' }]), player);
     expect(player.state.gold).toBe(25);
-    expect(result.messages[0]).toContain('Antique Coin');
+    expect(result.messages[0]).toBe('Found an Antique Coin! (+15 gold)');
   });
 
   it('antique coin message is exactly "Found an Antique Coin! (+15 gold)"', () => {
@@ -107,7 +107,7 @@ describe('openChest', () => {
 
   it('returns empty chest message for no loot', () => {
     const result = openChest(makeChest([]), makePlayer());
-    expect(result.messages[0]).toContain('empty');
+    expect(result.messages[0]).toBe('The chest is empty.');
   });
 
   it('handles multiple loot items', () => {
