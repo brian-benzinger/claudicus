@@ -875,8 +875,8 @@ describe('NPC data integrity — all quest NPCs have required dialog keys', () =
     const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');
     const allNpcs = [...VILLAGE_NPCS, ...FOREST_NPCS];
     const questNpcs = allNpcs.filter(n => n.questId);
-    // Guard: if this ever becomes zero, the test would vacuously pass.
-    expect(questNpcs.length, 'there must be at least one quest NPC').toBeGreaterThan(0);
+    // Pin exact count: 6 quest NPCs in the game (one per quest). Adding/removing a quest NPC must be intentional.
+    expect(questNpcs.length).toBe(6);
     for (const npc of questNpcs) {
       const id = npc.id;
       expect(

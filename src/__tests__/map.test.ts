@@ -442,8 +442,8 @@ describe('MapManager.updateCamera / tileToScreen', () => {
     mgr.updateCamera(9999, 9999);
     const maxX = mgr.currentMap.width * TILE_SIZE - CANVAS_WIDTH;
     const maxY = mgr.currentMap.height * TILE_SIZE - CANVAS_HEIGHT;
-    expect(maxX).toBeGreaterThan(0); // guard: forest must actually have scrollable range
-    expect(maxY).toBeGreaterThan(0);
+    expect(maxX).toBe(320); // 40 tiles × 32px − 960 canvas width
+    expect(maxY).toBe(320); // 30 tiles × 32px − 640 canvas height
     expect(mgr.camera.x).toBe(maxX);
     expect(mgr.camera.y).toBe(maxY);
   });
@@ -687,8 +687,8 @@ describe('MapManager.updateCameraToPixel — small map centering', () => {
 describe('Entity spawn placement - no blocking tiles', () => {
   it('all village NPCs are on walkable tiles', () => {
     const mgr = makeMapManager();
-    // Guard: if npcs is empty the loop is vacuously true — ensure the village has NPCs
-    expect(mgr.currentMap.npcs.length).toBeGreaterThan(0);
+    // Pin exact count: adding/removing a village NPC must be a conscious decision
+    expect(mgr.currentMap.npcs.length).toBe(6);
     for (const npc of mgr.currentMap.npcs) {
       expect(
         mgr.isWalkable(npc.tileX, npc.tileY),
