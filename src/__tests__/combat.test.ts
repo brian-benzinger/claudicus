@@ -303,8 +303,7 @@ describe('CombatEngine.playerDefend', () => {
     const defendedDamage = hp2Before - e2.state.playerHp;
 
     expect(undefendedDamage).toBe(5); // pin undefended so the assertion is meaningful
-    expect(defendedDamage).toBe(Math.max(1, Math.floor(undefendedDamage * 0.5)));
-    expect(defendedDamage).toBeLessThan(undefendedDamage);
+    expect(defendedDamage).toBe(2); // max(1, floor(5 * 0.5)) = 2
   });
 });
 
