@@ -20,6 +20,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.forest_menace;
     expect(q.id).toBe('forest_menace');
     expect(q.name).toBe('The Forest Menace');
+    expect(q.npcId).toBe('elder_aldric');
+    expect(q.npcName).toBe('Elder Aldric');
+    expect(q.description).toBe('Defeat 5 enemies in Thornwood');
     expect(q.goalType).toBe('kill_any');
     expect(q.goalCount).toBe(5);
     expect(q.goalEnemyTypes).toBeUndefined();
@@ -32,6 +35,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.bandit_steel;
     expect(q.id).toBe('bandit_steel');
     expect(q.name).toBe('Bandit Steel');
+    expect(q.npcId).toBe('gretta_smith');
+    expect(q.npcName).toBe('Gretta the Smith');
+    expect(q.description).toBe('Clear 3 bandits from Thornwood');
     expect(q.goalType).toBe('kill_type');
     expect(q.goalCount).toBe(3);
     expect(q.goalEnemyTypes).toEqual([EnemyType.BANDIT, EnemyType.BANDIT_ARCHER]);
@@ -44,6 +50,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.boar_problem;
     expect(q.id).toBe('boar_problem');
     expect(q.name).toBe('The Boar Problem');
+    expect(q.npcId).toBe('old_marta');
+    expect(q.npcName).toBe('Old Marta');
+    expect(q.description).toBe('Slay 2 wild boars in Thornwood');
     expect(q.goalType).toBe('kill_type');
     expect(q.goalCount).toBe(2);
     expect(q.goalEnemyTypes).toEqual([EnemyType.WILD_BOAR]);
@@ -56,6 +65,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.quiet_dead;
     expect(q.id).toBe('quiet_dead');
     expect(q.name).toBe('Silence the Unquiet Dead');
+    expect(q.npcId).toBe('brother_tomas');
+    expect(q.npcName).toBe('Brother Tomas');
+    expect(q.description).toBe('Put 2 skeletons to rest in the chapel ruins');
     expect(q.goalType).toBe('kill_type');
     expect(q.goalCount).toBe(2);
     expect(q.goalEnemyTypes).toEqual([EnemyType.SKELETON]);
@@ -68,6 +80,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.wolves_gate;
     expect(q.id).toBe('wolves_gate');
     expect(q.name).toBe('Wolves at the Gate');
+    expect(q.npcId).toBe('farmer_wulf');
+    expect(q.npcName).toBe('Farmer Wulf');
+    expect(q.description).toBe('Slay 3 wolves in Thornwood');
     expect(q.goalType).toBe('kill_type');
     expect(q.goalCount).toBe(3);
     expect(q.goalEnemyTypes).toEqual([EnemyType.WOLF]);
@@ -80,6 +95,9 @@ describe('QUESTS — exact contract table for all six quests', () => {
     const q = QUESTS.revenant_threat;
     expect(q.id).toBe('revenant_threat');
     expect(q.name).toBe('The Revenant Threat');
+    expect(q.npcId).toBe('duvain_wanderer');
+    expect(q.npcName).toBe('Duvain the Wanderer');
+    expect(q.description).toBe('Defeat the Revenant Knight in Greymoor Crypt');
     expect(q.goalType).toBe('kill_type');
     expect(q.goalCount).toBe(1);
     expect(q.goalEnemyTypes).toEqual([EnemyType.REVENANT_KNIGHT]);
@@ -90,16 +108,19 @@ describe('QUESTS — exact contract table for all six quests', () => {
 });
 
 describe('QUESTS — NPC wiring', () => {
+  // npcId, npcName, and description are pinned to exact literals in the per-quest
+  // contract blocks above. These structural checks verify the wiring still holds
+  // across all quests if new quests are ever added without matching contract tests.
   it('every quest has a non-empty npcId and npcName', () => {
     for (const [id, q] of Object.entries(QUESTS)) {
-      expect(q.npcId.length, `${id}.npcId`).toBeGreaterThan(0);
-      expect(q.npcName.length, `${id}.npcName`).toBeGreaterThan(0);
+      expect(q.npcId, `${id}.npcId`).toBeTruthy();
+      expect(q.npcName, `${id}.npcName`).toBeTruthy();
     }
   });
 
   it('each quest has a non-empty description', () => {
     for (const [id, q] of Object.entries(QUESTS)) {
-      expect(q.description.length, `${id}.description`).toBeGreaterThan(0);
+      expect(q.description, `${id}.description`).toBeTruthy();
     }
   });
 });
