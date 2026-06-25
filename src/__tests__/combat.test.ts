@@ -305,6 +305,61 @@ describe('CombatEngine.playerDefend', () => {
     expect(undefendedDamage).toBe(5); // pin undefended so the assertion is meaningful
     expect(defendedDamage).toBe(2); // max(1, floor(5 * 0.5)) = 2
   });
+
+  it('defend bonus (+1) reaches the executePlayerAttack damage formula — next attack deals 1 more damage', () => {
+    // playerDefend() sets nextAttackBonus=1, and executePlayerAttack adds it to attackPower:
+    //   const attackPower = player.computeWeaponDamage() + this.state.nextAttackBonus
+    // The existing 'sets defending flag and nextAttackBonus' test only checks that the
+    // FIELD is set to 1 — it never verifies the bonus is wired into the attack path.
+    // If the "+this.state.nextAttackBonus" term were removed, all other tests still pass
+    // because they start attacks with nextAttackBonus=0.  This test requires the +1 to
+    // actually flow through to hit point reduction.
+    //
+    // rusty_shortsword: missChance=0, critChance=0, ignoresDefense=0, damageBonus=2
+    // str(5) + damageBonus(2) = 7; skeleton def=4; variance=floor(0.25*4)−1=0
+    // Baseline damage (no bonus):   max(1, 7−4+0) = 3
+    // With defend bonus (+1):       max(1, 8−4+0) = 4
+
+    // Baseline: plain attack without defending
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // miss: 0.5 < 0 = false (no miss)
+      .mockReturnValueOnce(0.25)  // variance: floor(1)−1 = 0
+      .mockReturnValueOnce(0.9);  // crit: 0.9 >= 0 = no crit
+    const baseEngine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    const baseHp = baseEngine.state.enemyHp;
+    baseEngine.playerAttack();
+    const baselineDamage = baseHp - baseEngine.state.enemyHp;
+
+    vi.restoreAllMocks();
+
+    // Defended: playerDefend sets nextAttackBonus=1 then the player strikes
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // miss
+      .mockReturnValueOnce(0.25)  // variance: 0
+      .mockReturnValueOnce(0.9);  // crit: no crit
+    const defEngine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    defEngine.playerDefend(); // nextAttackBonus = 1, phase → ENEMY_ACTION
+    defEngine.state.phase = CombatPhase.PLAYER_ACTION; // skip enemy turn
+    const defHp = defEngine.state.enemyHp;
+    defEngine.playerAttack();
+    const defendDamage = defHp - defEngine.state.enemyHp;
+
+    expect(baselineDamage).toBe(3); // pin baseline so the comparison is grounded
+    expect(defendDamage).toBe(4);   // 3 + 1 from the defend bonus
+  });
+
+  it('defend bonus is reset to 0 after the next attack consumes it', () => {
+    // executePlayerAttack() resets this.state.nextAttackBonus = 0 after computing
+    // attackPower.  If that line were removed, the bonus would persist and every
+    // subsequent attack would also deal extra damage.  This test pins the consume-on-use
+    // contract so the bonus cannot silently accumulate across multiple turns.
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.playerDefend(); // nextAttackBonus = 1
+    engine.state.phase = CombatPhase.PLAYER_ACTION; // skip enemy turn
+    mockAttacks([0.5, 0.25, 0.9]); // no miss, variance=0, no crit
+    engine.playerAttack(); // consumes the bonus
+    expect(engine.state.nextAttackBonus).toBe(0); // bonus spent — not carried to next attack
+  });
 });
 
 describe('CombatEngine.playerPotion', () => {
@@ -1028,6 +1083,20 @@ describe('CombatEngine.getAvailableAbility', () => {
     player.state.classPath = ClassPath.BRIGAND;
     const engine = new CombatEngine(player, makeEnemy());
     expect(engine.getAvailableAbility()).toBe('Intimidate');
+  });
+
+  it('weapon ability takes priority over class ability when both are available at level 3+', () => {
+    // getAvailableAbility() checks weapon abilities first (level >= 3), then class abilities.
+    // If the order of the two blocks were swapped the class ability would shadow the weapon
+    // ability — a Warrior with a dagger at level 3 would see 'Shield Bash' instead of
+    // 'Backstab'.  This test pins the "weapon > class" priority contract.
+    const player = makePlayer();
+    player.equipWeapon('dagger'); // dagger ability: 'Backstab'
+    player.state.level = 3;
+    player.state.classPath = ClassPath.WARRIOR; // class ability: 'Shield Bash'
+    const engine = new CombatEngine(player, makeEnemy());
+    // Weapon ability must win — 'Backstab', not 'Shield Bash'
+    expect(engine.getAvailableAbility()).toBe('Backstab');
   });
 });
 
