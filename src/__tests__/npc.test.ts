@@ -274,7 +274,7 @@ describe('NpcManager.buySelectedItem', () => {
     mgr.openShop(NpcRole.SHOP_WEAPONS);
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('gold');
+    expect(result.message).toBe('Not enough gold!');
   });
 
   it('fails when weapon already owned', () => {
@@ -287,7 +287,7 @@ describe('NpcManager.buySelectedItem', () => {
     const goldAfterFirstBuy = player.state.gold;
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('already own');
+    expect(result.message).toBe('You already own this weapon.');
     // Gold must not be charged a second time when the purchase is rejected.
     expect(player.state.gold).toBe(goldAfterFirstBuy);
     expect(player.state.gold).toBe(999 - item.cost);
@@ -506,8 +506,8 @@ describe('NpcManager.claimQuestReward', () => {
     // forest_menace gives gold + iron_longsword — both must be applied
     expect(player.ownsWeapon(testQuestDef.rewardWeaponId!)).toBe(true);
     expect(result.rewards).toHaveLength(2);
-    expect(result.rewards[0]).toContain(String(testQuestDef.rewardGold));
-    expect(result.rewards[1]).toContain('Iron Longsword');
+    expect(result.rewards[0]).toBe(`Received ${testQuestDef.rewardGold} gold!`);
+    expect(result.rewards[1]).toBe('Received Iron Longsword!');
   });
 
   it('grants potions when quest has potion reward', () => {
@@ -521,7 +521,7 @@ describe('NpcManager.claimQuestReward', () => {
     expect(player.state.gold).toBe(10 + QUESTS.boar_problem.rewardGold);
     expect(player.state.potions).toBe(QUESTS.boar_problem.rewardPotions);
     expect(result.rewards).toHaveLength(2);
-    expect(result.rewards[0]).toContain(String(QUESTS.boar_problem.rewardGold));
+    expect(result.rewards[0]).toBe(`Received ${QUESTS.boar_problem.rewardGold} gold!`);
   });
 
   it('skips weapon reward when player already owns it, returning only gold message', () => {
@@ -534,7 +534,7 @@ describe('NpcManager.claimQuestReward', () => {
     expect(player.state.gold).toBe(10 + testQuestDef.rewardGold);
     // Weapon skipped: only 1 reward message (gold), not 2
     expect(result.rewards).toHaveLength(1);
-    expect(result.rewards[0]).toContain(String(testQuestDef.rewardGold));
+    expect(result.rewards[0]).toBe(`Received ${testQuestDef.rewardGold} gold!`);
   });
 
   it('reward weapon is equipped immediately, not just added to inventory', () => {
@@ -599,7 +599,7 @@ describe('NpcManager.claimQuestReward', () => {
     const result = mgr.claimQuestReward(quest, player, QUESTS.quiet_dead);
     expect(result.success).toBe(true);
     expect(result.rewards).toHaveLength(1);               // only gold — no weapon/potion messages
-    expect(result.rewards[0]).toContain('40');             // quiet_dead.rewardGold = 40
+    expect(result.rewards[0]).toBe('Received 40 gold!');   // quiet_dead.rewardGold = 40
     expect(player.state.gold).toBe(10 + 40);              // 40 gold added
     expect(player.state.weapons).toEqual(weaponsBefore);  // no weapon added or equipped
     expect(player.state.potions).toBe(3);                 // potion count unchanged
@@ -730,7 +730,7 @@ describe('NpcManager — armor shop', () => {
     player.equipArmor(mgr.shopItems[0].armorId!);
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('already own');
+    expect(result.message).toBe('You already own this armor.');
   });
 
   it('refuses to buy armor without enough gold', () => {
@@ -740,7 +740,7 @@ describe('NpcManager — armor shop', () => {
     player.state.gold = 0;
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('Not enough gold');
+    expect(result.message).toBe('Not enough gold!');
   });
 });
 
@@ -751,7 +751,7 @@ describe('NpcManager — misc helpers', () => {
     mgr.shopCursor = 0;
     const result = mgr.buySelectedItem(makePlayer());
     expect(result.success).toBe(false);
-    expect(result.message).toContain('No item selected');
+    expect(result.message).toBe('No item selected.');
   });
 
   it('buySelectedItem returns "Unknown item" for an unrecognised type', () => {
@@ -762,7 +762,7 @@ describe('NpcManager — misc helpers', () => {
     player.addGold(100);
     const result = mgr.buySelectedItem(player);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('Unknown item');
+    expect(result.message).toBe('Unknown item.');
   });
 
   it('getCurrentLine returns null when there is no dialog', () => {
