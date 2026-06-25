@@ -82,6 +82,29 @@ describe('openChest', () => {
     expect(result.messages[0]).toContain('Antique Coin');
   });
 
+  it('antique coin message is exactly "Found an Antique Coin! (+15 gold)"', () => {
+    // Pins the exact in-game message format.  toContain('Antique Coin') above passes
+    // even if the format changes to 'You found an Antique Coin' or the gold bonus is
+    // omitted from the text — either of which would break what the player reads.
+    const result = openChest(makeChest([{ type: 'antique_coin' }]), makePlayer());
+    expect(result.messages[0]).toBe('Found an Antique Coin! (+15 gold)');
+  });
+
+  it('weapon message is exactly "Found <WeaponName>!"', () => {
+    // The existing test uses toContain('Dagger'), which would pass even if the format
+    // changed to 'You found a Dagger!' or 'Dagger obtained'.  This pins the exact
+    // contract so any reformatting is caught before it silently reaches the player.
+    const result = openChest(makeChest([{ type: 'weapon', weaponId: 'dagger' }]), makePlayer());
+    expect(result.messages[0]).toBe('Found Dagger!');
+  });
+
+  it('armor message is exactly "Found <ArmorName>!"', () => {
+    // Same gap as the weapon message: toContain('Shadow Cloak') passes with any prefix
+    // or suffix change.  This test pins the exact in-game string.
+    const result = openChest(makeChest([{ type: 'armor', armorId: 'shadow_cloak' }]), makePlayer());
+    expect(result.messages[0]).toBe('Found Shadow Cloak!');
+  });
+
   it('returns empty chest message for no loot', () => {
     const result = openChest(makeChest([]), makePlayer());
     expect(result.messages[0]).toContain('empty');
