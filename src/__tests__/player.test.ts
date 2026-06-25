@@ -585,9 +585,22 @@ describe('Level rewards', () => {
     expect(p.state.level).toBe(MAX_LEVEL);
   });
 
-  it('every level in LEVEL_REWARDS has a non-empty label', () => {
-    for (const def of Object.values(LEVEL_REWARDS)) {
-      expect(def.label.length).toBeGreaterThan(0);
+  it('every LEVEL_REWARDS entry has the exact label shown to the player', () => {
+    const EXPECTED: Record<number, string> = {
+      2:  '+2 Potions',
+      3:  '+50 Gold',
+      4:  'Iron Longsword',
+      5:  '+5 STR, +5 Max HP',
+      6:  '+100 Gold',
+      7:  'Hand Axe',
+      8:  '+5 DEF, +10 Max HP',
+      9:  '+200 Gold',
+      10: 'War Halberd — MAX',
+    };
+    expect(Object.keys(LEVEL_REWARDS).map(Number).sort((a, b) => a - b))
+      .toEqual(Object.keys(EXPECTED).map(Number).sort((a, b) => a - b));
+    for (const [lvl, def] of Object.entries(LEVEL_REWARDS)) {
+      expect(def.label, `level ${lvl} label`).toBe(EXPECTED[Number(lvl)]);
     }
   });
 
