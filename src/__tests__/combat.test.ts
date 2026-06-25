@@ -360,6 +360,38 @@ describe('CombatEngine.playerDefend', () => {
     engine.playerAttack(); // consumes the bonus
     expect(engine.state.nextAttackBonus).toBe(0); // bonus spent — not carried to next attack
   });
+
+  it('defendingThisTurn is reset after enemyTurn — second undefended turn takes full damage', () => {
+    // Contract: enemyTurn() resets defendingThisTurn=false after the AI acts, so the
+    // damage-halving bonus from playerDefend() expires after exactly one enemy attack.
+    // If the reset at the end of enemyTurn() were removed, a second enemy turn (where
+    // the player never chose to defend) would also deal halved damage — silent regression.
+    //
+    // Setup: makeFastPlayer, def=0, skeleton atk=5, random=0.5 throughout.
+    // playerDef = def(0) + leatherVest.defBonus(1) = 1
+    // raw damage = max(1, 5-1+1) = 5; defended = max(1, floor(5*0.5)) = 2
+    const p = makeFastPlayer();
+    p.state.def = 0;
+    const engine = new CombatEngine(p, makeEnemy(EnemyType.SKELETON));
+
+    // Turn 1: player defends → enemy attacks at half damage
+    engine.playerDefend(); // defendingThisTurn=true, phase→ENEMY_ACTION
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const hpBeforeTurn1 = engine.state.playerHp;
+    engine.enemyTurn();
+    const damageTurn1 = hpBeforeTurn1 - engine.state.playerHp;
+    expect(damageTurn1).toBe(2); // halved — pin so the contrast below is meaningful
+
+    // After enemyTurn(), the flag must be gone — no defend action this round
+    expect(engine.state.defendingThisTurn).toBe(false);
+
+    // Turn 2: force another enemy turn without the player defending
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    const hpBeforeTurn2 = engine.state.playerHp;
+    engine.enemyTurn();
+    const damageTurn2 = hpBeforeTurn2 - engine.state.playerHp;
+    expect(damageTurn2).toBe(5); // full damage — defend did not bleed into this turn
+  });
 });
 
 describe('CombatEngine.playerPotion', () => {
