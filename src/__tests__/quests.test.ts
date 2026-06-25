@@ -108,19 +108,40 @@ describe('QUESTS — exact contract table for all six quests', () => {
 });
 
 describe('QUESTS — NPC wiring', () => {
-  // npcId, npcName, and description are pinned to exact literals in the per-quest
-  // contract blocks above. These structural checks verify the wiring still holds
-  // across all quests if new quests are ever added without matching contract tests.
-  it('every quest has a non-empty npcId and npcName', () => {
+  // Pin exact npcId/npcName/description for every quest so a silent rename,
+  // copy-paste error, or new quest without a contract test is caught immediately.
+  const EXPECTED_NPC: Record<string, { npcId: string; npcName: string }> = {
+    forest_menace:   { npcId: 'elder_aldric',   npcName: 'Elder Aldric' },
+    bandit_steel:    { npcId: 'gretta_smith',    npcName: 'Gretta the Smith' },
+    boar_problem:    { npcId: 'old_marta',       npcName: 'Old Marta' },
+    quiet_dead:      { npcId: 'brother_tomas',   npcName: 'Brother Tomas' },
+    wolves_gate:     { npcId: 'farmer_wulf',     npcName: 'Farmer Wulf' },
+    revenant_threat: { npcId: 'duvain_wanderer', npcName: 'Duvain the Wanderer' },
+  };
+
+  const EXPECTED_DESC: Record<string, string> = {
+    forest_menace:   'Defeat 5 enemies in Thornwood',
+    bandit_steel:    'Clear 3 bandits from Thornwood',
+    boar_problem:    'Slay 2 wild boars in Thornwood',
+    quiet_dead:      'Put 2 skeletons to rest in the chapel ruins',
+    wolves_gate:     'Slay 3 wolves in Thornwood',
+    revenant_threat: 'Defeat the Revenant Knight in Greymoor Crypt',
+  };
+
+  it('quest key set matches the expected table exactly', () => {
+    expect(Object.keys(QUESTS).sort()).toEqual(Object.keys(EXPECTED_NPC).sort());
+  });
+
+  it('every quest has the exact npcId and npcName', () => {
     for (const [id, q] of Object.entries(QUESTS)) {
-      expect(q.npcId, `${id}.npcId`).toBeTruthy();
-      expect(q.npcName, `${id}.npcName`).toBeTruthy();
+      expect(q.npcId,   `${id}.npcId`  ).toBe(EXPECTED_NPC[id].npcId);
+      expect(q.npcName, `${id}.npcName`).toBe(EXPECTED_NPC[id].npcName);
     }
   });
 
-  it('each quest has a non-empty description', () => {
+  it('every quest has the exact description shown to the player', () => {
     for (const [id, q] of Object.entries(QUESTS)) {
-      expect(q.description, `${id}.description`).toBeTruthy();
+      expect(q.description, `${id}.description`).toBe(EXPECTED_DESC[id]);
     }
   });
 });
