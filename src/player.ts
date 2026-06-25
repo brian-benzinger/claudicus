@@ -126,9 +126,7 @@ export class PlayerManager {
         if (reward.bonusAgi)     { this.state.agi += reward.bonusAgi; }
         if (reward.bonusGold)    { this.state.gold += reward.bonusGold; }
         if (reward.bonusPotions) { this.state.potions = Math.min(MAX_POTIONS, this.state.potions + reward.bonusPotions); }
-        if (reward.weaponId && !this.state.weapons.includes(reward.weaponId)) {
-          this.state.weapons.push(reward.weaponId);
-        }
+        if (reward.weaponId) { this.addWeaponToInventory(reward.weaponId); }
       }
 
       this.state.hp = this.state.maxHp; // Full heal on level up
@@ -153,9 +151,7 @@ export class PlayerManager {
 
   // Equip a weapon (adds to owned list if not already there)
   equipWeapon(weaponId: string): void {
-    if (!this.state.weapons.includes(weaponId)) {
-      this.state.weapons.push(weaponId);
-    }
+    this.addWeaponToInventory(weaponId);
     this.state.weaponId = weaponId;
   }
 
@@ -173,9 +169,7 @@ export class PlayerManager {
 
   // Equip an armor piece (adds to owned list if not already there)
   equipArmor(armorId: string): void {
-    if (!this.state.armors.includes(armorId)) {
-      this.state.armors.push(armorId);
-    }
+    this.addArmorToInventory(armorId);
     this.state.armorId = armorId;
   }
 
