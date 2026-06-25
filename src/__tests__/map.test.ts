@@ -631,7 +631,29 @@ describe('MapManager.render', () => {
     expect(() => mgr.render(ctx, 5)).not.toThrow();
   });
 
-  it('renders opened chests and dead enemies (alternate branches)', () => {
+  it('dead enemies are omitted from the draw-call sequence', () => {
+    // Contract: render() guards enemy drawing with `if (enemy.alive)`.
+    // Killing an on-screen enemy must reduce the total draw-call count — if the
+    // guard were removed, the count would be identical and the dead sprite would
+    // appear on screen.  Enemy[0] (Wolf at tile 8,5) is visible when camera is
+    // at (0,0) on the 40×30 forest map.
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    mgr.updateCamera(0, 0);
+
+    const { ctx: ctxAlive, calls: callsAlive } = makeCtx();
+    mgr.render(ctxAlive, 0);
+    const aliveCallCount = callsAlive.length;
+
+    mgr.currentMap.enemies[0].alive = false; // kill the on-screen wolf
+    const { ctx: ctxDead, calls: callsDead } = makeCtx();
+    mgr.render(ctxDead, 0);
+
+    expect(callsDead.length).toBeLessThan(aliveCallCount);
+  });
+
+  it('renders opened chests and dead enemies (alternate branches) without throwing', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
     mgr.loadMap('forest');
