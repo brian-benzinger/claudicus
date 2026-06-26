@@ -3174,3 +3174,62 @@ describe('CombatEngine — exact log message: Backstab flavor messages', () => {
     expect(engine.state.log).toContain('You go for a backstab!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message: player attack damage format
+//
+// Existing tests check HP reductions or use l.includes('damage') / l.includes(N),
+// passing even if the format changes from "You deal 3 damage." to "You hit for 3"
+// or "3 damage dealt".  Pinning the exact string catches verb, article, and
+// punctuation drift before it silently reaches the player's combat log.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: player attack damage format', () => {
+  it('logs exactly "You deal N damage." on a non-crit hit', () => {
+    // Setup: dagger (missChance=0, critChance=0.3, damageBonus=1); player str=5
+    // → attackPower=6.  Skeleton def=4, effectiveDef=4*(1-0)=4.
+    // mockAttacks: miss=0.5 (no miss, dagger missChance=0 so any value works),
+    //   variance=0.5 → floor(0.5*4)-1=1, crit=0.5 (0.5<0.3=false → no crit).
+    // damage = max(1, floor(6-4+1)) = 3 → "You deal 3 damage."
+    // If the verb changed to "hit for" or the period became "!" this test fails.
+    mockAttacks([0.5, 0.5, 0.5]); // no miss, variance=1, no crit
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.playerAttack();
+    expect(engine.state.log).toContain('You deal 3 damage.');
+  });
+
+  it('logs exactly "Critical hit! You deal N damage!" on a crit', () => {
+    // Same weapon/enemy; crit=0 (0<0.3=true) → damage doubled: 3*2=6.
+    // Pinning "Critical hit! You deal 6 damage!" locks the exclamation marks,
+    // capitalization, and the exact phrasing of the two-part crit message.
+    // If either half were dropped or the separator changed from "! " to ": "
+    // the existing l.includes('Critical hit!') check would still pass.
+    mockAttacks([0.5, 0.5, 0]); // no miss, variance=1, crit (0<0.3=true)
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.playerAttack();
+    expect(engine.state.log).toContain('Critical hit! You deal 6 damage!');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exact log message: enemy attack damage format
+//
+// The same gap exists on the enemy side: tests check playerHp or
+// l.includes('deals') + toContain(digit), not the full sentence.
+// Pinning "The Bandit deals N damage." locks the article, verb, and period.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: enemy attack damage format', () => {
+  it('logs exactly "The Bandit deals N damage." on a basic enemy attack', () => {
+    // Setup: BANDIT (atk=6), makePlayer (def=3, leather_vest defBonus=1 → effectiveDef=4).
+    // Full HP (hpPercent=1 → not desperate), random=0.5:
+    //   – defending check: 0.5 < 0.20 = false → attack executes
+    //   – variance = floor(0.5*4)-1 = 1; damage = max(1, floor(6-4+1)) = 3; no crit.
+    // If the message changed to "Bandit hits you for 3" or "The Bandit deals 3!"
+    // (missing the trailing period) the existing includes('deals') checks pass
+    // while this test fails, surfacing the regression.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.BANDIT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Bandit deals 3 damage.');
+  });
+});
