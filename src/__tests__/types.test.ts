@@ -56,6 +56,24 @@ describe('createDefaultPlayer', () => {
     a.gold = 999;
     expect(b.gold).toBe(10);
   });
+
+  it('produces independent array and object fields each call — not shared references', () => {
+    // The existing independence test only checks a primitive field (gold).
+    // Mutable arrays and nested objects would alias if createDefaultPlayer() ever
+    // returned a shallow copy of a shared constant (e.g. `{ ...DEFAULTS }`), so
+    // mutating one player's weapons, armors, earnedTitles, or materials must not
+    // affect a second player created in the same session.
+    const a = createDefaultPlayer();
+    const b = createDefaultPlayer();
+    a.weapons.push('iron_longsword');
+    expect(b.weapons).not.toContain('iron_longsword');
+    a.armors.push('chain_mail');
+    expect(b.armors).not.toContain('chain_mail');
+    a.earnedTitles.push('wolfsbane');
+    expect(b.earnedTitles).not.toContain('wolfsbane');
+    a.materials.wolf_pelt = 5;
+    expect(b.materials.wolf_pelt).toBe(0);
+  });
 });
 
 describe('createDefaultQuest', () => {
@@ -75,6 +93,21 @@ describe('createDefaultWorld', () => {
     expect(w.defeatedEnemies).toEqual([]);
     expect(w.killCounts).toEqual({ wolf: 0, bandit: 0 });
     expect(w.survivedLowHp).toBe(0);
+  });
+
+  it('produces independent objects each call — arrays and killCounts are not shared references', () => {
+    // createDefaultWorld() creates openedChests:[], defeatedEnemies:[], and
+    // killCounts:{} on each call.  A shallow copy of a shared constant would
+    // alias all three; mutations on one WorldState would silently corrupt another
+    // (e.g. the new-game world vs. a save loaded mid-session).
+    const a = createDefaultWorld();
+    const b = createDefaultWorld();
+    a.openedChests.push('chest_1');
+    expect(b.openedChests).toEqual([]);
+    a.defeatedEnemies.push('enemy_1');
+    expect(b.defeatedEnemies).toEqual([]);
+    a.killCounts.wolf = 99;
+    expect(b.killCounts.wolf).toBe(0);
   });
 });
 
