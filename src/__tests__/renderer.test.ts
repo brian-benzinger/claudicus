@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { drawPlayer, drawTile, drawEnemy } from '../renderer';
-import { TileType, EnemyType, WeaponSpeed, TILE_SIZE } from '../types';
+import { drawPlayer, drawTile, drawEnemy, drawChest, drawNpc } from '../renderer';
+import { TileType, EnemyType, WeaponSpeed, TILE_SIZE, NpcRole } from '../types';
 
 // ---------------------------------------------------------------------------
 // Minimal canvas mock that records every draw call
@@ -591,5 +591,291 @@ describe('drawEnemy — REVENANT_KNIGHT visual details', () => {
     drawEnemy(c2, EnemyType.REVENANT_KNIGHT, 64, 96);
     // Same number of draw operations regardless of position
     expect(calls1.length).toBe(calls2.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// drawChest — open vs closed visual contract
+//
+// drawChest is an exported renderer function with two clearly distinct visual
+// branches.  The map render tests call render() and check aggregate call counts,
+// but they do not pin the exact rect positions or colors that define whether a
+// chest looks open or closed to the player.  These tests pin that contract.
+//
+// COLORS used: wood=#6b4423, woodLight=#8b5a2b, gold=#ffd700
+// ---------------------------------------------------------------------------
+describe('drawChest — closed chest visual contract', () => {
+  it('produces exactly 3 fillRects: body, lid, clasp — in that order', () => {
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, false);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills.length).toBe(3);
+  });
+
+  it('body rect is wood (#6b4423) at (6,12,20,16)', () => {
+    // The body is the tallest rect — covers the main chest box.
+    // If its position shifts or it uses the wrong color, the chest blends into
+    // the wrong terrain and the player cannot locate interactive objects.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, false);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[0].fillStyle).toBe('#6b4423');
+    expect(fills[0].args).toEqual([6, 12, 20, 16]);
+  });
+
+  it('lid rect is woodLight (#8b5a2b) at (6,12,20,6)', () => {
+    // The lighter lid visually separates the chest top from its body.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, false);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[1].fillStyle).toBe('#8b5a2b');
+    expect(fills[1].args).toEqual([6, 12, 20, 6]);
+  });
+
+  it('clasp rect is gold (#ffd700) at (14,16,4,6)', () => {
+    // The gold clasp is the only closed-chest detail that signals "locked, not empty."
+    // Its position must sit on the lid seam (y=16) to look correct.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, false);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[2].fillStyle).toBe('#ffd700');
+    expect(fills[2].args).toEqual([14, 16, 4, 6]);
+  });
+
+  it('x,y offset is applied to every rect', () => {
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 32, 64, false);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[0].args).toEqual([32 + 6, 64 + 12, 20, 16]); // body
+    expect(fills[2].args).toEqual([32 + 14, 64 + 16, 4, 6]); // clasp
+  });
+});
+
+describe('drawChest — open chest visual contract', () => {
+  it('produces exactly 4 fillRects: base, open lid, two gold glints', () => {
+    // An open chest reveals contents with a second gold glint not present when closed.
+    // If the branch accidentally rendered the closed chest, this count would be 3.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, true);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills.length).toBe(4);
+  });
+
+  it('base rect is wood (#6b4423) at (6,16,20,12) — shorter than closed body', () => {
+    // Open chest: base is y=16 (shifted down) and shorter (h=12 vs h=16).
+    // If these don't differ from the closed chest, the two states are visually identical.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, true);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[0].fillStyle).toBe('#6b4423');
+    expect(fills[0].args).toEqual([6, 16, 20, 12]);
+  });
+
+  it('open lid rect is woodLight (#8b5a2b) at (6,8,20,8) — raised higher than closed lid', () => {
+    // The open lid is raised to y=8 (vs y=12 when closed), showing it swung open.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, true);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[1].fillStyle).toBe('#8b5a2b');
+    expect(fills[1].args).toEqual([6, 8, 20, 8]);
+  });
+
+  it('first gold glint is gold (#ffd700) at (10,18,4,4)', () => {
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, true);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[2].fillStyle).toBe('#ffd700');
+    expect(fills[2].args).toEqual([10, 18, 4, 4]);
+  });
+
+  it('second gold glint is gold (#ffd700) at (16,20,3,3)', () => {
+    // Two gold pieces in the interior signal the chest has loot.
+    // The second glint is smaller (3×3) and offset right, adding visual depth.
+    const { ctx, calls } = makeCtx();
+    drawChest(ctx, 0, 0, true);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    expect(fills[3].fillStyle).toBe('#ffd700');
+    expect(fills[3].args).toEqual([16, 20, 3, 3]);
+  });
+
+  it('open chest has more fillRects than closed — branches are visually distinct', () => {
+    const { ctx: cClosed, calls: closedCalls } = makeCtx();
+    const { ctx: cOpen, calls: openCalls } = makeCtx();
+    drawChest(cClosed, 0, 0, false);
+    drawChest(cOpen, 0, 0, true);
+    const closedFills = closedCalls.filter(c => c.method === 'fillRect').length;
+    const openFills = openCalls.filter(c => c.method === 'fillRect').length;
+    expect(openFills).toBeGreaterThan(closedFills);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// drawNpc — body, eyes, and optional visual feature contracts
+//
+// At frame=0, Math.sin(0) = 0 so bob=0 and all positions are exact offsets.
+// The map render tests verify drawNpc is called, but none pin the exact body
+// rect, eye positions, or the optional apron/hood/hat branches that visually
+// distinguish each NPC.
+// ---------------------------------------------------------------------------
+
+function makeNpc(overrides: Partial<Parameters<typeof drawNpc>[1]> = {}): Parameters<typeof drawNpc>[1] {
+  return {
+    id: 'test_npc',
+    name: 'Test NPC',
+    tileX: 0,
+    tileY: 0,
+    role: NpcRole.QUEST,
+    color: '#aabbcc',
+    dialogs: { default: ['Hello.'] },
+    ...overrides,
+  } as Parameters<typeof drawNpc>[1];
+}
+
+describe('drawNpc — body and eye contract (frame=0, bob=0)', () => {
+  it('body rect uses npc.color at (6,10,20,18)', () => {
+    // The body rect position is the primary collision point for "which NPC is here".
+    // If it shifts or uses the wrong color, the NPC is invisible against backgrounds.
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc({ color: '#aabbcc' }), 0, 0, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const body = fills.find(f => f.args[2] === 20 && f.args[3] === 18);
+    expect(body).toBeDefined();
+    expect(body!.fillStyle).toBe('#aabbcc');
+    expect(body!.args).toEqual([6, 10, 20, 18]);
+  });
+
+  it('left eye is textDark (#000000) at (13,7,2,2)', () => {
+    // Eyes are the player's primary cue that an NPC is a person and can be interacted with.
+    // If eye positions shift, NPCs look expressionless and the visual language breaks.
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc(), 0, 0, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const leftEye = fills.find(f =>
+      f.fillStyle === '#000000' && (f.args as number[])[0] === 13
+    );
+    expect(leftEye).toBeDefined();
+    expect(leftEye!.args).toEqual([13, 7, 2, 2]);
+  });
+
+  it('right eye is textDark (#000000) at (17,7,2,2)', () => {
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc(), 0, 0, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const rightEye = fills.find(f =>
+      f.fillStyle === '#000000' && (f.args as number[])[0] === 17
+    );
+    expect(rightEye).toBeDefined();
+    expect(rightEye!.args).toEqual([17, 7, 2, 2]);
+  });
+
+  it('left leg rect is at (8,26,6,6)', () => {
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc(), 0, 0, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const leftLeg = fills.find(f => (f.args as number[])[0] === 8 && (f.args as number[])[1] === 26);
+    expect(leftLeg).toBeDefined();
+    expect(leftLeg!.args).toEqual([8, 26, 6, 6]);
+  });
+
+  it('x,y offset is applied — body rect shifts with position', () => {
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc(), 32, 64, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const body = fills.find(f => f.args[2] === 20 && f.args[3] === 18);
+    expect(body!.args).toEqual([32 + 6, 64 + 10, 20, 18]);
+  });
+});
+
+describe('drawNpc — apron branch', () => {
+  it('NPC with apronColor draws more fillRects than one without', () => {
+    // apronColor adds 3 extra rects (apron body + 2 apron strings).
+    // If the apron branch were accidentally removed, apprentice-type NPCs would
+    // look identical to plain NPCs, breaking their visual identity.
+    const { ctx: cPlain, calls: plainCalls } = makeCtx();
+    const { ctx: cApron, calls: apronCalls } = makeCtx();
+    drawNpc(cPlain, makeNpc(), 0, 0, 0);
+    drawNpc(cApron, makeNpc({ apronColor: '#cc6600' }), 0, 0, 0);
+    const plainFills = plainCalls.filter(c => c.method === 'fillRect').length;
+    const apronFills = apronCalls.filter(c => c.method === 'fillRect').length;
+    expect(apronFills).toBe(plainFills + 3); // apron body + 2 strings
+  });
+
+  it('apron body rect uses apronColor at (9,13,14,13)', () => {
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc({ apronColor: '#cc6600' }), 0, 0, 0);
+    const fills = calls.filter(c => c.method === 'fillRect');
+    const apron = fills.find(f => f.fillStyle === '#cc6600' && f.args[2] === 14 && f.args[3] === 13);
+    expect(apron).toBeDefined();
+    expect(apron!.args).toEqual([9, 13, 14, 13]);
+  });
+});
+
+describe('drawNpc — hood hat branch', () => {
+  it('NPC with hatStyle="hood" draws arcs (not just rects)', () => {
+    // Hood-style hat draws two arcs (hood body + point via moveTo/lineTo/fill).
+    // If hood were replaced with rects, a monk-type NPC would lose its visual identity.
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc({ hatColor: '#4a3770', hatStyle: 'hood' }), 0, 0, 0);
+    const arcs = calls.filter(c => c.method === 'arc');
+    // At minimum: 1 hood arc + 1 head arc = 2 arcs
+    expect(arcs.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('NPC without hat draws exactly 1 arc (head only)', () => {
+    // Baseline: a plain NPC draws only the head circle. Any hat or hood adds more arcs.
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc(), 0, 0, 0);
+    const arcs = calls.filter(c => c.method === 'arc');
+    expect(arcs.length).toBe(1);
+  });
+});
+
+describe('drawNpc — tall and wide hat branches', () => {
+  it('NPC with hatStyle="tall" draws more fillRects than one with no hat', () => {
+    // Tall hat adds 2 fillRects (crown + brim). Elder NPCs use this style.
+    const { ctx: cPlain, calls: plainCalls } = makeCtx();
+    const { ctx: cHat, calls: hatCalls } = makeCtx();
+    drawNpc(cPlain, makeNpc(), 0, 0, 0);
+    drawNpc(cHat, makeNpc({ hatColor: '#2a1a0a', hatStyle: 'tall' }), 0, 0, 0);
+    const plainFills = plainCalls.filter(c => c.method === 'fillRect').length;
+    const hatFills = hatCalls.filter(c => c.method === 'fillRect').length;
+    expect(hatFills).toBe(plainFills + 2);
+  });
+
+  it('NPC with hatStyle="wide" draws more fillRects than one with no hat', () => {
+    // Wide hat adds 2 fillRects (crown + brim). Farmer/herbalist NPCs use this style.
+    const { ctx: cPlain, calls: plainCalls } = makeCtx();
+    const { ctx: cHat, calls: hatCalls } = makeCtx();
+    drawNpc(cPlain, makeNpc(), 0, 0, 0);
+    drawNpc(cHat, makeNpc({ hatColor: '#3a2a1a', hatStyle: 'wide' }), 0, 0, 0);
+    const plainFills = plainCalls.filter(c => c.method === 'fillRect').length;
+    const hatFills = hatCalls.filter(c => c.method === 'fillRect').length;
+    expect(hatFills).toBe(plainFills + 2);
+  });
+
+  it('tall and wide hats produce the same fillRect count (both add 2)', () => {
+    // Both hat styles differ in geometry, not quantity.
+    // If one style accidentally added 3 rects, this catches the divergence.
+    const { ctx: cTall, calls: tallCalls } = makeCtx();
+    const { ctx: cWide, calls: wideCalls } = makeCtx();
+    drawNpc(cTall, makeNpc({ hatColor: '#2a1a0a', hatStyle: 'tall' }), 0, 0, 0);
+    drawNpc(cWide, makeNpc({ hatColor: '#3a2a1a', hatStyle: 'wide' }), 0, 0, 0);
+    const tallFills = tallCalls.filter(c => c.method === 'fillRect').length;
+    const wideFills = wideCalls.filter(c => c.method === 'fillRect').length;
+    expect(tallFills).toBe(wideFills);
+  });
+});
+
+describe('drawNpc — hairColor branch', () => {
+  it('NPC with hairColor draws 3 more fillRects than one without', () => {
+    // hairColor adds: left tuft, right tuft, chin — 3 rects total.
+    // Beard NPCs (e.g. Elder) rely on this branch for their visual identity.
+    const { ctx: cPlain, calls: plainCalls } = makeCtx();
+    const { ctx: cHair, calls: hairCalls } = makeCtx();
+    drawNpc(cPlain, makeNpc(), 0, 0, 0);
+    drawNpc(cHair, makeNpc({ hairColor: '#5c3a1e' }), 0, 0, 0);
+    const plainFills = plainCalls.filter(c => c.method === 'fillRect').length;
+    const hairFills = hairCalls.filter(c => c.method === 'fillRect').length;
+    expect(hairFills).toBe(plainFills + 3);
   });
 });
