@@ -78,6 +78,19 @@ describe('InputManager', () => {
       input.flushFrame();
       expect(input.wasJustPressed('a')).toBe(false); // guard must have fired
     });
+
+    it('re-press after release triggers wasJustPressed again', () => {
+      // Pins the full tap-release-tap lifecycle.  If onKeyUp ever fails to clear
+      // the `held` set, the second press looks like a browser key-repeat and
+      // wasJustPressed stays false — breaking any action the player taps twice
+      // in quick succession (e.g., two consecutive combat attacks or menu presses).
+      press('a');
+      input.flushFrame();  // first press registered
+      release('a');        // held cleared
+      press('a');          // fresh press — must NOT be treated as a key-repeat
+      input.flushFrame();
+      expect(input.wasJustPressed('a')).toBe(true);
+    });
   });
 
   describe('movement helpers', () => {
