@@ -361,6 +361,52 @@ describe('NpcManager.buySelectedItem', () => {
     const result = mgr.buySelectedItem(player);
     expect(result.message).toBe('Cannot carry more potions!');
   });
+
+  it('weapon purchase success message is exactly "Purchased <WeaponName>!"', () => {
+    // All refusal messages in buySelectedItem are pinned, but the success path was missing
+    // a message contract.  If the format changed to "Bought Iron Longsword!" or the item
+    // name were omitted ("Purchased weapon!"), the player's purchase confirmation text
+    // would silently break with no test failing.
+    // The weapons shop stocks Iron Longsword (index 0); its name must appear verbatim.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.gold = 999;
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    mgr.shopCursor = 0;
+    const item = mgr.shopItems[0]; // Iron Longsword
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(result.message).toBe(`Purchased ${item.name}!`);
+  });
+
+  it('potion purchase success message is exactly "Purchased Health Potion!"', () => {
+    // The potion success path is the only branch in buySelectedItem whose success
+    // message is a fixed string rather than interpolating item.name.  If the string
+    // changed (e.g. "Purchased 1 Health Potion!" or "Health Potion purchased!") the
+    // UI confirmation text would drift silently.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 0;
+    player.state.gold = 10;
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Purchased Health Potion!');
+  });
+
+  it('armor purchase success message is exactly "Purchased <ArmorName>!"', () => {
+    // Mirrors the weapon success message pin above for the armor shop.
+    // The armor shop stocks Chain Mail (index 0); its name must appear verbatim.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.addGold(1000);
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    mgr.shopCursor = 0;
+    const item = mgr.shopItems[0]; // Chain Mail
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(result.message).toBe(`Purchased ${item.name}!`);
+  });
 });
 
 describe('NpcManager.startQuest / recordEnemyDefeated', () => {
