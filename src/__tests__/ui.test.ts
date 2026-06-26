@@ -321,10 +321,14 @@ describe('UIRenderer.drawCombatLog — log line contracts', () => {
     // the log length.  With an empty array the forEach produces zero fillText
     // calls, but the frame must still be present — a gutted "if (!log.length)
     // return" guard that skips the frame entirely would break the UI layout.
+    // Pin exact count and coordinates so silent position/size regressions
+    // (e.g. wrong logY, wrong width) are caught at the same time.
     const { ctx, textCalls, rectCalls } = makeCtx();
     ui.drawCombatLog(ctx, []);
     expect(textCalls).toHaveLength(0);
-    expect(rectCalls.length).toBeGreaterThanOrEqual(1);
+    expect(rectCalls).toHaveLength(1);
+    // logY = CANVAS_HEIGHT(640) - 180 = 460; width = CANVAS_WIDTH(960) - 40 = 920
+    expect(rectCalls[0]).toEqual({ x: 20, y: 460, w: 920, h: 80 });
   });
 });
 
