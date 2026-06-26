@@ -319,6 +319,21 @@ describe('NpcManager.buySelectedItem', () => {
     expect(player.state.potions).toBe(10);
     expect(player.state.gold).toBe(100);
   });
+
+  it('potion-full refusal message is exactly "Cannot carry more potions!"', () => {
+    // Every other refusal message in buySelectedItem is pinned by a test:
+    // "Not enough gold!", "You already own this weapon.", "You already own this armor.",
+    // "No item selected.", "Unknown item." — but the potion-full path was missing a message
+    // pin.  If the string changed (e.g. to "Your potion bag is full!") the UI feedback
+    // would shift silently with no test failing.
+    const mgr = new NpcManager();
+    const player = makePlayer();
+    player.state.potions = 10;
+    player.state.gold = 100;
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const result = mgr.buySelectedItem(player);
+    expect(result.message).toBe('Cannot carry more potions!');
+  });
 });
 
 describe('NpcManager.startQuest / recordEnemyDefeated', () => {
