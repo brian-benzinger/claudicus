@@ -176,12 +176,19 @@ describe('createNewGameData', () => {
     expect(data.world.openedChests).toEqual([]);
   });
 
-  it('initialises all six quests', () => {
+  it('initialises all six quests with every field in the uncompleted state', () => {
+    // The previous test only checked `started` and `count`.  If createNewGameData()
+    // accidentally returned quests with completed=true or rewardClaimed=true (e.g.,
+    // a copy-paste from save-loading code), new-game progress would be corrupted
+    // with no test failing.
     const data = createNewGameData();
-    expect(Object.keys(data.quests)).toHaveLength(6);
+    const EXPECTED_IDS = ['forest_menace', 'bandit_steel', 'boar_problem', 'quiet_dead', 'wolves_gate', 'revenant_threat'];
+    expect(Object.keys(data.quests).sort()).toEqual(EXPECTED_IDS.slice().sort());
     for (const q of Object.values(data.quests)) {
       expect(q.started).toBe(false);
       expect(q.count).toBe(0);
+      expect(q.completed).toBe(false);
+      expect(q.rewardClaimed).toBe(false);
     }
   });
 });

@@ -215,15 +215,19 @@ describe('MusicEngine — with mocked AudioContext', () => {
     spy.mockRestore();
   });
 
-  it('play() schedules every track without throwing', () => {
+  it('play() switches currentTrack to each track in sequence', () => {
+    // The original test only asserted the *last* track after the loop. If play()
+    // silently failed for 'village', 'forest', or 'dungeon' (e.g., due to an
+    // early-return guard), currentTrack would be wrong mid-loop while the final
+    // 'combat' assertion still passed.  Pin each transition individually.
     const engine = new MusicEngine();
     engine.init();
     for (const track of ['village', 'forest', 'dungeon', 'combat'] as TrackName[]) {
       engine.play(track);
+      expect(engine.currentTrack).toBe(track);
       mockTime += 10;
       vi.advanceTimersByTime(40);
     }
-    expect(engine.currentTrack).toBe('combat');
   });
 
   it('stop() clears the scheduler and resets the track name', () => {
