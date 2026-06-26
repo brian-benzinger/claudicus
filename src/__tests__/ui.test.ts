@@ -420,3 +420,95 @@ describe('UIRenderer.drawCraftMenu — content contracts', () => {
     expect(textCalls.some(c => c.text === 'Wolf Pelts: 0   Bandit Steel: 0')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawCraftMenu — cursor selection highlight position contract
+//
+// The existing drawCraftMenu tests always pass cursor=0 and use a makeCtx()
+// where fillRect is a no-op.  That means if the highlight logic
+// (`if (i === cursor) { fillRect(...highlight...) }`) were broken — e.g.
+// always highlighting row 0 regardless of cursor, or never highlighting
+// anything — every existing test would still pass silently.
+//
+// These tests use a richer ctx mock that snapshots fillStyle at each fillRect
+// call, then assert that:
+//   1. Exactly one highlight appears per render (not zero, not three).
+//   2. The highlighted row's y-coordinate matches the cursor index.
+//
+// Coordinate derivation (ui.ts drawCraftMenu):
+//   menuX = (CANVAS_WIDTH-480)/2 = 240; menuY = (CANVAS_HEIGHT-340)/2 = 150
+//   itemY(i) = menuY + 90 + i*55  →  240, 295, 350  for i=0,1,2
+//   highlight y = itemY - 20       →  220, 275, 330  for i=0,1,2
+//   highlight rect: (menuX+10, itemY-20, menuWidth-20, 50) = (250, y, 460, 50)
+//
+// If i===cursor were changed to i===0 (always row 0), cursor=1 and cursor=2
+// tests would see y=220 instead of 275/330 and fail.
+// If the branch were removed entirely, all three "exactly one" checks fail.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawCraftMenu — cursor selection highlight position', () => {
+  const ui = new UIRenderer();
+
+  // Richer context that snapshots fillStyle at the moment fillRect is called.
+  function makeFillCtx() {
+    const fillRectCalls: { fillStyle: string; x: number; y: number; w: number; h: number }[] = [];
+    let _fillStyle = '';
+    const noop = () => {};
+    const ctx = {
+      get fillStyle() { return _fillStyle; },
+      set fillStyle(v: string) { _fillStyle = v; },
+      strokeStyle: '', lineWidth: 1, globalAlpha: 1,
+      font: '', textAlign: 'left' as CanvasTextAlign,
+      fillRect: (x: number, y: number, w: number, h: number) => {
+        fillRectCalls.push({ fillStyle: _fillStyle, x, y, w, h });
+      },
+      strokeRect: noop, beginPath: noop, closePath: noop, arc: noop,
+      fill: noop, stroke: noop, moveTo: noop, lineTo: noop,
+      save: noop, restore: noop, translate: noop, scale: noop,
+      fillText: noop,
+      measureText: () => ({ width: 0 }),
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, fillRectCalls };
+  }
+
+  const HIGHLIGHT_COLOR = 'rgba(100, 80, 60, 0.5)';
+
+  it('cursor=0 produces exactly one highlight and it is at y=220 (row 0)', () => {
+    const { ctx, fillRectCalls } = makeFillCtx();
+    ui.drawCraftMenu(ctx, createDefaultPlayer(), 0);
+    const highlights = fillRectCalls.filter(c => c.fillStyle === HIGHLIGHT_COLOR);
+    expect(highlights).toHaveLength(1);
+    expect(highlights[0].y).toBe(220);
+  });
+
+  it('cursor=1 produces exactly one highlight and it is at y=275 (row 1), not y=220 (row 0)', () => {
+    // If `if (i === cursor)` were changed to `if (i === 0)` this would fail:
+    // the highlight would appear at y=220 (row 0) rather than y=275 (row 1).
+    const { ctx, fillRectCalls } = makeFillCtx();
+    ui.drawCraftMenu(ctx, createDefaultPlayer(), 1);
+    const highlights = fillRectCalls.filter(c => c.fillStyle === HIGHLIGHT_COLOR);
+    expect(highlights).toHaveLength(1);
+    expect(highlights[0].y).toBe(275);
+  });
+
+  it('cursor=2 produces exactly one highlight and it is at y=330 (row 2)', () => {
+    const { ctx, fillRectCalls } = makeFillCtx();
+    ui.drawCraftMenu(ctx, createDefaultPlayer(), 2);
+    const highlights = fillRectCalls.filter(c => c.fillStyle === HIGHLIGHT_COLOR);
+    expect(highlights).toHaveLength(1);
+    expect(highlights[0].y).toBe(330);
+  });
+
+  it('highlight rect is always (x=250, w=460, h=50) regardless of cursor row', () => {
+    // The x, width, and height of the selection box are fixed constants that
+    // must not be accidentally changed to match a per-row variable.
+    for (const cursor of [0, 1, 2]) {
+      const { ctx, fillRectCalls } = makeFillCtx();
+      ui.drawCraftMenu(ctx, createDefaultPlayer(), cursor);
+      const h = fillRectCalls.find(c => c.fillStyle === HIGHLIGHT_COLOR)!;
+      expect(h, `cursor ${cursor}: no highlight found`).toBeDefined();
+      expect(h.x, `cursor ${cursor}: highlight x`).toBe(250);
+      expect(h.w, `cursor ${cursor}: highlight width`).toBe(460);
+      expect(h.h, `cursor ${cursor}: highlight height`).toBe(50);
+    }
+  });
+});
