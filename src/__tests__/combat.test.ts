@@ -3400,3 +3400,90 @@ describe('CombatEngine constructor — RANGED weapon keeps PLAYER_ACTION when pl
     expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION); // NORMAL: enemy acts first
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log messages: player abilities (Pin, Shatter, Shield Bash, Ambush, Intimidate)
+//
+// All five ability tests above use l.includes('keyword'), which passes for any
+// variant ("pinned!", "shield-bash", "AMBUSH!") while missing the full structured
+// sentence the player reads in the combat log.  Pinning the complete string
+// catches verb changes, missing parentheticals, renamed classes, and punctuation
+// drift in the same way the existing exact-message suites do for enemy AI.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — exact log message: Pin ability (hunting_bow)', () => {
+  it('logs exactly "Your arrow pins the Skeleton! (stunned 1 turn)" when Pin is used', () => {
+    // The existing l.includes('stunned') check matches "The Skeleton is stunned and cannot act!"
+    // (the per-turn stun announcement) just as well as the Pin announcement — so a rename
+    // of "pins" to "stuns" in the Pin message would go undetected.  Pinning the full sentence
+    // locks the verb ("pins"), the parenthetical "(stunned 1 turn)", and the trailing "!".
+    const player = makePlayer();
+    player.state.level = 3;           // weapon abilities unlock at level 3
+    player.equipWeapon('hunting_bow'); // hunting_bow: missChance=0, critChance=0, damageBonus=3
+    // RANGED constructor fires an opening shot — consume its three random calls first.
+    // miss=0 (no miss), variance=0.25→floor(1)-1=0, crit=0 (critChance=0, always no crit).
+    mockAttacks([0, 0.25, 0]);
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton hp=20; opening shot deals 4
+    // Phase is PLAYER_ACTION after RANGED constructor (opening shot consumed).
+    engine.playerUseAbility(); // Pin: stun the skeleton for 1 turn
+    expect(engine.state.log).toContain('Your arrow pins the Skeleton! (stunned 1 turn)');
+  });
+});
+
+describe('CombatEngine — exact log message: Shatter ability (mace)', () => {
+  it('logs exactly "Shatter! Skeleton\'s DEF reduced by 2!" when Shatter reduces DEF by 2', () => {
+    // The existing l.includes('Shatter') check passes for "SHATTER!", "Shattered!", or any
+    // message containing that word.  Pinning the full sentence locks the apostrophe
+    // possessive, the reduction amount "2", and the trailing "!" so a rename of
+    // the ability or a different reduction format is caught immediately.
+    const player = makePlayer();
+    player.state.level = 3;   // weapon abilities unlock at level 3
+    player.equipWeapon('mace'); // SLOW; skeleton.agi=2 < player.agi=3; SLOW rule: 3>2+3=5 → false
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton def=4; phase=ENEMY_ACTION (mace SLOW)
+    engine.state.phase = CombatPhase.PLAYER_ACTION; // advance to player turn for test
+    engine.playerUseAbility(); // Shatter: reduction=min(2,4)=2; enemy.def 4→2
+    expect(engine.state.log).toContain("Shatter! Skeleton's DEF reduced by 2!");
+  });
+});
+
+describe('CombatEngine — exact log message: Shield Bash ability (Warrior)', () => {
+  it('logs exactly "Shield Bash! The Skeleton is stunned!" when Shield Bash is used', () => {
+    // The existing l.includes('Shield Bash') check passes for "Shield-Bash" or "shield bash" (case
+    // change).  Pinning the full sentence locks the "The" article, the "is stunned!" verb phrase,
+    // and the exclamation mark — matching the phrasing pattern used by all other stun announcements.
+    const player = makePlayer(); // level=1: no weapon ability; rusty_shortsword, agi=3
+    player.chooseClass(ClassPath.WARRIOR); // class ability: Shield Bash (no weapon-ability competition)
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton agi=2; NORMAL: 3>=2 → PLAYER_ACTION
+    engine.playerUseAbility(); // Shield Bash: stun skeleton; no random calls needed
+    expect(engine.state.log).toContain('Shield Bash! The Skeleton is stunned!');
+  });
+});
+
+describe('CombatEngine — exact log message: Ambush ability (Scout)', () => {
+  it('logs exactly "Ambush! Striking from the shadows..." when Ambush is used', () => {
+    // The existing l.includes('Ambush') check passes for "ambush!" (lower case) or "AMBUSH STRIKE!".
+    // Pinning the full sentence locks the ellipsis "..." and the "Striking from the shadows" phrasing
+    // so any rephrasing of the ability announcement is caught even if "Ambush" still appears.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // miss=0.5 (rusty_shortsword missChance=0 → no miss),
+    // variance=0.5→floor(2)-1=1; forceCrit=true → critChance=1 → crit always fires.
+    const player = makePlayer(); // level=1; rusty_shortsword; agi=3
+    player.chooseClass(ClassPath.SCOUT); // class ability: Ambush
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton agi=2; NORMAL → PLAYER_ACTION
+    engine.playerUseAbility(); // Ambush: forceCrit=true; logs announcement then attack
+    expect(engine.state.log).toContain('Ambush! Striking from the shadows...');
+  });
+});
+
+describe('CombatEngine — exact log message: Intimidate ability (Brigand)', () => {
+  it('logs exactly "Intimidate! Skeleton ATK reduced by 3 for 3 turns!" when Intimidate is used', () => {
+    // The existing l.includes('Intimidate') check passes for "Intimidated!" or a log that merely
+    // mentions the word without the ATK/turn details.  Pinning the full sentence locks the
+    // reduction magnitude "3", the duration "3 turns", and the "ATK reduced by" phrasing so a
+    // balance change to the WEAKEN magnitude or duration silently breaks the announced contract.
+    const player = makePlayer(); // level=1; rusty_shortsword; agi=3
+    player.chooseClass(ClassPath.BRIGAND); // class ability: Intimidate
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton agi=2; NORMAL → PLAYER_ACTION
+    engine.playerUseAbility(); // Intimidate: no random calls; just logs and applies WEAKEN
+    expect(engine.state.log).toContain('Intimidate! Skeleton ATK reduced by 3 for 3 turns!');
+  });
+});
