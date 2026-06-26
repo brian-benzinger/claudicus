@@ -760,6 +760,53 @@ describe('PlayerManager.loadState / reset', () => {
     expect(p.state.gold).toBe(10);
     expect(p.state.level).toBe(1);
   });
+
+  it('reset clears classPath to null — a chosen class must not persist across reset', () => {
+    // The existing reset test only checks gold and level; if reset() were changed
+    // to a partial clear (e.g. only resetting those two fields) classPath would
+    // silently carry over, giving a new-game player the stat bonuses and class
+    // ability of their previous run without having chosen a class.
+    const p = makePlayer();
+    p.chooseClass(ClassPath.WARRIOR);
+    expect(p.state.classPath).toBe(ClassPath.WARRIOR); // confirm it was set
+    p.reset();
+    expect(p.state.classPath).toBeNull();
+  });
+
+  it('reset restores weapons to only the starting weapon — purchased weapons must not persist', () => {
+    // If reset() called Object.assign or another partial-copy approach it could
+    // leave additional weapon IDs in the array, letting a "fresh" character start
+    // with equipment they never earned.  createDefaultPlayer() always returns
+    // weapons: ['rusty_shortsword'], so after reset the array must be exactly that.
+    const p = makePlayer();
+    p.equipWeapon('iron_longsword');
+    p.equipWeapon('dagger');
+    expect(p.state.weapons.length).toBeGreaterThan(1); // confirm extra weapons exist
+    p.reset();
+    expect(p.state.weapons).toEqual(['rusty_shortsword']);
+  });
+
+  it('reset empties earnedTitles — titles earned in one run must not carry to the next', () => {
+    // earnedTitles is a mutable array.  A shallow reset that reused the existing
+    // array reference (e.g. p.state.level = 1 instead of this.state = createDefaultPlayer())
+    // would leave previously earned titles in place, corrupting the new game's
+    // title list before any wolf or bandit has been defeated.
+    const p = makePlayer();
+    p.state.earnedTitles.push('wolfsbane');
+    p.reset();
+    expect(p.state.earnedTitles).toEqual([]);
+  });
+
+  it('reset zeroes materials — gathered crafting materials must not persist', () => {
+    // Same class of regression: if reset() used a partial assignment, materials
+    // collected in a previous run could carry over, giving the new-game player
+    // free crafting resources they did not earn.
+    const p = makePlayer();
+    p.state.materials.wolf_pelt = 5;
+    p.state.materials.bandit_steel = 3;
+    p.reset();
+    expect(p.state.materials).toEqual({ wolf_pelt: 0, bandit_steel: 0 });
+  });
 });
 
 describe('PlayerManager.gainXp — single level-up per call', () => {
