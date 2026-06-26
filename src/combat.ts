@@ -158,8 +158,7 @@ export class CombatEngine {
       this.state.log.push(`The ${this.state.enemy.name} is defeated!`);
     }
 
-    this.state.phase = CombatPhase.PLAYER_ANIMATING;
-    this.state.animationFrame = 0;
+    this.enterPlayerAnimation();
   }
 
   // Player defend action
@@ -212,6 +211,18 @@ export class CombatEngine {
       this.state.playerTurn = false;
       return false;
     }
+  }
+
+  // --- AI / ability helpers ---
+
+  private setEnemyDefending(): void {
+    this.state.enemyDefending = true;
+    this.state.enemyJustDefended = true;
+  }
+
+  private enterPlayerAnimation(): void {
+    this.state.phase = CombatPhase.PLAYER_ANIMATING;
+    this.state.animationFrame = 0;
   }
 
   // --- Status effect helpers ---
@@ -352,8 +363,7 @@ export class CombatEngine {
       this.state.log.push(`The ${this.state.enemy.name} mends its bones! (+${healAmt} HP)`);
     }
     if (Math.random() < 0.40) {
-      this.state.enemyDefending = true;
-      this.state.enemyJustDefended = true;
+      this.setEnemyDefending();
       this.state.log.push(`The ${this.state.enemy.name} raises a shield of bones.`);
     } else {
       this.executeEnemyAttack();
@@ -365,8 +375,7 @@ export class CombatEngine {
       this.state.log.push(`The ${this.state.enemy.name} charges!`);
       this.executeEnemyAttack(1.2);
     } else {
-      this.state.enemyDefending = true;
-      this.state.enemyJustDefended = true;
+      this.setEnemyDefending();
       this.state.log.push(`The ${this.state.enemy.name} stamps its hooves.`);
     }
   }
@@ -387,14 +396,12 @@ export class CombatEngine {
         this.applyStatusEffect('player', { type: StatusEffectType.BLEED, turnsRemaining: 3 });
         this.state.log.push('The wound begins to bleed! (2 dmg/turn, 3 turns)');
       } else {
-        this.state.enemyDefending = true;
-        this.state.enemyJustDefended = true;
+        this.setEnemyDefending();
         this.state.log.push(`The ${this.state.enemy.name} raises its cursed blade.`);
       }
     } else {
       if (Math.random() < 0.25) {
-        this.state.enemyDefending = true;
-        this.state.enemyJustDefended = true;
+        this.setEnemyDefending();
         this.state.log.push(`The ${this.state.enemy.name} braces for your attack.`);
       } else {
         this.executeEnemyAttack();
@@ -409,8 +416,7 @@ export class CombatEngine {
       this.state.log.push(`The ${this.state.enemy.name} makes a desperate attack!`);
       this.executeEnemyAttack(1.5);
     } else if (Math.random() < 0.2) {
-      this.state.enemyDefending = true;
-      this.state.enemyJustDefended = true;
+      this.setEnemyDefending();
       this.state.log.push(`The ${this.state.enemy.name} braces for your attack.`);
     } else {
       this.executeEnemyAttack();
@@ -466,16 +472,14 @@ export class CombatEngine {
           if (this.state.enemyHp <= 0) {
             this.state.log.push(`The ${this.state.enemy.name} is defeated!`);
           }
-          this.state.phase = CombatPhase.PLAYER_ANIMATING;
-          this.state.animationFrame = 0;
+          this.enterPlayerAnimation();
           return;
         }
         case 'hunting_bow': {
           // Pin: stun enemy for 1 turn
           this.applyStatusEffect('enemy', { type: StatusEffectType.STUN, turnsRemaining: 1 });
           this.state.log.push(`Your arrow pins the ${this.state.enemy.name}! (stunned 1 turn)`);
-          this.state.phase = CombatPhase.PLAYER_ANIMATING;
-          this.state.animationFrame = 0;
+          this.enterPlayerAnimation();
           return;
         }
         case 'mace': {
@@ -487,8 +491,7 @@ export class CombatEngine {
           } else {
             this.state.log.push(`${this.state.enemy.name}'s armor is already broken!`);
           }
-          this.state.phase = CombatPhase.PLAYER_ANIMATING;
-          this.state.animationFrame = 0;
+          this.enterPlayerAnimation();
           return;
         }
       }
@@ -501,8 +504,7 @@ export class CombatEngine {
           // Shield Bash: stun the enemy
           this.applyStatusEffect('enemy', { type: StatusEffectType.STUN, turnsRemaining: 1 });
           this.state.log.push(`Shield Bash! The ${this.state.enemy.name} is stunned!`);
-          this.state.phase = CombatPhase.PLAYER_ANIMATING;
-          this.state.animationFrame = 0;
+          this.enterPlayerAnimation();
           return;
         }
         case ClassPath.SCOUT: {
@@ -516,8 +518,7 @@ export class CombatEngine {
             if (this.state.enemyHp <= 0) {
               this.state.log.push(`The ${this.state.enemy.name} is defeated!`);
             }
-            this.state.phase = CombatPhase.PLAYER_ANIMATING;
-            this.state.animationFrame = 0;
+            this.enterPlayerAnimation();
           }
           return;
         }
@@ -531,8 +532,7 @@ export class CombatEngine {
           this.state.log.push(
             `Intimidate! ${this.state.enemy.name} ATK reduced by 3 for 3 turns!`
           );
-          this.state.phase = CombatPhase.PLAYER_ANIMATING;
-          this.state.animationFrame = 0;
+          this.enterPlayerAnimation();
           return;
         }
       }
