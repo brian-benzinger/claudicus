@@ -253,6 +253,46 @@ describe('UIRenderer.drawCombatMenu — combat action labels', () => {
     expect(texts).toContain('[3] Potion (0)');
     expect(texts).toContain('[4] Flee');
   });
+
+  it('with ability: still renders all four base options plus the ability key', () => {
+    // The `if (abilityName)` branch is a separate code path — its four base
+    // options are independently listed from the 4-column branch.  Without this
+    // test, silently dropping `[4] Flee` from that branch would pass all existing
+    // tests because the only ability test only checks that `[5]` appears.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatMenu(ctx, 2, 'Backstab');
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('[1] Attack');
+    expect(texts).toContain('[2] Defend');
+    expect(texts).toContain('[3] Potion (2)');
+    expect(texts).toContain('[4] Flee');
+    expect(texts).toContain('[5] Backstab');
+  });
+
+  it('5-column layout places [1] Attack at x=40 and [4] Flee at x=510', () => {
+    // The two layout branches place options at different x-coordinates (5-col:
+    // [1]@40 [4]@510 vs 4-col: [1]@50 [4]@550).  If the conditional were
+    // accidentally removed and both cases used the same branch, [1] would be
+    // at the wrong x and this test would fail — a layout bug the text-only
+    // tests above cannot detect.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatMenu(ctx, 0, 'Shield Bash');
+    const attack = textCalls.find(c => c.text === '[1] Attack')!;
+    const flee   = textCalls.find(c => c.text === '[4] Flee')!;
+    expect(attack.x).toBe(40);
+    expect(flee.x).toBe(510);
+  });
+
+  it('4-column layout places [1] Attack at x=50 and [4] Flee at x=550', () => {
+    // Mirrors the 5-column test above for the no-ability branch so both halves
+    // of the conditional are pinned to distinct coordinate contracts.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatMenu(ctx, 0);
+    const attack = textCalls.find(c => c.text === '[1] Attack')!;
+    const flee   = textCalls.find(c => c.text === '[4] Flee')!;
+    expect(attack.x).toBe(50);
+    expect(flee.x).toBe(550);
+  });
 });
 
 // ---------------------------------------------------------------------------
