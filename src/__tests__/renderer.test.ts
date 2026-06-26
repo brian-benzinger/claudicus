@@ -811,14 +811,49 @@ describe('drawNpc — apron branch', () => {
 });
 
 describe('drawNpc — hood hat branch', () => {
-  it('NPC with hatStyle="hood" draws arcs (not just rects)', () => {
-    // Hood-style hat draws two arcs (hood body + point via moveTo/lineTo/fill).
-    // If hood were replaced with rects, a monk-type NPC would lose its visual identity.
+  it('NPC with hatStyle="hood" draws exactly 2 arcs — hood circle then head circle', () => {
+    // drawNpc renders the hood BEFORE the head so the head sits on top visually.
+    // The prior `>= 2` bound would pass if a third decorative arc were accidentally
+    // added (silently changing the monk NPC's appearance).  Pinning to exactly 2
+    // catches both missing arcs and surplus ones.
     const { ctx, calls } = makeCtx();
     drawNpc(ctx, makeNpc({ hatColor: '#4a3770', hatStyle: 'hood' }), 0, 0, 0);
     const arcs = calls.filter(c => c.method === 'arc');
-    // At minimum: 1 hood arc + 1 head arc = 2 arcs
-    expect(arcs.length).toBeGreaterThanOrEqual(2);
+    expect(arcs.length).toBe(2);
+  });
+
+  it('hood arc (radius=9) comes before head arc (radius=7) — larger hood behind smaller head', () => {
+    // The hood must be rendered first (behind) so the head circle sits on top.
+    // The radii are distinct: hood=9 and head=7.  If the hood radius accidentally
+    // became 7 (matching the head), the visual would collapse into an overlapping
+    // duplicate — no visible hood ring around the face.  If the order swapped,
+    // the hood would cover the face.
+    const { ctx, calls } = makeCtx();
+    drawNpc(ctx, makeNpc({ hatColor: '#4a3770', hatStyle: 'hood' }), 0, 0, 0);
+    const arcs = calls.filter(c => c.method === 'arc');
+    expect(arcs.length).toBe(2);
+    expect(arcs[0].args[2]).toBe(9); // hood arc: radius=9 (larger, drawn first/behind)
+    expect(arcs[1].args[2]).toBe(7); // head arc: radius=7 (smaller, drawn on top)
+  });
+
+  it('hood point is a triangle path (moveTo+lineTo), not a third arc', () => {
+    // The hood's pointed tip is drawn as a filled triangle via moveTo+lineTo, NOT as
+    // an arc.  If it were replaced with an arc, the sharp tip would become a rounded
+    // bulge and the monk silhouette would change silently.
+    // A plain NPC draws 0 moveTo calls; the hood adds exactly 1 moveTo (triangle path)
+    // and exactly 2 lineTo calls (two sides of the triangle).
+    const { ctx: plainCtx, calls: plainCalls } = makeCtx();
+    const { ctx: hoodCtx,  calls: hoodCalls  } = makeCtx();
+    drawNpc(plainCtx, makeNpc(), 0, 0, 0);
+    drawNpc(hoodCtx,  makeNpc({ hatColor: '#4a3770', hatStyle: 'hood' }), 0, 0, 0);
+    const plainMoveTos = plainCalls.filter(c => c.method === 'moveTo').length;
+    const hoodMoveTos  = hoodCalls.filter(c  => c.method === 'moveTo').length;
+    const plainLineTos = plainCalls.filter(c => c.method === 'lineTo').length;
+    const hoodLineTos  = hoodCalls.filter(c  => c.method === 'lineTo').length;
+    expect(plainMoveTos).toBe(0); // baseline: no moveTo on a plain NPC
+    expect(hoodMoveTos).toBe(1);  // hood adds exactly 1 moveTo (triangle start)
+    expect(plainLineTos).toBe(0); // baseline: no lineTo on a plain NPC
+    expect(hoodLineTos).toBe(2);  // hood adds exactly 2 lineTo calls (two triangle sides)
   });
 
   it('NPC without hat draws exactly 1 arc (head only)', () => {
