@@ -200,3 +200,31 @@ describe('save error handling', () => {
     errSpy.mockRestore();
   });
 });
+
+describe('load error handling', () => {
+  it('logs the exact message "Failed to load game:" to console.error on malformed JSON', () => {
+    // The save error test pins 'Failed to save game:' for save() — this pins the
+    // symmetric contract for load().  If the console.error call in the catch block
+    // were removed or the prefix changed, a developer debugging save corruption in
+    // the browser console would lose this diagnostic signal with no test failing.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    localStorage.setItem('claudicus_save', 'not-json{{{');
+    load();
+    expect(errSpy).toHaveBeenCalledWith('Failed to load game:', expect.any(SyntaxError));
+    errSpy.mockRestore();
+  });
+
+  it('logs exactly "Save version mismatch, starting fresh" to console.warn for an unrecognized version', () => {
+    // The version-mismatch test in load edge cases only asserts toBeNull(); it does
+    // not pin the console.warn call.  If that warn were removed or rephrased, a
+    // developer inspecting the browser console after a silent save discard would see
+    // nothing — with no test failing to alert them.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const data = createNewGameData();
+    (data as any).version = -1;
+    localStorage.setItem('claudicus_save', JSON.stringify(data));
+    load();
+    expect(warnSpy).toHaveBeenCalledWith('Save version mismatch, starting fresh');
+    warnSpy.mockRestore();
+  });
+});
