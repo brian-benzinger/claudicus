@@ -3600,3 +3600,31 @@ describe('CombatEngine — exact log message: WEAKEN expiry announcement', () =>
     expect(engine.state.log).toContain('Skeleton is no longer weakened.');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message: player attack miss
+//
+// executePlayerAttack() emits "Your attack misses!" when the random miss roll
+// falls below the weapon's missChance.  Five existing tests check
+// l.includes('misses'), which passes for any variant: "You miss!", "Attack
+// misses the target.", or "Your attack misses the Skeleton!" (name suffix).
+// Pinning the full literal — verb, possessive, and trailing exclamation mark —
+// ensures the player-facing feedback is never silently reworded.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: player attack miss', () => {
+  it('logs exactly "Your attack misses!" when the miss roll falls below missChance', () => {
+    // hand_axe: missChance=0.2, NORMAL speed, player.agi=10 ensures player goes first.
+    // random=0.1 < 0.2 → miss branch fires.  executePlayerAttack() returns early
+    // after logging the miss, so no damage message or crit message is appended.
+    // If "misses" were changed to "missed" or the subject dropped to just "Misses!",
+    // the five existing l.includes('misses') checks would still pass while this test
+    // fails — catching the reword before it reaches the player.
+    const player = makePlayer();
+    player.equipWeapon('hand_axe'); // missChance=0.2
+    player.state.agi = 10;          // ensure PLAYER_ACTION phase
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // 0.1 < 0.2 → miss
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    engine.playerAttack();
+    expect(engine.state.log).toContain('Your attack misses!');
+  });
+});
