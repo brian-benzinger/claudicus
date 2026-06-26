@@ -485,16 +485,36 @@ describe('MapManager.clearDefeatedEnemies', () => {
 });
 
 describe('MapManager.getTransition', () => {
-  it('returns the transition inside its zone and null elsewhere', () => {
+  it('returns the correct village transition at (4,1) with concrete spawn values', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
     mgr.loadMap('forest');
-    const t = mgr.currentMap.transitions[0];
-    expect(t).toBeDefined();
-    const found = mgr.getTransition(t.tileX, t.tileY);
+    const found = mgr.getTransition(4, 1);
     expect(found).not.toBeNull();
-    expect(found!.targetMap).toBe(t.targetMap);
-    // Far away → no transition
+    // Pin concrete values rather than echoing back what transitions[0] says
+    expect(found!.targetMap).toBe('village');
+    expect(found!.spawnX).toBe(27);
+    expect(found!.spawnY).toBe(17);
+  });
+
+  it('returns the dungeon transition at (34,25)', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    const found = mgr.getTransition(34, 25);
+    expect(found).not.toBeNull();
+    expect(found!.targetMap).toBe('dungeon');
+    expect(found!.spawnX).toBe(3);
+    expect(found!.spawnY).toBe(2);
+  });
+
+  it('returns null one tile outside the village transition zone', () => {
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+    mgr.loadMap('forest');
+    // Village transition zone is exactly (4,1); tiles just outside must return null
+    expect(mgr.getTransition(5, 1)).toBeNull();
+    expect(mgr.getTransition(4, 2)).toBeNull();
     expect(mgr.getTransition(-5, -5)).toBeNull();
   });
 });
