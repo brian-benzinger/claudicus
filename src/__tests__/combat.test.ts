@@ -1523,6 +1523,20 @@ describe('CombatEngine — dagger Backstab ability', () => {
     expect(e.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
   });
 
+  it('Backstab off-guard window is consumed — enemyJustDefended resets to false after the strike', () => {
+    // When enemyJustDefended is true before Backstab, the ability shows the "off-guard"
+    // flavor AND must clear the flag.  If `this.state.enemyJustDefended = false` were
+    // removed from the Backstab branch, the window would persist: a second Backstab
+    // (without the enemy defending again) would still show "off-guard", silently granting
+    // the flavor bonus for free.  This test pins the consume-on-use contract.
+    const e = daggerEngine();
+    e.state.enemyJustDefended = true; // enemy just defended
+    mockAttacks([0, 0, 0]); // no miss, variance 0, no crit
+    e.playerUseAbility();
+    expect(e.state.log.some(l => l.includes('off-guard'))).toBe(true); // off-guard window used
+    expect(e.state.enemyJustDefended).toBe(false); // flag consumed — cannot be reused
+  });
+
   it('Backstab goes for a backstab when the enemy did not defend — pins damage, phase, and flag reset', () => {
     // Contracts: uses 'backstab' flavor (not 'off-guard'), deals damage, transitions phase,
     // and clears enemyJustDefended.  Also confirms critMultiplier=2 is active on this path:
