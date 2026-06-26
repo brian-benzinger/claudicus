@@ -1278,6 +1278,46 @@ describe('CombatEngine.getAvailableAbility', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// getAvailableAbility — non-ability weapon at level 3+ still yields class ability
+//
+// The weapon-ability switch has three cases (dagger, hunting_bow, mace).  All
+// other weapons have NO entry, so the switch falls through and execution
+// continues to the class-ability block.  v8 branch coverage does NOT track this
+// "no case matched" path as a branch (there is no default: clause), meaning
+// 100% branch coverage is achievable without ever testing a level-3+ player
+// whose weapon is NOT in the switch.
+//
+// Contract: any weapon without a weapon ability must still surface the player's
+// class ability.  If a case were accidentally added for a non-ability weapon,
+// the class ability would be silently shadowed and these tests would catch it.
+// ---------------------------------------------------------------------------
+describe('CombatEngine.getAvailableAbility — non-ability weapon at level 3+ yields class ability', () => {
+  it('Warrior at level 3 with rusty_shortsword (no weapon ability) gets Shield Bash', () => {
+    // rusty_shortsword is not in the weapon-ability switch, so the switch falls
+    // through to the class check.  Warrior class must return 'Shield Bash'.
+    // Without this test, adding `case 'rusty_shortsword': return 'SomeAbility'`
+    // would shadow Shield Bash for default-weapon Warriors with no test failing.
+    const player = makePlayer(); // rusty_shortsword equipped, agi=3 ≥ skeleton agi=2 → PLAYER_ACTION
+    player.state.level = 3;
+    player.state.classPath = ClassPath.WARRIOR;
+    const engine = new CombatEngine(player, makeEnemy());
+    expect(engine.getAvailableAbility()).toBe('Shield Bash');
+  });
+
+  it('Brigand at level 5 with iron_longsword (no weapon ability) gets Intimidate', () => {
+    // Mirrors the Warrior test: iron_longsword has no weapon-ability case, so the
+    // class branch is reached and Intimidate is returned.  Pins the contract for a
+    // second weapon and a different class so the fallthrough is clearly documented.
+    const player = makePlayer();
+    player.equipWeapon('iron_longsword');
+    player.state.level = 5;
+    player.state.classPath = ClassPath.BRIGAND;
+    const engine = new CombatEngine(player, makeEnemy());
+    expect(engine.getAvailableAbility()).toBe('Intimidate');
+  });
+});
+
 describe('CombatEngine.playerUseAbility — Pin (bow)', () => {
   it('applies STUN to enemy and transitions to PLAYER_ANIMATING', () => {
     const player = makePlayer();
