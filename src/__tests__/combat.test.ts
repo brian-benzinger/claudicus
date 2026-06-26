@@ -1973,6 +1973,42 @@ describe('CombatEngine — Revenant Knight phase-2 BLEED refreshes rather than s
   });
 });
 
+describe('CombatEngine — Revenant Knight phase-2 exact log messages', () => {
+  // These tests pin the exact strings logged during phase-2 events.
+  // The existing phase-2 tests use `.includes('fury')` or only check BLEED state,
+  // so a rephrasing of either message (e.g. "filled with fury" or dropping the
+  // damage rate from the bleed notice) would pass those tests undetected.
+
+  it('logs the exact phase-transition message "The Revenant Knight roars with dark fury!"', () => {
+    // The phase-1 → phase-2 transition fires the first time HP drops below 50%.
+    // If the enemy name were accidentally omitted, or "dark fury" changed to "fury",
+    // the existing includes('fury') check would still pass.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → phase-2 attack (not defend)
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = Math.floor(enemy.maxHp * 0.4); // below 50% → trigger phase 2
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain(`The ${enemy.name} roars with dark fury!`);
+  });
+
+  it('logs the exact bleed notification "The wound begins to bleed! (2 dmg/turn, 3 turns)"', () => {
+    // This message tells the player both the per-turn damage and the duration, giving
+    // them the information to decide whether to use a potion now.  It is entirely absent
+    // from the existing test suite — only BLEED presence is checked, not the message.
+    // If the message were changed to omit the rate or duration, the player would lose
+    // key tactical information and no test would catch it.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → phase-2 attack branch
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = Math.floor(enemy.maxHp * 0.4);
+    engine.state.enemyIsPhaseTwo = true; // already in phase 2 — no transition message
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The wound begins to bleed! (2 dmg/turn, 3 turns)');
+  });
+});
+
 describe('CombatEngine — nextAttackBonus actually affects damage and resets after use', () => {
   // nextAttackBonus is set by playerDefend (+1) and wolf howl (-2), but no prior
   // test verifies that it changes the damage dealt on the next attack.  These tests
