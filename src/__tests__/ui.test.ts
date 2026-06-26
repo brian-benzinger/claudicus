@@ -11,6 +11,7 @@ import { CRAFT_RECIPES } from '../data/recipes';
 // ---------------------------------------------------------------------------
 function makeCtx() {
   const textCalls: { text: string; x: number; y: number }[] = [];
+  const rectCalls: { x: number; y: number; w: number; h: number }[] = [];
   let _fillStyle = '';
   let _font = '';
   let _textAlign: CanvasTextAlign = 'left';
@@ -27,7 +28,9 @@ function makeCtx() {
     strokeStyle: '',
     lineWidth: 1,
     globalAlpha: 1,
-    fillRect:   noop,
+    fillRect: (x: number, y: number, w: number, h: number) => {
+      rectCalls.push({ x, y, w, h });
+    },
     strokeRect: noop,
     beginPath:  noop,
     closePath:  noop,
@@ -46,7 +49,7 @@ function makeCtx() {
     measureText: () => ({ width: 0 }),
   } as unknown as CanvasRenderingContext2D;
 
-  return { ctx, textCalls };
+  return { ctx, textCalls, rectCalls };
 }
 
 // ---------------------------------------------------------------------------
@@ -312,9 +315,15 @@ describe('UIRenderer.drawCombatLog — log line contracts', () => {
     expect(textCalls[1]).toEqual({ text: 'You attack for 5 damage.', x: 30, y: 498 });
   });
 
-  it('renders an empty log without throwing', () => {
-    const { ctx } = makeCtx();
-    expect(() => ui.drawCombatLog(ctx, [])).not.toThrow();
+  it('draws the log frame but no text entries when log is empty', () => {
+    // drawCombatLog always renders a background box via fillRect regardless of
+    // the log length.  With an empty array the forEach produces zero fillText
+    // calls, but the frame must still be present — a gutted "if (!log.length)
+    // return" guard that skips the frame entirely would break the UI layout.
+    const { ctx, textCalls, rectCalls } = makeCtx();
+    ui.drawCombatLog(ctx, []);
+    expect(textCalls).toHaveLength(0);
+    expect(rectCalls.length).toBeGreaterThanOrEqual(1);
   });
 });
 
