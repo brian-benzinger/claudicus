@@ -618,8 +618,14 @@ describe('MapManager.render', () => {
     const mgr = makeMapManager();
     mgr.updateCamera(mgr.currentMap.spawnX, mgr.currentMap.spawnY);
     const { ctx, calls } = makeCtx();
-    expect(() => mgr.render(ctx, 0)).not.toThrow();
-    expect(calls.length).toBeGreaterThan(0);
+    mgr.render(ctx, 0);
+    // Village is 30×20 = 600 tiles, all visible at spawn camera; every tile type calls fillRect
+    // at least once.  A gutted render() that skipped drawTile() would drop below 600.
+    const fillRects = calls.filter(c => c === 'fillRect');
+    expect(fillRects.length).toBeGreaterThanOrEqual(600);
+    // NPCs and/or chests produce canvas calls beyond fillRect (arc, beginPath, etc.);
+    // if drawNpc/drawChest were silently removed the total would collapse to fillRects.length.
+    expect(calls.length).toBeGreaterThan(fillRects.length);
   });
 
   it('renders the forest with live enemies, chests and npcs', () => {
@@ -680,11 +686,27 @@ describe('MapManager.render', () => {
   it('skips drawing tiles with negative indices when camera has a negative offset', () => {
     // Force camera.x < 0 so startTileX < 0, exercising the `if (y >= 0 && x >= 0)`
     // guard inside the tile-drawing loop (the false branch, which skips out-of-bounds tiles).
+    // Behavioral contract: with a negative camera offset the tile-iteration loop visits
+    // x/y = -1 but the guard must skip those iterations so fillRect is called exactly as
+    // many times as in a baseline (camera 0,0) render.  Remove the guard and the -1
+    // iterations call drawTile() on OOB coords, producing extra fillRect calls.
     const mgr = makeMapManager();
-    mgr.camera.x = -TILE_SIZE; // startTileX becomes -1
-    mgr.camera.y = -TILE_SIZE; // startTileY becomes -1
-    const { ctx } = makeCtx();
-    expect(() => mgr.render(ctx, 0)).not.toThrow();
+
+    // Baseline: camera at (0,0) renders all 600 village tiles
+    const { ctx: ctxBase, calls: callsBase } = makeCtx();
+    mgr.camera.x = 0;
+    mgr.camera.y = 0;
+    mgr.render(ctxBase, 0);
+    const baseCount = callsBase.filter(c => c === 'fillRect').length;
+
+    // Negative offset: startTileX/Y become -1; guard must yield same tile set
+    mgr.camera.x = -TILE_SIZE;
+    mgr.camera.y = -TILE_SIZE;
+    const { ctx: ctxNeg, calls: callsNeg } = makeCtx();
+    mgr.render(ctxNeg, 0);
+    const negCount = callsNeg.filter(c => c === 'fillRect').length;
+
+    expect(negCount).toBe(baseCount);
   });
 });
 
