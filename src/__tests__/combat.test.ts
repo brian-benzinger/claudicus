@@ -3233,3 +3233,28 @@ describe('CombatEngine — exact log message: enemy attack damage format', () =>
     expect(engine.state.log).toContain('The Bandit deals 3 damage.');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message: bleed tick format
+//
+// tickPlayerEffects() emits "You bleed for 2 damage." each turn the BLEED
+// status effect is active.  Existing tests check l.includes('bleed') or
+// l.includes('bleed for 2'), which pass if the format drifts to
+// "Bleeding: 2 damage" or "You bleed for 2 dmg." — different verb, missing
+// period, or abbreviated unit.  Pinning the full sentence locks the verb
+// ("bleed"), the preposition ("for"), the numeral, and the trailing period
+// in the same way the player/enemy attack formats are pinned above.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: bleed tick format', () => {
+  it('logs exactly "You bleed for 2 damage." on each bleed tick', () => {
+    // Stun the enemy so it takes no action this turn, making the bleed tick
+    // the only log entry and leaving no ambiguity about the message source.
+    // A stunned enemy skips its attack without a Math.random roll.
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.state.playerStatusEffects.push({ type: StatusEffectType.BLEED, turnsRemaining: 2 });
+    engine.state.enemyStatusEffects.push({ type: StatusEffectType.STUN, turnsRemaining: 1 });
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('You bleed for 2 damage.');
+  });
+});
