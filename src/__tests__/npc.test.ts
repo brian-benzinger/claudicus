@@ -237,6 +237,33 @@ describe('NpcManager shop', () => {
     expect(mgr.isInShop).toBe(false);
     expect(mgr.shopItems.length).toBe(0);
   });
+
+  it('weapons shop stocks the exact five purchasable weapons with correct ids and costs', () => {
+    // Pins the full ShopItem inventory so a weapon's source silently changing
+    // from 'shop' → 'chest' (or a cost edit) causes a test failure.
+    // The type-only check in advanceDialog's test would miss both regressions.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    expect(mgr.shopItems).toEqual([
+      { weaponId: 'iron_longsword', name: 'Iron Longsword', cost: 30, type: 'weapon' },
+      { weaponId: 'mace',           name: 'Mace',           cost: 40, type: 'weapon' },
+      { weaponId: 'hand_axe',       name: 'Hand Axe',       cost: 35, type: 'weapon' },
+      { weaponId: 'dagger',         name: 'Dagger',         cost: 20, type: 'weapon' },
+      { weaponId: 'hunting_bow',    name: 'Hunting Bow',    cost: 25, type: 'weapon' },
+    ]);
+  });
+
+  it('armor shop stocks the exact two purchasable armors with correct ids and costs', () => {
+    // Mirrors the weapons-shop pin above for the armor shop.
+    // Without this, swapping shadow_cloak or studded_leather to source:'shop'
+    // (or changing chain_mail/iron_plate costs) would go undetected.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    expect(mgr.shopItems).toEqual([
+      { armorId: 'chain_mail', name: 'Chain Mail', cost: 40, type: 'armor' },
+      { armorId: 'iron_plate', name: 'Iron Plate', cost: 70, type: 'armor' },
+    ]);
+  });
 });
 
 describe('NpcManager.buySelectedItem', () => {
