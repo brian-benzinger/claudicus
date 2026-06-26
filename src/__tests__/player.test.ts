@@ -660,10 +660,13 @@ describe('PlayerManager.chooseClass', () => {
   it('cannot change class once chosen', () => {
     const p = new PlayerManager(createDefaultPlayer());
     p.chooseClass(ClassPath.WARRIOR);
-    const defAfterFirst = p.state.def;
+    // DEF must be exactly 5 (3 base + 2 Warrior bonus) — pin the concrete
+    // value so a silent no-op first call can't make the guard vacuously true.
+    expect(p.state.def).toBe(5);
     p.chooseClass(ClassPath.SCOUT); // should be ignored
     expect(p.state.classPath).toBe(ClassPath.WARRIOR);
-    expect(p.state.def).toBe(defAfterFirst); // no second bonus
+    expect(p.state.def).toBe(5); // Scout must not add its bonus on top
+    expect(p.state.agi).toBe(3); // Scout's AGI bonus must not have applied
   });
 
   it('new players start with classPath null', () => {
