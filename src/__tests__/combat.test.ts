@@ -3527,3 +3527,57 @@ describe('CombatEngine — exact log message: Intimidate ability (Brigand)', () 
     expect(engine.state.log).toContain('Intimidate! Skeleton ATK reduced by 3 for 3 turns!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message: stun-skip announcement
+//
+// Status effects — STUN tests at line 802 check l.includes('stunned'), which
+// passes for any string containing that word — including the Pin announcement
+// "Your arrow pins the Skeleton! (stunned 1 turn)".  The actual stun-skip
+// message is `"${enemy.name} is stunned and cannot act!"`.  Pinning the full
+// sentence locks the verb phrase, the exclamation mark, and the enemy name so
+// a rename ("cannot move", "is immobilized") or dropped subject ("stunned and
+// cannot act!") is caught rather than silently changing the combat log.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: stun-skip announcement', () => {
+  it('logs exactly "Skeleton is stunned and cannot act!" when a stunned enemy\'s turn is skipped', () => {
+    // The existing l.includes('stunned') test is not an exact pin: it would also
+    // pass if the message were "The Skeleton is stunned!" (extra "The") or
+    // "stunned — cannot act." (different punctuation).  This test pins the full
+    // literal so any reformatting is caught immediately.
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy()); // Skeleton
+    engine.state.enemyStatusEffects.push({ type: StatusEffectType.STUN, turnsRemaining: 1 });
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('Skeleton is stunned and cannot act!');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exact log message: WEAKEN expiry announcement
+//
+// The tickEnemyEffects() helper (called from update() at end of
+// ENEMY_ANIMATING) emits `"${enemy.name} is no longer weakened."` when a
+// WEAKEN effect reaches zero turns.  The existing test (status effect refresh
+// and expiry suite) checks l.includes('no longer weakened'), which passes for
+// any variant ("Skeleton is no longer WEAKENED" / "no longer weakened!" with
+// an exclamation mark).  Pinning the full sentence — including the trailing
+// period and the enemy's name — ensures the exact player-facing text is locked
+// so rephrasing or punctuation drift breaks a test rather than reaching the UI.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — exact log message: WEAKEN expiry announcement', () => {
+  it('logs exactly "Skeleton is no longer weakened." when a WEAKEN effect expires', () => {
+    // Setup: push a WEAKEN with 1 turn remaining, then trigger the ENEMY_ANIMATING
+    // → end-of-animation path in update() (animationFrame >= 20) which calls
+    // tickEnemyEffects().  The WEAKEN decrements to 0, fires the expiry log, and
+    // is removed from enemyStatusEffects.
+    const engine = new CombatEngine(makePlayer(), makeEnemy()); // Skeleton
+    engine.state.enemyStatusEffects.push({
+      type: StatusEffectType.WEAKEN, turnsRemaining: 1, magnitude: 3,
+    });
+    engine.state.phase = CombatPhase.ENEMY_ANIMATING;
+    engine.state.animationFrame = 21; // triggers end-of-animation (>= 20) → tickEnemyEffects
+    engine.update();
+    expect(engine.state.log).toContain('Skeleton is no longer weakened.');
+  });
+});
