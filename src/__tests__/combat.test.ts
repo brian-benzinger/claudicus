@@ -1548,6 +1548,52 @@ describe('CombatEngine — enemy AI branches', () => {
   });
 });
 
+describe('Enemy AI — Bandit desperate attack multiplier', () => {
+  it('desperate attack 1.5× multiplier flows through to player HP reduction', () => {
+    // The existing "default AI makes a desperate attack at low HP" test pins only the log
+    // message — it does NOT verify that the 1.5× ATK multiplier in executeEnemyAttack(1.5)
+    // actually reaches the damage calculation and reduces the player's HP.  If the multiplier
+    // were silently dropped to 1.0×, the log would still say "desperate attack" while the
+    // player takes 3 damage instead of 6 — this test catches that regression.
+    //
+    // Bandit: ATK=6, maxHp=18.  Player: def=3, leatherVest(+1) → effectiveDef=4.
+    // Random call order in enemyTurn: [desperate check, variance, crit].
+    // With 1.5×: attackPower=max(1,floor(6×1.5))=9; variance=1; damage=max(1,9−4+1)=6
+    // → playerHp = 40−6 = 34.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.1)   // desperate check: 0.1 < 0.3 → desperate attack
+      .mockReturnValueOnce(0.5)   // calcDamage variance: floor(0.5×4)−1 = 1
+      .mockReturnValueOnce(0.9);  // calcDamage crit: 0.9 ≥ 0 → no crit
+    const player = makePlayer();
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyHp = 2; // 2/18 ≈ 0.11 < 0.25 → desperate condition met
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log.some(l => l.includes('desperate attack'))).toBe(true);
+    expect(engine.state.playerHp).toBe(34); // 40 − 6 (1.5×), not 40 − 3 (1.0× baseline)
+  });
+
+  it('same setup without desperate (bandit at full HP) deals 3 damage — confirms the 1.5× baseline is meaningful', () => {
+    // Companion to the above: pins the unweakened baseline so the two values
+    // (34 desperate vs 37 normal) are each independently grounded.  If ATK were
+    // secretly raised from 6 to 9 the desperate test above would pass vacuously
+    // while the 1.5× multiplier contract would go unverified.
+    //
+    // Full HP (18/18=1.0 ≥ 0.25) → desperate branch short-circuits without a random call.
+    // First random call is the brace check (0.5 ≥ 0.2 → normal attack); then variance and crit.
+    // attackPower=6; variance=1; damage=max(1,6−4+1)=3 → playerHp=40−3=37.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // brace check: 0.5 ≥ 0.2 → normal attack (no brace)
+      .mockReturnValueOnce(0.5)   // calcDamage variance: 1
+      .mockReturnValueOnce(0.9);  // calcDamage crit: no
+    const player = makePlayer();
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(37); // 40 − 3 (normal), not 40 − 6 (desperate)
+  });
+});
+
 describe('CombatEngine — bleed can kill the player on their enemy turn', () => {
   it('a bleeding player at 1 HP falls before the enemy acts', () => {
     const p = makePlayer();
