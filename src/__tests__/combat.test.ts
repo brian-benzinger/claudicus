@@ -2834,3 +2834,187 @@ describe('CombatEngine — exact log message: player death', () => {
     expect(e.state.log).toContain('You have fallen!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message pin contracts — enemy AI action messages
+//
+// The tests above verify these messages exist using l.includes(substring)
+// checks, which pass as long as a keyword appears somewhere in the string.
+// These tests pin the full literal messages so any reformatting — dropping
+// tactical parentheticals, changing punctuation, or adding extra words —
+// breaks a test rather than silently reaching the player.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — exact log message: Wolf howl', () => {
+  it('logs exactly "The Wolf lets out a fearsome howl! (-2 to your next attack)"', () => {
+    // The existing test checks l.includes('howl'), which passes even if the
+    // parenthetical "(-2 to your next attack)" were dropped.  That hint is the
+    // only in-combat signal that the howl applied a -2 attack debuff; removing
+    // it would leave players unable to understand why their next hit underperformed.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.30 → howl branch
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain(
+      'The Wolf lets out a fearsome howl! (-2 to your next attack)'
+    );
+  });
+});
+
+describe('CombatEngine — exact log message: Skeleton mends its bones', () => {
+  it('logs exactly "The Skeleton mends its bones! (+5 HP)" on the 3rd turn', () => {
+    // The existing test checks l.includes('mends'), passing even if "(+5 HP)"
+    // is stripped.  The parenthetical tells the player how much HP the skeleton
+    // recovered — essential when deciding whether to prioritize killing the
+    // skeleton before its next heal cycle.  Pinning the exact string ensures
+    // the tactical hint is never silently removed.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.40 → attack (not defend)
+    const enemy = makeEnemy(EnemyType.SKELETON);
+    enemy.hp = 15; // below maxHp(20) so heal has visible room
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 15;
+    for (let t = 0; t < 3; t++) {
+      engine.state.phase = CombatPhase.ENEMY_ACTION;
+      engine.enemyTurn();
+    }
+    expect(engine.state.log).toContain('The Skeleton mends its bones! (+5 HP)');
+  });
+});
+
+describe('CombatEngine — exact log message: Wild Boar charge and stamp', () => {
+  it('logs exactly "The Wild Boar charges!" when the boar charges', () => {
+    // The existing test checks l.includes('charges'), which passes for any variant
+    // ("wildly charges at you!" / "charges forward!").  Pinning the exact format
+    // locks the punctuation and phrasing contract.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → charge branch
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Wild Boar charges!');
+  });
+
+  it('logs exactly "The Wild Boar stamps its hooves." when the boar stamps', () => {
+    // The existing test checks l.includes('stamps its hooves').  Pinning the full
+    // string (including the trailing period) catches punctuation drift too.
+    vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.90 → stamp branch
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Wild Boar stamps its hooves.');
+  });
+});
+
+describe('CombatEngine — exact log message: Skeleton raises a shield of bones', () => {
+  it('logs exactly "The Skeleton raises a shield of bones." when defending', () => {
+    // The existing test checks l.includes('shield of bones'), which passes for
+    // "uses a shield of bones" or "a shield of bones appears".  Pinning the verb
+    // "raises" and the trailing period locks the full sentence.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.40 → defend branch
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.SKELETON));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Skeleton raises a shield of bones.');
+  });
+});
+
+describe('CombatEngine — exact log message: Revenant Knight raises its cursed blade', () => {
+  it('logs exactly "The Revenant Knight raises its cursed blade." in phase-2 defend', () => {
+    // The existing test checks l.includes('cursed blade'), which passes if the
+    // verb changed to "wields" or the article to "the".  Pinning the full string
+    // locks the exact phrase shown during the boss phase-2 defend animation.
+    vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.90 → raise-blade branch
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = Math.floor(enemy.maxHp * 0.4); // < 50% → phase 2
+    engine.state.enemyIsPhaseTwo = true;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Revenant Knight raises its cursed blade.');
+  });
+});
+
+describe('CombatEngine — exact log message: Bandit desperate attack', () => {
+  it('logs exactly "The Bandit makes a desperate attack!" at low HP', () => {
+    // The existing test checks l.includes('desperate attack'), which passes for
+    // "is desperately attacking!" or "makes its desperate attack!".  Pinning
+    // the full string locks the exact low-HP message the player sees.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.30 → desperate branch; variance=-1
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyHp = 2; // < 25% of maxHp(18) → desperate branch
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log).toContain('The Bandit makes a desperate attack!');
+  });
+});
+
+describe('CombatEngine — exact log message: Bandit Archer alternating attacks', () => {
+  it('logs exactly "The Bandit Archer fires an arrow!" on odd enemy turns', () => {
+    // The existing test checks l.includes('arrow'), passing for "shoots an arrow"
+    // or "fires arrows".  Pinning "fires an arrow!" locks the verb and singularity.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT_ARCHER));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // enemyTurnCount → 1 (odd → arrow)
+    expect(engine.state.log).toContain('The Bandit Archer fires an arrow!');
+  });
+
+  it('logs exactly "The Bandit Archer draws a knife!" on even enemy turns', () => {
+    // The existing test checks l.includes('knife'), passing for "pulls a knife"
+    // or "draws knife" (missing article).  Pinning "draws a knife!" locks both
+    // the verb and the article.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT_ARCHER));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // turn 1 (odd → arrow)
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // turn 2 (even → knife)
+    expect(engine.state.log).toContain('The Bandit Archer draws a knife!');
+  });
+});
+
+describe('CombatEngine — exact log message: ranged weapon opening shot', () => {
+  it('logs exactly "You fire an opening shot!" for the hunting_bow free hit', () => {
+    // The existing test uses l.includes('opening shot'), which passes for any
+    // variant ("fires an opening volley!" / "took an opening shot!").  Pinning
+    // the exact string locks the player-facing phrasing of this free-hit announcement.
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    player.state.agi = 10; // RANGED: agi(10) >= skeleton.agi(2) → player acts first
+    mockAttacks([0, 0.25, 0]); // opening-shot: miss=0 (no miss), variance=0, crit=0
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON));
+    expect(engine.state.log).toContain('You fire an opening shot!');
+  });
+});
+
+describe('CombatEngine — exact log message: Backstab flavor messages', () => {
+  it('logs exactly "You strike while they\'re off-guard!" when enemyJustDefended', () => {
+    // The existing test uses l.includes('off-guard'), which passes for
+    // "caught them off-guard!" or "off-guard strike!".  The exact phrasing
+    // "while they're off-guard" uses a possessive contraction that could easily
+    // be mangled; pinning it catches both typos and intentional rewording.
+    const p = makePlayer();
+    p.state.level = 3;
+    p.equipWeapon('dagger');
+    const engine = new CombatEngine(p, makeEnemy());
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+    engine.state.enemyJustDefended = true;
+    mockAttacks([0, 0, 0]); // no miss, variance=0, no crit
+    engine.playerUseAbility();
+    expect(engine.state.log).toContain("You strike while they're off-guard!");
+  });
+
+  it('logs exactly "You go for a backstab!" on a normal Backstab strike', () => {
+    // The existing test uses l.includes('backstab'), passing for "Backstab!"
+    // or "goes for the backstab!".  Pinning "You go for a backstab!" locks
+    // the first-person phrasing that distinguishes this from the off-guard variant.
+    const p = makePlayer();
+    p.state.level = 3;
+    p.equipWeapon('dagger');
+    const engine = new CombatEngine(p, makeEnemy());
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+    engine.state.enemyJustDefended = false;
+    mockAttacks([0, 0, 0]); // no miss, variance=0, no crit
+    engine.playerUseAbility();
+    expect(engine.state.log).toContain('You go for a backstab!');
+  });
+});
