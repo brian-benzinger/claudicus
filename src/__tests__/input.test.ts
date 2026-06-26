@@ -321,10 +321,14 @@ describe('InputManager', () => {
   });
 
   describe('non-game keys', () => {
-    it('a key not in the game key list is still tracked as held', () => {
-      // Non-game keys do not call preventDefault but are still added to held set.
-      press('x');
+    it('a key not in the game key list is still tracked as held and does not call preventDefault', () => {
+      // Verify BOTH halves of the contract: the key is added to held AND
+      // preventDefault is not called (browser defaults — copy/paste, tab focus,
+      // etc. — must remain intact for non-game keys).
+      const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true });
+      window.dispatchEvent(event);
       expect(input.isHeld('x')).toBe(true);
+      expect(event.defaultPrevented).toBe(false);
     });
   });
 
