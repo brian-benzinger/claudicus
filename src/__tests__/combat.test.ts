@@ -1263,7 +1263,7 @@ describe('CombatEngine.playerUseAbility — Intimidate (Brigand)', () => {
     const engine = new CombatEngine(player, makeEnemy());
     engine.playerUseAbility();
     const weaken = engine.state.enemyStatusEffects.find(e => e.type === StatusEffectType.WEAKEN);
-    expect(weaken).toBeTruthy();
+    expect(weaken?.type).toBe(StatusEffectType.WEAKEN);
     expect(weaken!.magnitude).toBe(3);
     expect(weaken!.turnsRemaining).toBe(3);
     expect(engine.state.log.some(l => l.includes('Intimidate'))).toBe(true);
@@ -1351,8 +1351,11 @@ describe('CombatEngine — action phase guards', () => {
   it('playerUseAbility does nothing when no ability is available', () => {
     const e = new CombatEngine(makePlayer(), makeEnemy()); // level 1, basic weapon
     e.state.phase = CombatPhase.PLAYER_ACTION;
+    const logLenBefore = e.state.log.length;
     e.playerUseAbility();
     expect(e.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+    expect(e.state.abilityUsedThisCombat).toBe(false);
+    expect(e.state.log.length).toBe(logLenBefore);
   });
 });
 
@@ -1454,6 +1457,7 @@ describe('CombatEngine — enemy AI branches', () => {
     e.state.enemyHp = 0;
     e.enemyTurn();
     expect(e.state.phase).toBe(CombatPhase.DONE);
+    expect(e.getResult()).toBe('victory');
   });
 });
 
