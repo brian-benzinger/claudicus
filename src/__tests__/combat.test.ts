@@ -91,6 +91,42 @@ describe('CombatEngine constructor', () => {
     expect(engine.state.log.some(l => l.includes('3 damage'))).toBe(true);
   });
 
+  it('FAST weapon (dagger) does not fire an opening shot on construction', () => {
+    // Contract: the free opening shot is exclusive to RANGED weapons.
+    // The constructor guards with `speed === WeaponSpeed.RANGED`.  If that guard
+    // were accidentally dropped, every weapon speed — FAST, NORMAL, SLOW — would
+    // fire a free hit at construction time, completely breaking combat balance.
+    // The positive case (bow fires) is pinned above; this pins the negative.
+    const player = makePlayer();
+    player.equipWeapon('dagger'); // FAST
+    const enemy = makeEnemy();
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.freeHitUsed).toBe(false);
+    expect(engine.state.log.some(l => l.includes('opening shot'))).toBe(false);
+    expect(engine.state.enemyHp).toBe(enemy.hp); // no damage dealt at construction
+  });
+
+  it('NORMAL weapon (rusty_shortsword) does not fire an opening shot on construction', () => {
+    // Same guard for NORMAL speed — the opening shot must not trigger.
+    const player = makePlayer(); // defaults to rusty_shortsword (NORMAL)
+    const enemy = makeEnemy();
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.freeHitUsed).toBe(false);
+    expect(engine.state.log.some(l => l.includes('opening shot'))).toBe(false);
+    expect(engine.state.enemyHp).toBe(enemy.hp);
+  });
+
+  it('SLOW weapon (mace) does not fire an opening shot on construction', () => {
+    // SLOW weapons also must not fire a free hit — only RANGED gets the privilege.
+    const player = makePlayer();
+    player.equipWeapon('mace'); // SLOW; enemy agi > player agi → enemy goes first
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5; player agi=3 → enemy goes first
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.freeHitUsed).toBe(false);
+    expect(engine.state.log.some(l => l.includes('opening shot'))).toBe(false);
+    expect(engine.state.enemyHp).toBe(enemy.hp);
+  });
+
   it('starts in ENEMY_ACTION for normal weapon when enemy agi exceeds player agi', () => {
     // rusty_shortsword (NORMAL): playerTurn = playerAgi >= enemyAgi = 3 >= 5 = false → ENEMY_ACTION
     const player = makePlayer(); // agi=3, rusty_shortsword (NORMAL speed)
