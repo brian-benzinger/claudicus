@@ -3258,3 +3258,64 @@ describe('CombatEngine — exact log message: bleed tick format', () => {
     expect(engine.state.log).toContain('You bleed for 2 damage.');
   });
 });
+
+// ---------------------------------------------------------------------------
+// RANGED weapon phase contract when player AGI < enemy AGI
+//
+// determineFirstTurn() sets playerTurn = playerAgi >= enemyAgi for RANGED weapons,
+// identical to NORMAL.  However the subsequent phase-assignment block reads:
+//   if (!playerTurn && speed !== WeaponSpeed.RANGED) { phase = ENEMY_ACTION }
+// This exclusion means RANGED weapons NEVER start in ENEMY_ACTION, regardless of
+// AGI.  The opening shot always fires in the constructor.
+//
+// All prior ranged tests use player AGI >= enemy AGI, so the exclusion branch is
+// never exercised.  These three tests pin the contract from all angles so that
+// removing the `!== RANGED` guard would be immediately caught.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine constructor — RANGED weapon keeps PLAYER_ACTION when player AGI < enemy AGI', () => {
+  it('stays in PLAYER_ACTION even when player AGI is strictly below enemy AGI', () => {
+    // NORMAL/SLOW weapons enter ENEMY_ACTION when playerTurn=false; RANGED does not:
+    // the guard is `!playerTurn && speed !== RANGED`, so the assignment is skipped.
+    // If that guard were removed, a low-AGI bow user would start in ENEMY_ACTION
+    // and miss the opening shot — a silent regression in game balance.
+    // Wolf agi=5 > player agi=1 → playerTurn=false for RANGED, yet phase must be PLAYER_ACTION.
+    mockAttacks([0, 0, 0]); // opening-shot randoms: miss=0, variance=-1, crit=0
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    player.state.agi = 1; // strictly below WOLF agi(5)
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.WOLF)); // wolf agi=5
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ACTION);
+  });
+
+  it('fires the opening shot and deals damage even when player AGI is strictly below enemy AGI', () => {
+    // The opening shot executes unconditionally for RANGED weapons because the constructor
+    // always reaches the `if (speed === RANGED && !freeHitUsed)` block.  The RANGED
+    // exclusion from the ENEMY_ACTION assignment ensures the phase is still PLAYER_ACTION
+    // when the shot fires.  Without the exclusion the shot would be skipped entirely
+    // (ENEMY_ACTION is set → opening-shot block is not reached in normal flow after an
+    // ENEMY_ACTION phase starts) — freeHitUsed would remain false and enemyHp unchanged.
+    mockAttacks([0, 0.25, 0]); // miss=0 (no miss), variance=0, crit=0 (no crit)
+    const player = makePlayer();
+    player.equipWeapon('hunting_bow');
+    player.state.agi = 1; // strictly below WOLF agi(5)
+    const enemy = makeEnemy(EnemyType.WOLF); // agi=5
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.state.freeHitUsed).toBe(true); // opening shot consumed
+    expect(engine.state.log.some(l => l.includes('opening shot'))).toBe(true);
+    // hunting_bow: str(5)+damageBonus(3)=8; wolf.def=1; variance=floor(0.25*4)-1=0
+    // damage = max(1, 8-1+0) = 7 (missChance=0 so shot never misses; crit=0 → no crit)
+    expect(engine.state.enemyHp).toBe(enemy.hp - 7); // opening shot dealt damage
+  });
+
+  it('contrast: NORMAL weapon with the same AGI mismatch starts in ENEMY_ACTION', () => {
+    // Side-by-side with the two tests above: identical player (agi=1) and enemy (wolf agi=5),
+    // but rusty_shortsword (NORMAL) instead of hunting_bow.  The absence of the RANGED
+    // exclusion means NORMAL obeys the standard rule — enemy goes first when player loses
+    // the AGI check.  The contrast isolates the RANGED exclusion as the sole difference.
+    const player = makePlayer(); // rusty_shortsword (NORMAL speed)
+    player.state.agi = 1;       // strictly below WOLF agi(5)
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.WOLF)); // wolf agi=5
+    expect(engine.state.phase).toBe(CombatPhase.ENEMY_ACTION); // NORMAL: enemy acts first
+  });
+});
