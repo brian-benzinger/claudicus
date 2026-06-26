@@ -1025,6 +1025,29 @@ describe('Enemy AI — Skeleton healing', () => {
     }
     expect(engine.state.enemyHp).toBe(20); // min(maxHp=20, 17+5=22) = 20, not 22
   });
+
+  it('heals again on 6th turn — % 3 === 0 repeats, not a one-shot === 3 condition', () => {
+    // All prior heal tests start from enemyTurnCount=0 and run 3 turns, reaching
+    // turn 3 (the first heal cycle).  If the condition were changed from
+    // `enemyTurnCount % 3 === 0` to `enemyTurnCount === 3`, the skeleton would only
+    // ever heal on turn 3 and skip turns 6, 9, etc. — a silent behavioral regression
+    // that no existing test catches.
+    //
+    // This test pre-positions enemyTurnCount at 5 so the next call increments to 6.
+    // 6 % 3 === 0 → heal fires; 6 === 3 → would NOT fire.
+    // Skeleton maxHp=20, starting enemyHp=10; 10+5=15 < 20, so the cap does not mask the result.
+    // random=0.5 (>= 0.40) → skeleton also attacks this turn, but player HP is unrelated to enemyHp.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.40 → attack branch (not defend)
+    const enemy = makeEnemy(EnemyType.SKELETON); // maxHp=20
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 10; // below maxHp so the +5 heal visibly lands at 15
+    engine.state.enemyTurnCount = 5; // pre-position: next increment → 6
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    // Second heal cycle: min(maxHp=20, 10+5=15) = 15
+    expect(engine.state.enemyHp).toBe(15);
+    expect(engine.state.log.some(l => l.includes('mends its bones'))).toBe(true);
+  });
 });
 
 describe('Enemy AI — Wild Boar charge', () => {
