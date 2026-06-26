@@ -2758,3 +2758,79 @@ describe('CombatEngine — dagger critChance boundary (critChance=0.3)', () => {
     expect(engine.state.log.some(l => l.includes('Critical'))).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Exact log message pin contracts — player action messages
+//
+// Several combat log messages are currently verified only with l.includes(substring),
+// which passes as long as the keyword appears somewhere.  A rephrasing that preserves
+// the keyword (e.g. "You have fallen to the ground!" still contains 'fallen') would
+// pass undetected.  These tests pin the full literal strings so any reformatting —
+// dropping tactical hints, changing punctuation, or adding extra words — breaks a
+// test rather than reaching the player silently.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — exact log message: playerDefend', () => {
+  it('logs the exact string "You brace for impact. (+1 damage next turn)"', () => {
+    // The existing test uses l.includes('brace'), which passes if the word "brace"
+    // appears anywhere.  The parenthetical "(+1 damage next turn)" is the tactical
+    // hint that tells the player why defending is useful.  If that clause were
+    // dropped or rephrased the player would lose key in-combat information.
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy());
+    engine.playerDefend();
+    expect(engine.state.log).toContain('You brace for impact. (+1 damage next turn)');
+  });
+});
+
+describe('CombatEngine — exact log message: playerPotion (no potions)', () => {
+  it('logs exactly "No potions left!" when the player has no potions', () => {
+    // The existing test uses l.includes('No potions'), which would also pass for
+    // "No potions available!" or "No potions in bag!".  Pinning the exact message
+    // catches any rewording that changes what the player reads in combat.
+    const player = makeFastPlayer();
+    player.state.potions = 0;
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerPotion();
+    expect(engine.state.log).toContain('No potions left!');
+  });
+});
+
+describe('CombatEngine — exact log message: enemy defeated by playerAttack', () => {
+  it('logs exactly "The <name> is defeated!" when playerAttack kills the enemy', () => {
+    // The existing tests use l.includes('is defeated'), which passes for "enemy is
+    // now defeated!" or "is defeated!!" (double exclamation).  Pinning the exact
+    // format ensures both the enemy name and punctuation are preserved across any
+    // future log reformatting.
+    //
+    // dagger: missChance=0, critChance=0.3. Mocked rolls:
+    //   0.5 < 0 (miss)  → false → no miss
+    //   floor(0.25×4)−1 → 0 (variance)
+    //   0.5 < 0.3 (crit) → false → no crit
+    // damage = max(1, str(5)+bonus(1) − def(4) + 0) = 2 → kills enemy at HP=1.
+    const enemy = makeEnemy(EnemyType.SKELETON);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = 1;
+    mockAttacks([0.5, 0.25, 0.5]); // no miss, variance=0, no crit
+    engine.playerAttack();
+    expect(engine.state.log).toContain(`The ${enemy.name} is defeated!`);
+  });
+});
+
+describe('CombatEngine — exact log message: player death', () => {
+  it('logs exactly "You have fallen!" when bleed kills the player', () => {
+    // The existing test uses l.includes('fallen'), which passes for "You have fallen
+    // to the ground!" or "You have fallen!!" (double exclamation).  Pinning the exact
+    // string ensures downstream code that matches this literal keeps matching.
+    //
+    // Setup: player HP=1, BLEED(2 dmg) kills on enemy turn → death log fires before
+    // the enemy AI dispatches, so no random mock is needed.
+    const p = makePlayer();
+    p.state.hp = 1;
+    const e = new CombatEngine(p, makeEnemy());
+    e.state.playerHp = 1;
+    e.state.playerStatusEffects.push({ type: StatusEffectType.BLEED, turnsRemaining: 2 });
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    e.enemyTurn();
+    expect(e.state.log).toContain('You have fallen!');
+  });
+});
