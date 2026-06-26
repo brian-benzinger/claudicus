@@ -482,6 +482,41 @@ describe('MapManager.clearDefeatedEnemies', () => {
     mgr.clearDefeatedEnemies();
     expect(world.defeatedEnemies.length).toBe(0);
   });
+
+  it('enemies reappear on the map after clearing the defeated list and reloading', () => {
+    // Contract: clearDefeatedEnemies() resets worldState.defeatedEnemies but does
+    // NOT restore enemy.alive on the current map — a subsequent loadMap() call is
+    // required for defeated enemies to reappear.  This test pins the full respawn
+    // round-trip so a change to either clearDefeatedEnemies() or the loadMap()
+    // filter is caught immediately.
+    //
+    // createForestMap() calls resetEnemyIdCounter(), so every loadMap('forest')
+    // produces the same enemy IDs — the ID picked up in step 1 is valid in step 5.
+    const world = createDefaultWorld();
+    const mgr = new MapManager(world);
+
+    // Step 1: load and capture an enemy id
+    mgr.loadMap('forest');
+    const enemyId = mgr.currentMap.enemies[0]!.id;
+
+    // Step 2: defeat the enemy
+    mgr.removeEnemy(enemyId);
+    expect(world.defeatedEnemies).toContain(enemyId);
+
+    // Step 3: reloading WITHOUT clearing still excludes the enemy
+    mgr.loadMap('forest');
+    expect(mgr.currentMap.enemies.find(e => e.id === enemyId)).toBeUndefined();
+
+    // Step 4: clear the defeated list
+    mgr.clearDefeatedEnemies();
+    expect(world.defeatedEnemies).toHaveLength(0);
+
+    // Step 5: reloading AFTER clearing restores the enemy as alive
+    mgr.loadMap('forest');
+    const restored = mgr.currentMap.enemies.find(e => e.id === enemyId);
+    expect(restored).toBeDefined();
+    expect(restored!.alive).toBe(true);
+  });
 });
 
 describe('MapManager.getTransition', () => {
