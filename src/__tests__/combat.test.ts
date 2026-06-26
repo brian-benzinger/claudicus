@@ -1035,6 +1035,40 @@ describe('Enemy AI — Wild Boar charge', () => {
     engine.enemyTurn();
     expect(engine.state.log.some(l => l.includes('charges'))).toBe(true);
   });
+
+  it('wild boar charge deals 1.2× damage — pins the exact HP reduction', () => {
+    // wildBoarAI calls executeEnemyAttack(1.2); the multiplier feeds into
+    // attackPower = max(1, floor(enemy.atk × multiplier)).  If the multiplier
+    // were accidentally dropped to 1.0, the log would still say "charges"
+    // while the player takes 7 damage instead of 8 — the log-only test above
+    // cannot catch that regression.
+    //
+    // player.def=0, leatherVest.defBonus=1 → effectiveDef=1, random=0.5 throughout.
+    // With 1.2×: attackPower=max(1,floor(7×1.2))=8; variance=1; damage=max(1,8−1+1)=8 → playerHp=32
+    // Without:   attackPower=7; damage=max(1,7−1+1)=7 → playerHp=33
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const player = makeFastPlayer();
+    player.state.def = 0; // effectiveDef = leatherVest.defBonus(1) only
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log.some(l => l.includes('charges'))).toBe(true);
+    expect(engine.state.playerHp).toBe(32); // 40 − 8 (1.2×), not 40 − 7 (1.0× baseline)
+  });
+
+  it('wild boar stamps its hooves — sets enemyJustDefended to open the Backstab off-guard window', () => {
+    // wildBoarAI sets BOTH enemyDefending and enemyJustDefended when it stamps.
+    // The existing stamp test in the enemy-AI-branches suite only asserts enemyDefending=true.
+    // If enemyJustDefended were removed from wildBoarAI, a dagger player's next Backstab
+    // would show "backstab" flavor instead of "off-guard" — silently wrong game feedback
+    // with no test failing.
+    vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.9 → stamp
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.enemyJustDefended).toBe(true);
+  });
 });
 
 describe('Enemy AI — Revenant Knight phase 2', () => {
