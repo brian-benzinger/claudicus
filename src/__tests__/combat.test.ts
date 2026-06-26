@@ -1630,6 +1630,35 @@ describe('CombatEngine — player attack into a defending enemy', () => {
   });
 });
 
+describe('CombatEngine — playerAttack clears enemyJustDefended (off-guard window consumed by normal attack)', () => {
+  it('enemyJustDefended is reset to false after playerAttack() so a later Backstab cannot falsely show "off-guard"', () => {
+    // playerAttack() resets `this.state.enemyJustDefended = false` alongside enemyDefending.
+    // The existing "player attack into a defending enemy" test only asserts that
+    // enemyDefending is cleared — it does not check enemyJustDefended.  If this
+    // second reset were removed, a normal attack after an enemy defend would leave
+    // the flag set; any Backstab used on a *later* turn (after the window should
+    // have expired) would still show the "off-guard" flavor incorrectly, giving
+    // the player misleading combat feedback.
+    //
+    // Scenario: enemy defended last turn (enemyJustDefended=true).  Player chooses
+    // a normal attack instead of Backstab.  The flag must be consumed by playerAttack()
+    // so that a subsequent Backstab does NOT see a stale "off-guard" window.
+    //
+    // rusty_shortsword: missChance=0, critChance=0, NORMAL; bandit agi=3 == player agi=3
+    // → player goes first (PLAYER_ACTION phase at start).
+    const p = makePlayer();
+    const e = new CombatEngine(p, makeEnemy(EnemyType.BANDIT));
+    e.state.phase = CombatPhase.PLAYER_ACTION;
+    e.state.enemyJustDefended = true; // enemy defended on their previous turn
+    mockAttacks([0, 0.25, 0.5]);      // no miss, variance=0, no crit
+    e.playerAttack();
+    // The off-guard window must be closed — if a dagger-wielding level-3 player were
+    // to Backstab now, it must show "backstab" (not "off-guard") because the normal
+    // attack already consumed the window.
+    expect(e.state.enemyJustDefended).toBe(false);
+  });
+});
+
 describe('CombatEngine — update phase transitions', () => {
   it('enemy animation ending with a dead player ends combat', () => {
     const p = makePlayer();
