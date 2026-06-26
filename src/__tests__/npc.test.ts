@@ -822,6 +822,29 @@ describe('NpcManager — misc helpers', () => {
     expect(quest.rewardClaimed).toBe(true);
   });
 
+  it('claimQuestReward fallback applies forest_menace rewards: 50 gold + iron_longsword', () => {
+    // The no-def path falls back to QUESTS.forest_menace (the MAIN_QUEST constant).
+    // The existing test above only checks success/rewardClaimed; if the fallback were
+    // changed to another quest def (e.g. quiet_dead giving only 40 gold with no weapon),
+    // that test would still pass.  This test pins the exact rewards so the specific
+    // fallback def is locked: any swap to a different quest silently breaks the contract.
+    //
+    // forest_menace: rewardGold=50, rewardWeaponId='iron_longsword'
+    // player starts with 10 gold → after claim: 10 + 50 = 60
+    const mgr = new NpcManager();
+    const player = makePlayer(); // 10 gold, rusty_shortsword
+    const quest = makeQuestState({ started: true, completed: true });
+    const result = mgr.claimQuestReward(quest, player);
+    expect(result.success).toBe(true);
+    expect(quest.rewardClaimed).toBe(true);
+    expect(player.state.gold).toBe(60);              // 10 + 50 from forest_menace
+    expect(player.ownsWeapon('iron_longsword')).toBe(true); // forest_menace weapon reward
+    expect(player.state.weaponId).toBe('iron_longsword');   // equipped, not just added
+    expect(result.rewards).toHaveLength(2);
+    expect(result.rewards[0]).toBe('Received 50 gold!');
+    expect(result.rewards[1]).toBe('Received Iron Longsword!');
+  });
+
   it('moveShopCursor wraps around both ends', () => {
     const mgr = new NpcManager();
     mgr.openShop(NpcRole.SHOP_ARMOR);
