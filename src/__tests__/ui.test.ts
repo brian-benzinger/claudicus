@@ -388,12 +388,14 @@ describe('UIRenderer.drawCraftMenu — content contracts', () => {
   it('renders steel cost indicator "Steel: N" for recipes that require bandit steel', () => {
     // iron_longsword costs bandit_steel=2 and war_axe also costs bandit_steel=2.
     // The indicator pins the format: "Steel: 2" not "Bandit Steel: 2" or just "2".
+    // Both steel-requiring recipes must render their indicator: exactly 2 occurrences of
+    // "Steel: 2".  The prior `toBeGreaterThanOrEqual(1)` would pass even if war_axe's
+    // indicator were silently dropped — the exact count of 2 catches that regression.
     const { ctx, textCalls } = makeCtx();
     const player = createDefaultPlayer();
     ui.drawCraftMenu(ctx, player, 0);
-    // Both iron_longsword and war_axe require steel=2 — the indicator must appear
     const steelLabels = textCalls.filter(c => c.text === 'Steel: 2');
-    expect(steelLabels.length).toBeGreaterThanOrEqual(1);
+    expect(steelLabels.length).toBe(2);
   });
 
   it('renders the key-binding hint at the bottom of the menu', () => {
