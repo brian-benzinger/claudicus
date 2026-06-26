@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { UIRenderer } from '../ui';
 import { createDefaultPlayer, ClassPath, MAX_LEVEL, TITLES } from '../types';
+import { CRAFT_RECIPES } from '../data/recipes';
 
 // ---------------------------------------------------------------------------
 // Minimal canvas mock that records fillText calls.
@@ -310,5 +311,110 @@ describe('UIRenderer.drawDialogBox — content contracts', () => {
     const { ctx, textCalls } = makeCtx();
     ui.drawDialogBox(ctx, 'Guard', 'Halt.', 0);
     expect(textCalls.some(c => c.text.includes('SPACE'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawCraftMenu — crafting screen display contracts
+//
+// drawCraftMenu renders the forge interface: material counts, all three recipe
+// entries (name + description + cost indicators), and the key-binding hint.
+// These tests pin the exact text strings the player sees so that format changes,
+// wrong variable bindings, or silent omissions are caught before they reach the
+// player.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawCraftMenu — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "FORGE" as the menu title', () => {
+    // The title labels the UI context. If it were accidentally changed (e.g. to
+    // "CRAFT" or left blank) the player would see a different header or nothing.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    expect(textCalls.some(c => c.text === 'FORGE')).toBe(true);
+  });
+
+  it('renders exact material counts — "Wolf Pelts: N   Bandit Steel: N"', () => {
+    // The space-padded format "Wolf Pelts: 2   Bandit Steel: 3" is what the player
+    // reads to decide what they can craft. A format change ("Wolf Pelt: 2" or swapped
+    // order) silently breaks the display contract — this test pins both the template
+    // and the values so any change in either is caught immediately.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.materials = { wolf_pelt: 2, bandit_steel: 3 };
+    ui.drawCraftMenu(ctx, player, 0);
+    expect(textCalls.some(c => c.text === 'Wolf Pelts: 2   Bandit Steel: 3')).toBe(true);
+  });
+
+  it('renders all three recipe names from CRAFT_RECIPES', () => {
+    // CRAFT_RECIPES has 3 entries. Each name must appear so the player can see
+    // every craftable option. Missing a name would leave a blank row in the menu.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    const renderedTexts = textCalls.map(c => c.text);
+    for (const recipe of CRAFT_RECIPES) {
+      expect(renderedTexts).toContain(recipe.name);
+    }
+  });
+
+  it('renders all three recipe descriptions from CRAFT_RECIPES', () => {
+    // Descriptions tell the player the cost and output (e.g. "3 Wolf Pelts → Studded
+    // Leather (DEF +2)"). If any were dropped, the row would have a name but no detail.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    const renderedTexts = textCalls.map(c => c.text);
+    for (const recipe of CRAFT_RECIPES) {
+      expect(renderedTexts).toContain(recipe.description);
+    }
+  });
+
+  it('renders pelt cost indicator "Pelts: N" for recipes that require wolf pelts', () => {
+    // studded_leather costs wolf_pelt=3 and war_axe costs wolf_pelt=1.
+    // The cost indicator appears as a separate label so the player can compare
+    // their stockpile against the required amount at a glance.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    const renderedTexts = textCalls.map(c => c.text);
+    // studded_leather: cost.wolf_pelt=3 → "Pelts: 3"
+    expect(renderedTexts).toContain('Pelts: 3');
+    // war_axe: cost.wolf_pelt=1 → "Pelts: 1"
+    expect(renderedTexts).toContain('Pelts: 1');
+  });
+
+  it('renders steel cost indicator "Steel: N" for recipes that require bandit steel', () => {
+    // iron_longsword costs bandit_steel=2 and war_axe also costs bandit_steel=2.
+    // The indicator pins the format: "Steel: 2" not "Bandit Steel: 2" or just "2".
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    // Both iron_longsword and war_axe require steel=2 — the indicator must appear
+    const steelLabels = textCalls.filter(c => c.text === 'Steel: 2');
+    expect(steelLabels.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the key-binding hint at the bottom of the menu', () => {
+    // Players rely on this hint to know how to navigate and confirm a craft.
+    // If it were omitted or reformatted the controls would be invisible.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    ui.drawCraftMenu(ctx, player, 0);
+    expect(
+      textCalls.some(c => c.text === '[W/S] Select   [SPACE] Craft   [ESC] Exit')
+    ).toBe(true);
+  });
+
+  it('renders material count as 0 when materials are absent (undefined guard)', () => {
+    // drawCraftMenu uses `player.materials?.wolf_pelt ?? 0` to guard against
+    // undefined materials (possible after a v4 save migration before the save
+    // module backfills the field).  This test drives the ?? 0 fallback path.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    (player as any).materials = undefined; // simulate missing field
+    expect(() => ui.drawCraftMenu(ctx, player, 0)).not.toThrow();
+    expect(textCalls.some(c => c.text === 'Wolf Pelts: 0   Bandit Steel: 0')).toBe(true);
   });
 });
