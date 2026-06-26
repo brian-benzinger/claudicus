@@ -158,6 +158,50 @@ describe('openChest', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// openChest — already-owned item behavior
+//
+// The NPC shop (buySelectedItem) has an explicit ownership gate: it returns
+// "You already own this weapon/armor" and charges nothing.  openChest() has
+// NO such gate — it calls equipWeapon() / equipArmor() unconditionally.
+//
+// Contract: a chest loot entry for a weapon or armor the player already owns
+//   1. still produces a "Found X!" message (not suppressed)
+//   2. does NOT add a duplicate to state.weapons / state.armors (equipWeapon /
+//      equipArmor each call addWeaponToInventory / addArmorToInventory which
+//      deduplicates in-place)
+//   3. re-equips the same item (effectively a no-op for equipped state)
+//
+// Pinning this contract prevents silent drift if someone adds an ownership
+// guard to openChest() to "match" the shop — that would change observable
+// behavior (suppressed messages) and this test would catch it.
+// ---------------------------------------------------------------------------
+describe('openChest — already-owned item', () => {
+  it('finding a weapon you already own still shows "Found X!" — no ownership gate in openChest', () => {
+    // The player starts with rusty_shortsword in state.weapons.
+    // openChest calls equipWeapon('rusty_shortsword') unconditionally, which adds no
+    // duplicate (addWeaponToInventory deduplicates) but always emits the Found message.
+    // If ownership checking were added, the message would be suppressed and messages
+    // would be empty → the chest-is-empty fallback fires instead.
+    const player = makePlayer(); // rusty_shortsword already in state.weapons
+    const result = openChest(makeChest([{ type: 'weapon', weaponId: 'rusty_shortsword' }]), player);
+    expect(result.messages[0]).toBe('Found Rusty Shortsword!'); // message is NOT suppressed
+    expect(player.state.weapons.filter(w => w === 'rusty_shortsword').length).toBe(1); // no duplicate
+    expect(player.state.weaponId).toBe('rusty_shortsword'); // re-equipped (same value)
+  });
+
+  it('finding armor you already own still shows "Found X!" — no ownership gate in openChest', () => {
+    // The player starts with leather_vest in state.armors.
+    // Same contract as the weapon case: equipArmor() is called without an ownership
+    // check, addArmorToInventory deduplicates, and the Found message always appears.
+    const player = makePlayer(); // leather_vest already in state.armors
+    const result = openChest(makeChest([{ type: 'armor', armorId: 'leather_vest' }]), player);
+    expect(result.messages[0]).toBe('Found Leather Vest!'); // message is NOT suppressed
+    expect(player.state.armors.filter(a => a === 'leather_vest').length).toBe(1); // no duplicate
+    expect(player.state.armorId).toBe('leather_vest'); // re-equipped (same value)
+  });
+});
+
 describe('getItemDescription', () => {
   it('describes potions', () => {
     expect(getItemDescription({ type: 'potion', amount: 2 })).toBe('2x Health Potion');
