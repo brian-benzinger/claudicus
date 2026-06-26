@@ -1308,16 +1308,33 @@ describe('CombatEngine — action phase guards', () => {
     const e = engineInEnemyPhase();
     e.playerDefend();
     expect(e.state.defendingThisTurn).toBe(false);
+    // Guard must block ALL defend side-effects, not just the flag
+    expect(e.state.nextAttackBonus).toBe(0);
+    expect(e.state.phase).toBe(CombatPhase.ENEMY_ACTION);
   });
 
   it('playerPotion is a no-op outside PLAYER_ACTION', () => {
-    const e = engineInEnemyPhase();
+    // Create player externally so we can inspect potions after the call
+    const player = makePlayer();
+    player.state.hp = 20; // damage so a heal would be detectable via playerHp
+    const e = new CombatEngine(player, makeEnemy());
+    e.state.phase = CombatPhase.ENEMY_ACTION;
+    const hpBefore = e.state.playerHp;       // 20 — engine mirrors player hp
+    const potionsBefore = player.state.potions;
     expect(e.playerPotion()).toBe(false);
+    // Guard must block ALL side-effects: no heal, no potion consumed, no phase change
+    expect(e.state.playerHp).toBe(hpBefore);
+    expect(player.state.potions).toBe(potionsBefore);
+    expect(e.state.phase).toBe(CombatPhase.ENEMY_ACTION);
   });
 
   it('playerFlee is a no-op outside PLAYER_ACTION', () => {
     const e = engineInEnemyPhase();
+    const logLenBefore = e.state.log.length;
     expect(e.playerFlee()).toBe(false);
+    // Guard must block phase transition and log writes
+    expect(e.state.phase).toBe(CombatPhase.ENEMY_ACTION);
+    expect(e.state.log.length).toBe(logLenBefore);
   });
 
   it('playerUseAbility is a no-op outside PLAYER_ACTION', () => {
