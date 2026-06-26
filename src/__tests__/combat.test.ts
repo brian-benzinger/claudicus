@@ -896,6 +896,59 @@ describe('Enemy AI — Wolf howl', () => {
     // wolf: atk(5)-effectiveDef(1)+var(1)=5 dmg → 40-5=35
     expect(engine.state.playerHp).toBe(35);
   });
+
+  it('wolf howl overrides the defend bonus — nextAttackBonus becomes -2, not preserved at +1', () => {
+    // playerDefend() sets nextAttackBonus = +1. The wolf's howl applies
+    // Math.min(+1, -2) = -2, which must wipe out the defend bonus entirely.
+    // If Math.min were changed to Math.max, the +1 would survive (max(+1,-2)=+1)
+    // and the player would deal extra damage on the next attack — this test catches that.
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
+    engine.playerDefend(); // nextAttackBonus = +1, phase → ENEMY_ACTION
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.30 → wolf howls
+    engine.enemyTurn();
+    expect(engine.state.nextAttackBonus).toBe(-2); // Math.min(+1, -2) = -2, not +1
+  });
+
+  it('wolf howl -2 penalty flows through to reduce actual player attack damage', () => {
+    // The field-level howl test pins nextAttackBonus = -2 but does NOT verify the
+    // penalty is wired into executePlayerAttack's damage formula:
+    //   attackPower = player.computeWeaponDamage() + this.state.nextAttackBonus
+    // If that term were clamped to max(0, ...) for negatives, the field would read -2
+    // while the player still deals baseline damage — field test passes, contract broken.
+    //
+    // dagger: missChance=0, critChance=0.3, damageBonus=1.
+    // computeWeaponDamage() = str(5) + damageBonus(1) = 6.
+    // After howl: nextAttackBonus=-2 → attackPower=4; wolf.def=1; variance=0 (random=0.25).
+    // damage = max(1, 4-1+0) = 3 → enemyHp = 12 - 3 = 9.
+    // Baseline (no howl): attackPower=6; damage=max(1,6-1+0)=5 → enemyHp = 12 - 5 = 7.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.1)   // wolf: < 0.30 → howl (wolfAI makes no further random calls)
+      .mockReturnValueOnce(0.5)   // player attack miss: 0.5 >= 0 → no miss
+      .mockReturnValueOnce(0.25)  // player attack variance: floor(0.25*4)-1 = 0
+      .mockReturnValueOnce(0.9);  // player attack crit: 0.9 >= 0.3 → no crit
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // wolf howls; nextAttackBonus = -2; phase → PLAYER_ACTION
+    expect(engine.state.nextAttackBonus).toBe(-2); // confirm howl fired
+    engine.playerAttack();
+    expect(engine.state.enemyHp).toBe(9);  // 12 - 3 (howled), not 12 - 5 (no howl)
+    expect(engine.state.log.some(l => l.includes('3 damage'))).toBe(true);
+  });
+
+  it('wolf howl does not stack — a second howl leaves nextAttackBonus at -2, not -4', () => {
+    // wolfAI: nextAttackBonus = Math.min(currentBonus, -2).
+    // When already at -2: Math.min(-2, -2) = -2 — the formula is idempotent.
+    // If the implementation used += -2 instead, a second howl would produce -4,
+    // giving the player an extra -4 attack penalty — this test pins the cap contract.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // always < 0.30 → always howl
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.WOLF));
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // first howl → nextAttackBonus = -2
+    expect(engine.state.nextAttackBonus).toBe(-2);
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn(); // second howl → must stay at -2, not become -4
+    expect(engine.state.nextAttackBonus).toBe(-2);
+  });
 });
 
 describe('Enemy AI — Bandit Archer alternating', () => {
