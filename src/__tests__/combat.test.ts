@@ -3484,6 +3484,25 @@ describe('CombatEngine — exact log message: Shatter ability (mace)', () => {
     engine.playerUseAbility(); // Shatter: reduction=min(2,4)=2; enemy.def 4→2
     expect(engine.state.log).toContain("Shatter! Skeleton's DEF reduced by 2!");
   });
+
+  it('logs exactly "Skeleton\'s armor is already broken!" when Shatter is used on an enemy with DEF 0', () => {
+    // The "Mace Shatter on already-broken armor" test at line ~1884 uses
+    // l.includes('already broken'), which passes even if the message changes from
+    // "Skeleton's armor is already broken!" to "The armor is already broken!" (losing
+    // the enemy name) or "Skeleton's armor cannot be broken further!" (different phrasing).
+    // Pinning the full exact string matches the contract set for the Shatter-success path
+    // above: both branches of the `if (reduction > 0)` guard must have exact message pins
+    // so any player-facing reword is caught before it silently ships.
+    const player = makePlayer();
+    player.state.level = 3;
+    player.equipWeapon('mace'); // SLOW; mace starts in ENEMY_ACTION against skeleton
+    const enemy = makeEnemy();  // Skeleton (name = 'Skeleton', def = 4)
+    enemy.def = 0;              // force DEF to 0 so reduction = min(2, 0) = 0 → "already broken" branch
+    const engine = new CombatEngine(player, enemy);
+    engine.state.phase = CombatPhase.PLAYER_ACTION;
+    engine.playerUseAbility();
+    expect(engine.state.log).toContain("Skeleton's armor is already broken!");
+  });
 });
 
 describe('CombatEngine — exact log message: Shield Bash ability (Warrior)', () => {
