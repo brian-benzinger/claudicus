@@ -1320,6 +1320,51 @@ describe('CombatEngine.playerUseAbility — Shatter (mace)', () => {
     engine.playerUseAbility();
     expect(engine.state.enemy.def).toBe(0);
   });
+
+  it('reduced DEF from Shatter flows into subsequent attack damage — not a cached snapshot', () => {
+    // Contract: Shatter mutates this.state.enemy.def; executePlayerAttack reads that field
+    // live when computing effectiveDef.  The two existing Shatter tests only verify the
+    // FIELD value after the ability — they do not prove the damage formula uses it.
+    // If executePlayerAttack were ever changed to snapshot enemy.def at construction, the
+    // field test would still pass (def reads 2) while attacks silently used 4, dealing 8
+    // instead of 9.  This test pins the full pipeline from Shatter → damage to HP.
+    //
+    // mace: missChance=0, critChance=0, ignoresDefense=0.5, damageBonus=5; player str=5.
+    // attackPower = 5+5 = 10; skeleton def=4, agi=2; player agi=10.
+    // SLOW: 10 > 2+3=5 → player goes first in both engines.
+    // variance=0 (roll=0.25 → floor(1)−1=0).
+    //
+    // Baseline (no Shatter): effectiveDef=4*0.5=2; damage=max(1,10−2+0)=8.
+    // Post-Shatter (def→2): effectiveDef=2*0.5=1;  damage=max(1,10−1+0)=9.
+
+    // Baseline: plain mace attack without Shatter
+    mockAttacks([0.5, 0.25, 0.5]); // no miss, variance=0, no crit
+    const p1 = makePlayer();
+    p1.equipWeapon('mace');
+    p1.state.agi = 10;
+    p1.state.level = 3;
+    const e1 = new CombatEngine(p1, makeEnemy(EnemyType.SKELETON));
+    const hp1Before = e1.state.enemyHp;
+    e1.playerAttack();
+    const baselineDamage = hp1Before - e1.state.enemyHp;
+
+    // Post-Shatter: Shatter reduces def 4 → 2, then a regular attack
+    const p2 = makePlayer();
+    p2.equipWeapon('mace');
+    p2.state.agi = 10;
+    p2.state.level = 3;
+    const e2 = new CombatEngine(p2, makeEnemy(EnemyType.SKELETON));
+    e2.playerUseAbility(); // Shatter: enemy.def 4 → 2
+    e2.state.phase = CombatPhase.PLAYER_ACTION; // skip animation / enemy turn
+    mockAttacks([0.5, 0.25, 0.5]); // no miss, variance=0, no crit
+    const hp2Before = e2.state.enemyHp;
+    e2.playerAttack();
+    const postShatterDamage = hp2Before - e2.state.enemyHp;
+
+    expect(baselineDamage).toBe(8);  // pre-Shatter: effectiveDef=2, damage=8
+    expect(postShatterDamage).toBe(9); // post-Shatter: effectiveDef=1, damage=9
+    expect(postShatterDamage).toBe(baselineDamage + 1); // reduced DEF wired into the formula
+  });
 });
 
 describe('CombatEngine.playerUseAbility — Shield Bash (Warrior)', () => {
