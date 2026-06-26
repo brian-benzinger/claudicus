@@ -9,7 +9,8 @@
     "build:vercel": "npm run build && mkdir -p public/dist && cp index.html style.css favicon.svg favicon.png public/ && cp dist/game.js public/dist/game.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
