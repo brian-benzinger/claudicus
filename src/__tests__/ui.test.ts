@@ -301,11 +301,15 @@ describe('UIRenderer.drawCombatMenu — combat action labels', () => {
 describe('UIRenderer.drawCombatLog — log line contracts', () => {
   const ui = new UIRenderer();
 
-  it('renders each log line as a fillText call', () => {
+  it('renders each log line at the correct x/y position in order', () => {
+    // logY = CANVAS_HEIGHT(640) - 180 = 460; each line i at y = 460 + 20 + i*18.
+    // Using .some() would miss reversed order, wrong coordinates, or duplicates —
+    // all silent regressions that would misalign text on screen.
     const { ctx, textCalls } = makeCtx();
     ui.drawCombatLog(ctx, ['A Wolf appears!', 'You attack for 5 damage.']);
-    expect(textCalls.some(c => c.text === 'A Wolf appears!')).toBe(true);
-    expect(textCalls.some(c => c.text === 'You attack for 5 damage.')).toBe(true);
+    expect(textCalls).toHaveLength(2);
+    expect(textCalls[0]).toEqual({ text: 'A Wolf appears!',          x: 30, y: 480 });
+    expect(textCalls[1]).toEqual({ text: 'You attack for 5 damage.', x: 30, y: 498 });
   });
 
   it('renders an empty log without throwing', () => {
