@@ -3,7 +3,9 @@ import {
   NpcRole,
   DialogState,
   QuestState,
-  ShopItem
+  ShopItem,
+  MAX_POTIONS,
+  POTION_COST
 } from './types';
 import { PlayerManager } from './player';
 import { getShopWeapons, getWeapon, WEAPONS } from './data/weapons';
@@ -108,7 +110,7 @@ export class NpcManager {
     } else if (role === NpcRole.SHOP_POTIONS) {
       this.shopItems = [{
         name: 'Health Potion',
-        cost: 5,
+        cost: POTION_COST,
         type: 'potion' as const
       }];
     } else if (role === NpcRole.SHOP_ARMOR) {
@@ -169,7 +171,7 @@ export class NpcManager {
       player.equipWeapon(item.weaponId!);
       return { success: true, message: `Purchased ${item.name}!` };
     } else if (item.type === 'potion') {
-      if (player.state.potions >= 10) {
+      if (player.state.potions >= MAX_POTIONS) {
         return { success: false, message: 'Cannot carry more potions!' };
       }
 
