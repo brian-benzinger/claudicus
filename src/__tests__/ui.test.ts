@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { UIRenderer } from '../ui';
 import { createDefaultPlayer, ClassPath, MAX_LEVEL, TITLES } from '../types';
 import { CRAFT_RECIPES } from '../data/recipes';
+import type { ShopItem } from '../types';
 
 // ---------------------------------------------------------------------------
 // Minimal canvas mock that records fillText calls.
@@ -563,5 +564,130 @@ describe('UIRenderer.drawCraftMenu — cursor selection highlight position', () 
       expect(h.w, `cursor ${cursor}: highlight width`).toBe(460);
       expect(h.h, `cursor ${cursor}: highlight height`).toBe(50);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawShopMenu — shop display contracts
+//
+// drawShopMenu renders the weapon/armor/potion shop the player uses to spend
+// gold.  The shop is the primary gold sink; incorrect prices, missing "(owned)"
+// labels, or a wrong gold display would silently mislead the player with no
+// runtime error.  These tests pin the exact text contracts so any formatting
+// change to the shop UI is immediately caught.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawShopMenu — content contracts', () => {
+  const ui = new UIRenderer();
+
+  function makeItems(): ShopItem[] {
+    return [
+      { weaponId: 'iron_longsword', name: 'Iron Longsword', cost: 30, type: 'weapon', owned: false },
+      { weaponId: 'dagger',         name: 'Dagger',         cost: 20, type: 'weapon', owned: false },
+    ];
+  }
+
+  it('renders "SHOP" as the menu title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawShopMenu(ctx, makeItems(), 0, 50);
+    expect(textCalls.some(c => c.text === 'SHOP')).toBe(true);
+  });
+
+  it('renders "Your Gold: N" with the exact player gold amount', () => {
+    // If the gold display were hardcoded or used the wrong variable, the player
+    // would see a wrong amount and make purchase decisions based on bad data.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawShopMenu(ctx, makeItems(), 0, 75);
+    expect(textCalls.some(c => c.text === 'Your Gold: 75')).toBe(true);
+  });
+
+  it('renders each item name without suffix when not owned', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawShopMenu(ctx, makeItems(), 0, 100);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('Iron Longsword');
+    expect(texts).toContain('Dagger');
+    // Non-owned items must NOT have the "(owned)" suffix
+    expect(texts.some(t => t === 'Iron Longsword (owned)')).toBe(false);
+    expect(texts.some(t => t === 'Dagger (owned)')).toBe(false);
+  });
+
+  it('renders "${name} (owned)" for items the player already owns', () => {
+    // Contract: items with owned=true must display the "(owned)" suffix so the
+    // player knows they cannot or need not buy the item again.  If the suffix were
+    // dropped, the player would see just the item name and might attempt a second
+    // purchase that the game would reject with "You already own this weapon."
+    const { ctx, textCalls } = makeCtx();
+    const items: ShopItem[] = [
+      { weaponId: 'dagger', name: 'Dagger', cost: 20, type: 'weapon', owned: true },
+      { weaponId: 'mace',   name: 'Mace',   cost: 40, type: 'weapon', owned: false },
+    ];
+    ui.drawShopMenu(ctx, items, 0, 100);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('Dagger (owned)');  // owned item gets the suffix
+    expect(texts).toContain('Mace');            // non-owned item does not
+    expect(texts.some(t => t === 'Dagger')).toBe(false); // bare name must NOT appear
+    expect(texts.some(t => t === 'Mace (owned)')).toBe(false);
+  });
+
+  it('renders each price as "${cost}g"', () => {
+    // The price format must include the "g" suffix so the player can distinguish
+    // prices from other numeric values. "30" alone could be confused with HP or XP.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawShopMenu(ctx, makeItems(), 0, 100);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('30g');
+    expect(texts).toContain('20g');
+  });
+
+  it('renders the key-binding hint at the bottom', () => {
+    // Without the hint the player does not know how to navigate or buy — the
+    // controls would be invisible and the shop unusable for new players.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawShopMenu(ctx, makeItems(), 0, 50);
+    expect(
+      textCalls.some(c => c.text === '[W/S] Select   [SPACE] Buy   [ESC] Exit')
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawDefeatScreen — defeat text contracts
+//
+// drawDefeatScreen is the player's only feedback when they die: it must show
+// the exact amount of gold they lost so they know the penalty.  A wrong value
+// (e.g. 0 or a hardcoded number) would silently misreport a core game mechanic.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawDefeatScreen — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "YOU HAVE FALLEN" as the title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawDefeatScreen(ctx, 10);
+    expect(textCalls.some(c => c.text === 'YOU HAVE FALLEN')).toBe(true);
+  });
+
+  it('renders "Lost N gold." with the exact gold-lost amount', () => {
+    // The goldLost parameter is computed by the game engine from the player's
+    // current gold.  If the parameter were ignored (e.g. always showing "0" or
+    // a hardcoded value), the player would be misinformed about their death penalty
+    // and no other test would catch it — this test pins the exact message contract.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawDefeatScreen(ctx, 42);
+    expect(textCalls.some(c => c.text === 'Lost 42 gold.')).toBe(true);
+  });
+
+  it('renders "Lost 0 gold." when goldLost is 0 (no penalty for a broke player)', () => {
+    // When the player has no gold, floor(0 * 0.1) = 0 → goldLost = 0.
+    // The message must still appear; if it were conditional on goldLost > 0,
+    // the line would be absent and the defeat screen layout would shift.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawDefeatScreen(ctx, 0);
+    expect(textCalls.some(c => c.text === 'Lost 0 gold.')).toBe(true);
+  });
+
+  it('renders the "[SPACE] Return to Brannford" prompt', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawDefeatScreen(ctx, 5);
+    expect(textCalls.some(c => c.text === '[SPACE] Return to Brannford')).toBe(true);
   });
 });
