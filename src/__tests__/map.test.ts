@@ -860,6 +860,28 @@ describe('Entity spawn placement - no blocking tiles', () => {
     }
   });
 
+  it('village spawn point is on a walkable tile', () => {
+    // village spawnX=5, spawnY=6 is the initial new-game position AND the
+    // hardcoded death-respawn point in player.respawn().  Unlike forest/dungeon
+    // spawns, (5,6) is never a transition destination so it is NOT covered by
+    // the all-transition-spawns-walkable test.  A non-walkable tile here traps
+    // every new character and every death-respawn inside solid geometry.
+    const mgr = makeMapManager(); // village
+    const { spawnX, spawnY } = mgr.currentMap;
+    expect(mgr.isWalkable(spawnX, spawnY)).toBe(true);
+  });
+
+  it('village map spawnX/spawnY matches the coordinates hardcoded in player.respawn()', () => {
+    // player.respawn() sets tileX=5, tileY=6 (pinned in player.test.ts).
+    // The village map's spawnX/spawnY must stay in sync: if maps.ts changes the
+    // spawn to (6,7) but player.respawn() is not updated (or vice versa), the
+    // player lands one tile away from the intended location on every death.
+    // This cross-module contract test catches the drift before it reaches players.
+    const mgr = makeMapManager(); // village
+    expect(mgr.currentMap.spawnX).toBe(5);
+    expect(mgr.currentMap.spawnY).toBe(6);
+  });
+
   it('dungeon spawn point is on a walkable tile', () => {
     const world = createDefaultWorld();
     const mgr = new MapManager(world);
