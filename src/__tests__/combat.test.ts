@@ -933,6 +933,47 @@ describe('Status effects — WEAKEN', () => {
   });
 });
 
+describe('CombatEngine — WEAKEN expiry restores full enemy damage', () => {
+  // The expiry tests in the WEAKEN suite above only check the log message
+  // ("no longer weakened") and the tick decrement — they do NOT verify that the
+  // effect is actually removed from enemyStatusEffects or that subsequent attacks
+  // deal full damage.  This test exercises the complete lifecycle:
+  //   apply → attack (weakened) → tick/expire → attack (full damage)
+  //
+  // tickEnemyEffects() is called inside enemyTurn() after dispatchEnemyAI(),
+  // so the expiry happens automatically on the turn the effect reaches zero.
+  //
+  // Setup (matches the WEAKEN HP test above for comparability):
+  //   player.def=0, effectiveDef = leatherVest(1) = 1, Bandit ATK=6, random=0.5
+  //   → variance = floor(0.5*4)-1 = 1
+  // Turn 1 (WEAKEN magnitude=3, turnsRemaining=1):
+  //   attack with WEAKEN → attackPower=max(1,6-3)=3, damage=max(1,3-1+1)=3 → playerHp=37
+  //   then tick: turnsRemaining 1→0 → effect spliced out
+  // Turn 2 (WEAKEN gone):
+  //   attackPower=6, damage=max(1,6-1+1)=6 → playerHp=37-6=31
+
+  it('WEAKEN is removed from enemyStatusEffects when it expires, and the next attack deals full damage', () => {
+    const player = makeFastPlayer();
+    player.state.def = 0; // effectiveDef = leatherVest(1) = 1
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyStatusEffects.push({
+      type: StatusEffectType.WEAKEN, turnsRemaining: 1, magnitude: 3,
+    });
+
+    // Turn 1 — WEAKEN active: weakened attack, then tick removes it
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(37); // 40 - 3 (weakened)
+    expect(engine.state.enemyStatusEffects).toEqual([]); // WEAKEN expired and removed
+
+    // Turn 2 — WEAKEN gone: full damage
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.playerHp).toBe(31); // 37 - 6 (unweckened)
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Enemy AI profiles
 // ---------------------------------------------------------------------------
@@ -2644,10 +2685,11 @@ describe('CombatEngine.playerFlee — AGI bonus (+0.2 when player agi strictly e
 // ---------------------------------------------------------------------------
 // STUN + WEAKEN interaction — WEAKEN does not consume a turn while enemy is stunned
 //
-// tickEnemyEffects() (which decrements WEAKEN) only runs in update() when
-// transitioning out of ENEMY_ANIMATING.  When the enemy is stunned, enemyTurn()
-// sets phase directly to PLAYER_ACTION and returns early, skipping ENEMY_ANIMATING
-// entirely.  Contract: WEAKEN turnsRemaining is NOT decremented on a stunned turn.
+// tickEnemyEffects() runs inside enemyTurn() after dispatchEnemyAI().  When the
+// enemy is stunned, enemyTurn() detects the STUN first, decrements it, and returns
+// early — dispatchEnemyAI() and tickEnemyEffects() are never reached.  The enemy
+// loses their attack AND their other effects do not tick.
+// Contract: WEAKEN turnsRemaining is NOT decremented on a stunned turn.
 // ---------------------------------------------------------------------------
 
 describe('CombatEngine — WEAKEN does not decrement during a stunned enemy turn', () => {
