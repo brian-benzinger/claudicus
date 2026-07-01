@@ -292,3 +292,73 @@ describe('MusicEngine — with mocked AudioContext', () => {
     expect(ctx.oscillators.length).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Oscillator-count contracts for the remaining three tracks.
+//
+// The village track already has an exact oscillator count pinned (68).  These
+// tests extend that contract to forest, dungeon, and combat so that silently
+// dropping a voice layer (melody, bass, or harmony) from any track is caught
+// immediately.  Each test uses the same setup as the village one: play() is
+// called while mockTime=0 (nextStepTime → 0.05), then mockTime is set to 10
+// and a single 40 ms tick is fired, giving the window [0.05, 10.15).
+// ---------------------------------------------------------------------------
+describe('MusicEngine — oscillator-count contracts for forest, dungeon, combat tracks', () => {
+  let originalAudioContext: unknown;
+
+  beforeEach(() => {
+    mockTime = 0;
+    originalAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = MockAudioContext;
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    (globalThis as any).AudioContext = originalAudioContext;
+  });
+
+  it('forest tick at t=10 schedules exactly 33 oscillators — pins melody/bass/harmony voice integrity', () => {
+    // BPM=80, stepDur=0.375 s; window [0.05, 10.15) → 27 steps:
+    //   1 full 16-step cycle  = 19 osc (melody:11, bass:4, harmony:4)
+    //   11 partial steps i=0–10 = 14 osc (melody:8, bass:3, harmony:3)
+    //   Total: 33
+    // Dropping any voice layer reduces the count: bass-only drop → 29, harmony-only drop → 29.
+    const engine = new MusicEngine();
+    engine.init();
+    engine.play('forest'); // nextStepTime = 0 + 0.05
+    mockTime = 10;         // window becomes [0.05, 10.15)
+    vi.advanceTimersByTime(40);
+    const ctx = (engine as any).ctx as MockAudioContext;
+    expect(ctx.oscillators.length).toBe(33);
+  });
+
+  it('dungeon tick at t=10 schedules exactly 25 oscillators — pins melody/bass/harmony voice integrity', () => {
+    // BPM=65, stepDur≈0.4615 s; window [0.05, 10.15) → 22 steps:
+    //   1 full 16-step cycle  = 17 osc (melody:9, bass:4, harmony:4)
+    //   6 partial steps i=0–5 = 8 osc (melody:4, bass:2, harmony:2)
+    //   Total: 25
+    const engine = new MusicEngine();
+    engine.init();
+    engine.play('dungeon');
+    mockTime = 10;
+    vi.advanceTimersByTime(40);
+    const ctx = (engine as any).ctx as MockAudioContext;
+    expect(ctx.oscillators.length).toBe(25);
+  });
+
+  it('combat tick at t=10 schedules exactly 94 oscillators — pins melody/bass/harmony voice integrity', () => {
+    // BPM=150, stepDur=0.2 s; window [0.05, 10.15) → 51 steps:
+    //   3 full 16-step cycles = 87 osc (melody:13, bass:8, harmony:8 per cycle)
+    //   3 partial steps i=0–2 = 7 osc (melody:3, bass:2, harmony:2)
+    //   Total: 94
+    const engine = new MusicEngine();
+    engine.init();
+    engine.play('combat');
+    mockTime = 10;
+    vi.advanceTimersByTime(40);
+    const ctx = (engine as any).ctx as MockAudioContext;
+    expect(ctx.oscillators.length).toBe(94);
+  });
+});
