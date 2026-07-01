@@ -159,6 +159,27 @@ describe('PlayerManager.addGold / removeGold', () => {
     expect(result).toBe(false);
     expect(p.state.gold).toBe(10);
   });
+
+  it('succeeds when amount equals gold exactly — pins the strict < boundary, not <=', () => {
+    // The guard is `this.state.gold < amount`.  At equality (10 < 10 = false) the
+    // purchase succeeds and gold reaches 0.  If changed to `<=`, this would falsely
+    // refuse a player who has exactly the right amount, blocking any exact-cost purchase.
+    const p = makePlayer(); // 10 gold
+    const result = p.removeGold(10);
+    expect(result).toBe(true);
+    expect(p.state.gold).toBe(0);
+  });
+
+  it('fails when amount exceeds gold by exactly 1 — the other side of the exact boundary', () => {
+    // Companion to the above: 11 > 10 so `10 < 11` is true → removal refused.
+    // Together with the succeeds-at-10 test, these two pin the exact cutoff:
+    //   – changing < to <= makes the 10-gold test fail (falsely refused)
+    //   – any threshold shift breaks one of the two tests
+    const p = makePlayer(); // 10 gold
+    const result = p.removeGold(11);
+    expect(result).toBe(false);
+    expect(p.state.gold).toBe(10); // unchanged
+  });
 });
 
 describe('PlayerManager.equipWeapon / ownsWeapon', () => {
