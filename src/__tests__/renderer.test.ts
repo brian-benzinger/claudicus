@@ -322,6 +322,48 @@ describe('drawPlayer — with weaponSpeed', () => {
     expect(firstMoveTo).toBeGreaterThanOrEqual(0);
     expect(firstMoveTo).toBeLessThan(firstFillRect);
   });
+
+  it('RANGED bow arc is centered at (x+26, y+12) with radius 7 when facing right', () => {
+    // frame=0 → bob=0. bx=x+(facing==='left'?2:26)=26, by=y+12+bob=12.
+    // The existing arc-count test (==2) would pass even if the bow shifted to (0,0).
+    // This pins WHERE the bow is drawn so position drift is caught separately.
+    const { ctx, calls } = makeCtx();
+    drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.RANGED);
+    const arcs = calls.filter(c => c.method === 'arc').map(c => c.args as number[]);
+    // Head arc is at x=16; bow arc is at x=26 — distinct enough to identify each.
+    const bowArc = arcs.find(a => a[0] === 26);
+    expect(bowArc).toBeDefined();
+    expect(bowArc![1]).toBe(12);  // by = y + 12
+    expect(bowArc![2]).toBe(7);   // radius
+  });
+
+  it('NORMAL melee grip moveTo starts at (x+26, y+14) when facing right', () => {
+    // frame=0 → bob=0. gx=x+26=26, gy=y+14+bob=14.
+    // The existing moveTo existence check would pass if the grip moved to any other
+    // coordinate; this pins the exact hand attachment point as a visual contract.
+    // Male body has no dress moveTo, so the first moveTo in the call list is the grip.
+    const { ctx, calls } = makeCtx();
+    drawPlayer(ctx, 0, 0, 0, 'right', WeaponSpeed.NORMAL);
+    const firstMoveTo = calls.find(c => c.method === 'moveTo');
+    expect(firstMoveTo).toBeDefined();
+    const [mx, my] = firstMoveTo!.args as [number, number];
+    expect(mx).toBe(26);
+    expect(my).toBe(14);
+  });
+
+  it('FAST weapon has no crossguard (2 moveTo), NORMAL and SLOW have crossguard (3 moveTo)', () => {
+    // Male facing right has no dress moveTo calls, so all moveTo calls come from the weapon.
+    // FAST skips the crossguard segment (speed === WeaponSpeed.FAST check in renderer).
+    // If crossguard were added to FAST or removed from NORMAL/SLOW the moveTo count changes.
+    const count = (speed: WeaponSpeed) => {
+      const { ctx, calls } = makeCtx();
+      drawPlayer(ctx, 0, 0, 0, 'right', speed);
+      return calls.filter(c => c.method === 'moveTo').length;
+    };
+    expect(count(WeaponSpeed.FAST)).toBe(2);    // handle + blade only
+    expect(count(WeaponSpeed.NORMAL)).toBe(3);  // handle + blade + crossguard
+    expect(count(WeaponSpeed.SLOW)).toBe(3);    // handle + blade + crossguard
+  });
 });
 
 // ---------------------------------------------------------------------------
