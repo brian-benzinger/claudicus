@@ -1085,3 +1085,176 @@ describe('UIRenderer.drawCombatScreen — status effect label contracts', () => 
     expect(textCalls.some(c => c.text === 'WEAKEN(2)')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawPauseMenu — content and cursor contracts
+//
+// The pause menu renders three fixed options in order.  A silent rename of
+// "Quit to Title" to "Main Menu", or any re-ordering, changes what the player
+// reads but cannot be caught by type checking alone.  The cursor highlight is
+// also a behavioral contract: exactly one row should be visually selected.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawPauseMenu — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "PAUSED" as the menu title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawPauseMenu(ctx, 0);
+    expect(textCalls.some(c => c.text === 'PAUSED')).toBe(true);
+  });
+
+  it('renders all three pause options: "Resume", "Save Game", "Quit to Title"', () => {
+    // Pinning all three labels so a rename or option removal is caught immediately.
+    // toContain fails if a label is missing; extra options also shift positions.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawPauseMenu(ctx, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('Resume');
+    expect(texts).toContain('Save Game');
+    expect(texts).toContain('Quit to Title');
+  });
+
+  it('highlights exactly one option row when cursor=0 — only "Resume" is selected', () => {
+    // drawPauseMenu fills a highlight rect (width = menuWidth-40 = 260) before
+    // drawing the text for the selected option.  With cursor=0 exactly one such
+    // rect must appear; if the guard were removed all three would be highlighted.
+    const { ctx, rectCalls } = makeCtx();
+    ui.drawPauseMenu(ctx, 0);
+    // menuWidth=300, so highlight rects are 260px wide.
+    // Background (CANVAS_WIDTH=960) and menu box (300px) are not 260px wide.
+    const highlights = rectCalls.filter(r => r.w === 260);
+    expect(highlights.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawTitleScreen — content and hasSave branch contracts
+//
+// The title screen renders "CLAUDICUS" and a conditional menu: one option
+// ("New Game") when no save exists, two ("Continue", "New Game") when a save
+// is present.  The hasSave conditional is never exercised by any existing test,
+// so a bug that always shows "Continue" — or never shows it — would go
+// undetected.  These tests pin both branches of that conditional.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawTitleScreen — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "CLAUDICUS" as the game title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawTitleScreen(ctx, false, 0);
+    expect(textCalls.some(c => c.text === 'CLAUDICUS')).toBe(true);
+  });
+
+  it('renders "A Medieval Fantasy RPG" as the subtitle', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawTitleScreen(ctx, false, 0);
+    expect(textCalls.some(c => c.text === 'A Medieval Fantasy RPG')).toBe(true);
+  });
+
+  it('does not show "Continue" when hasSave=false — no save means no continue option', () => {
+    // hasSave=false: options=['New Game'].  If the conditional were inverted
+    // ("Continue" always shown), this test fails before a player ever notices.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawTitleScreen(ctx, false, 0);
+    expect(textCalls.some(c => c.text.includes('Continue'))).toBe(false);
+  });
+
+  it('shows both "Continue" and "New Game" when hasSave=true', () => {
+    // hasSave=true: options=['Continue','New Game'].  The selected option is
+    // wrapped in "> … <" so we use includes() to match either form.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawTitleScreen(ctx, true, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts.some(t => t.includes('Continue'))).toBe(true);
+    expect(texts.some(t => t.includes('New Game'))).toBe(true);
+  });
+
+  it('renders the key-binding hint "[W/S] Select   [SPACE/ENTER] Confirm"', () => {
+    // If the key hint string changes (e.g., dropping the triple space or renaming
+    // the keys), the player loses navigation guidance without any test catching it.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawTitleScreen(ctx, false, 0);
+    expect(textCalls.some(c => c.text === '[W/S] Select   [SPACE/ENTER] Confirm')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawCharacterSelectScreen — content contracts
+//
+// The character select screen renders two gender labels ("Man" / "Woman").
+// No test currently verifies these labels, so a rename (e.g. "Male"/"Female")
+// would silently change the UI without failing any test.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawCharacterSelectScreen — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "Choose Your Hero" as the screen title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCharacterSelectScreen(ctx, 0);
+    expect(textCalls.some(c => c.text === 'Choose Your Hero')).toBe(true);
+  });
+
+  it('renders both character labels "Man" and "Woman"', () => {
+    // Pins the exact option labels shown to the player.  Changing to "Male" /
+    // "Female" or removing one option changes what the player reads.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCharacterSelectScreen(ctx, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('Man');
+    expect(texts).toContain('Woman');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawClassSelectScreen — content contracts
+//
+// The class select screen is permanent — the player's choice cannot be undone.
+// Three classes are presented with specific names, stat bonuses, and ability
+// key-bindings.  No test currently verifies any of this content, so a rename
+// (e.g. "Warrior" → "Fighter"), a wrong stat (+2 STR instead of +2 DEF), or
+// a changed ability binding would all reach players silently.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawClassSelectScreen — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "Choose Your Path" as the screen title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawClassSelectScreen(ctx, 0);
+    expect(textCalls.some(c => c.text === 'Choose Your Path')).toBe(true);
+  });
+
+  it('renders all three class labels: "WARRIOR", "SCOUT", "BRIGAND"', () => {
+    // Pin the exact uppercase labels — the class cards display these as headers.
+    // "Warrior" (mixed case) would not match "WARRIOR" and would be caught.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawClassSelectScreen(ctx, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('WARRIOR');
+    expect(texts).toContain('SCOUT');
+    expect(texts).toContain('BRIGAND');
+  });
+
+  it('renders the correct stat bonus for each class: "+2 DEF", "+2 AGI", "+2 STR"', () => {
+    // Each class has a different primary stat bonus.  Swapping any of these
+    // (e.g. Warrior shows "+2 STR" instead of "+2 DEF") misleads the player
+    // about their class choice — a silent regression this test prevents.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawClassSelectScreen(ctx, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('+2 DEF');  // Warrior
+    expect(texts).toContain('+2 AGI');  // Scout
+    expect(texts).toContain('+2 STR');  // Brigand
+  });
+
+  it('renders all three ability key-bindings: "[5] Shield Bash", "[5] Ambush", "[5] Intimidate"', () => {
+    // The ability name ties directly to combat: if "Ambush" were labelled "Backstab"
+    // on the class card, the player would expect the wrong ability in battle.
+    // Pinning the exact "[5] Name" string catches both the key hint and the name.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawClassSelectScreen(ctx, 0);
+    const texts = textCalls.map(c => c.text);
+    expect(texts).toContain('[5] Shield Bash');
+    expect(texts).toContain('[5] Ambush');
+    expect(texts).toContain('[5] Intimidate');
+  });
+});
