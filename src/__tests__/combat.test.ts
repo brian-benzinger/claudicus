@@ -602,11 +602,13 @@ describe('CombatEngine.getRecentLog', () => {
     expect(log[0]).toBe('final entry');
   });
 
-  it('defaults to 3 entries', () => {
+  it('defaults to 3 entries and returns the LAST 3 (not the first)', () => {
     const engine = new CombatEngine(makePlayer(), makeEnemy());
-    // Seed more than 3 entries so the slice is actually exercised
+    // Seed more than 3 entries so the slice is actually exercised.
+    // The behavioral contract is slice(-3): if this were changed to slice(0,3)
+    // the length would still be 3 but the content would be wrong.
     for (let i = 0; i < 5; i++) engine.state.log.push(`entry ${i}`);
-    expect(engine.getRecentLog().length).toBe(3);
+    expect(engine.getRecentLog()).toEqual(['entry 2', 'entry 3', 'entry 4']);
   });
 });
 
