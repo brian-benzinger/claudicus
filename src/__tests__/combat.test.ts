@@ -1169,7 +1169,10 @@ describe('Enemy AI — Revenant Knight phase 2', () => {
     expect(engine.state.log.some(l => l.includes('fury'))).toBe(true);
   });
 
-  it('phase 2 attack applies BLEED to player', () => {
+  it('phase 2 attack applies BLEED to player with exactly 3 turns', () => {
+    // Contract: the log documents "(2 dmg/turn, 3 turns)" — pin duration so that
+    // accidentally lowering turnsRemaining to 1 or 2 (cutting total bleed from 6→2 or 4)
+    // breaks this test rather than silently shipping a balance regression.
     vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → attack in phase 2
     const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
     const engine = new CombatEngine(makeFastPlayer(), enemy);
@@ -1177,7 +1180,9 @@ describe('Enemy AI — Revenant Knight phase 2', () => {
     engine.state.enemyIsPhaseTwo = true; // already in phase 2
     engine.state.phase = CombatPhase.ENEMY_ACTION;
     engine.enemyTurn();
-    expect(engine.state.playerStatusEffects.some(e => e.type === StatusEffectType.BLEED)).toBe(true);
+    const bleed = engine.state.playerStatusEffects.find(e => e.type === StatusEffectType.BLEED);
+    expect(bleed).toBeDefined();
+    expect(bleed!.turnsRemaining).toBe(3);
   });
 
   it('does not apply bleed in phase 1', () => {
@@ -1661,12 +1666,16 @@ describe('CombatEngine — enemy AI branches', () => {
     expect(e.state.log.some(l => l.includes('stamps its hooves'))).toBe(true);
   });
 
-  it('Revenant Knight enters phase two and inflicts bleed', () => {
+  it('Revenant Knight enters phase two and inflicts bleed for 3 turns', () => {
+    // Duration is the game-balance contract: 3 turns × 2 dmg = 6 total bleed damage.
+    // Existence alone would not catch a regression from turnsRemaining:3 → turnsRemaining:1.
     const e = runEnemyTurn(EnemyType.REVENANT_KNIGHT, 0.1, (eng) => {
       eng.state.enemyHp = 10; // < 50% of 60 → phase two
     });
     expect(e.state.enemyIsPhaseTwo).toBe(true);
-    expect(e.state.playerStatusEffects.some(s => s.type === StatusEffectType.BLEED)).toBe(true);
+    const bleed = e.state.playerStatusEffects.find(s => s.type === StatusEffectType.BLEED);
+    expect(bleed).toBeDefined();
+    expect(bleed!.turnsRemaining).toBe(3);
   });
 
   it('Revenant Knight phase two can raise its cursed blade', () => {
