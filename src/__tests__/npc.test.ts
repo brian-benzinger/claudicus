@@ -1183,6 +1183,41 @@ describe('NpcManager.claimQuestReward — potion reward message format', () => {
 // checks the actual string content of every dialog key across ALL NPCs so that
 // any silent text corruption fails immediately.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// advanceDialog — SHOP_POTIONS opens the potion shop via the dialog flow
+//
+// advanceDialog() routes all three shop types together:
+//   if (role === NpcRole.SHOP_WEAPONS || role === NpcRole.SHOP_POTIONS || role === NpcRole.SHOP_ARMOR)
+// SHOP_WEAPONS (line ~129) and SHOP_ARMOR (line ~784) each have a dialog-flow
+// test that calls startDialog() then advanceDialog() and checks the shop opens.
+// SHOP_POTIONS is only tested via direct openShop(NpcRole.SHOP_POTIONS) calls —
+// never through the full startDialog → advanceDialog path.
+// If SHOP_POTIONS were accidentally removed from the condition in advanceDialog,
+// a potions merchant's dialog would silently return 'done' with isInShop=false
+// and no existing test would catch the regression.
+// ---------------------------------------------------------------------------
+describe('NpcManager.advanceDialog — SHOP_POTIONS opens the potion shop', () => {
+  it('returns "shop" and stocks the potion shop when a SHOP_POTIONS NPC finishes dialog', () => {
+    const mgr = new NpcManager();
+    const potionNpc = {
+      id: 'mira_healer',
+      name: 'Mira the Healer',
+      tileX: 5,
+      tileY: 5,
+      role: NpcRole.SHOP_POTIONS,
+      color: '#888',
+      dialogs: { default: ['Health potions for sale!'] },
+    };
+    mgr.startDialog(potionNpc, {});
+    const result = mgr.advanceDialog();
+    expect(result).toBe('shop');
+    expect(mgr.isInShop).toBe(true);
+    expect(mgr.shopItems).toHaveLength(1);
+    expect(mgr.shopItems[0].type).toBe('potion');
+    expect(mgr.shopItems[0].name).toBe('Health Potion');
+  });
+});
+
 describe('NPC data integrity — all dialog lines are non-empty strings', () => {
   it('every dialog line in VILLAGE_NPCS and FOREST_NPCS is a non-empty, non-whitespace string', async () => {
     const { VILLAGE_NPCS, FOREST_NPCS } = await import('../data/npcs');

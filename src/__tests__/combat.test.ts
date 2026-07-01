@@ -2066,6 +2066,39 @@ describe('CombatEngine — update phase transitions', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// RESULT phase timer — exact > 60 boundary contract
+//
+// The update() condition is `if (this.state.resultTimer > 60)`.  The existing
+// timer test runs 62 updates and checks DONE — which would also pass if the
+// condition were changed to `> 50` or `> 55`.  It does NOT pin the strict >
+// vs >= distinction: changing `> 60` to `>= 60` fires the transition one frame
+// early (at resultTimer=60 instead of 61) while the 62-update test still passes.
+//
+// These two tests pin the exact threshold:
+//   • After 60 updates resultTimer=60, 60 > 60 is false → RESULT must remain.
+//   • After 61 updates resultTimer=61, 61 > 60 is true  → DONE must fire.
+// ---------------------------------------------------------------------------
+describe('CombatEngine.update — RESULT phase timer exact threshold', () => {
+  it('stays in RESULT after exactly 60 updates — resultTimer=60 fails the strict > 60 test', () => {
+    // `resultTimer > 60` is false at 60 — the phase must not advance to DONE.
+    // Changing the condition to `>= 60` would make this test fail (transitions too early).
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.RESULT;
+    for (let i = 0; i < 60; i++) e.update();
+    expect(e.state.phase).toBe(CombatPhase.RESULT);
+  });
+
+  it('transitions to DONE after exactly 61 updates — resultTimer=61 satisfies the strict > 60 test', () => {
+    // The companion pin: 61 updates is the minimum to reach DONE.  If the threshold were
+    // raised to `> 70`, this test would catch it (61 updates would leave the phase as RESULT).
+    const e = new CombatEngine(makePlayer(), makeEnemy());
+    e.state.phase = CombatPhase.RESULT;
+    for (let i = 0; i < 61; i++) e.update();
+    expect(e.state.phase).toBe(CombatPhase.DONE);
+  });
+});
+
 describe('CombatEngine — applyStatusEffect refreshes a magnitude-less existing effect', () => {
   it('Shield Bash applied twice refreshes turnsRemaining without adding a magnitude', () => {
     const player = makePlayer();
