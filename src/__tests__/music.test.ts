@@ -200,8 +200,10 @@ describe('MusicEngine — with mocked AudioContext', () => {
     vi.advanceTimersByTime(40);
 
     const ctx = (engine as any).ctx as MockAudioContext;
-    // Many notes (melody/bass/harmony) should have been scheduled
-    expect(ctx.oscillators.length).toBeGreaterThan(10);
+    // Exact count: stepDur=60/108/2≈0.2778s, lookahead window [0.05, 10.15) yields 37 steps
+    // (2 full 16-step cycles = 58 osc, + 5 partial steps i=0–4 = 10 osc → 68 total).
+    // `toBeGreaterThan(10)` would pass even if a voice layer (bass/harmony) were silently dropped.
+    expect(ctx.oscillators.length).toBe(68);
     expect(ctx.oscillators.every(o => o.started && o.stopped)).toBe(true);
   });
 
