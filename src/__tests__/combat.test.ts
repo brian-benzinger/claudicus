@@ -1379,6 +1379,11 @@ describe('CombatEngine.playerUseAbility — Shatter (mace)', () => {
     expect(engine.state.enemy.def).toBe(defBefore - 2); // 4 - 2 = 2
     expect(engine.state.log.some(l => l.includes('Shatter'))).toBe(true);
     expect(engine.state.log.some(l => l.includes('DEF reduced by 2'))).toBe(true);
+    // Shatter consumes the player's turn — must transition to PLAYER_ANIMATING.
+    // If enterPlayerAnimation() were accidentally removed from this branch, the phase
+    // would stay PLAYER_ACTION and the player could act a second time for free.
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
+    expect(engine.state.animationFrame).toBe(0);
   });
 
   it('does not reduce enemy DEF below 0', () => {
@@ -1529,6 +1534,11 @@ describe('CombatEngine.playerUseAbility — Intimidate (Brigand)', () => {
     expect(weaken!.magnitude).toBe(3);
     expect(weaken!.turnsRemaining).toBe(3);
     expect(engine.state.log.some(l => l.includes('Intimidate'))).toBe(true);
+    // Intimidate consumes the player's turn — must transition to PLAYER_ANIMATING.
+    // Pin and Shield Bash already assert this; Intimidate was the only ability missing it.
+    // Without this check a deleted enterPlayerAnimation() call would go undetected.
+    expect(engine.state.phase).toBe(CombatPhase.PLAYER_ANIMATING);
+    expect(engine.state.animationFrame).toBe(0);
   });
 });
 
