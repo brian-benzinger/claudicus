@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { UIRenderer } from '../ui';
-import { createDefaultPlayer, ClassPath, MAX_LEVEL, TITLES } from '../types';
+import {
+  createDefaultPlayer, ClassPath, MAX_LEVEL, TITLES,
+  CombatState, CombatPhase, EnemyInstance, EnemyType, StatusEffect, StatusEffectType,
+} from '../types';
 import { CRAFT_RECIPES } from '../data/recipes';
 import type { ShopItem } from '../types';
 
@@ -945,5 +948,140 @@ describe('UIRenderer.drawQuestLog — content contracts', () => {
     const { ctx, textCalls } = makeCtx();
     ui.drawQuestLog(ctx, {});
     expect(textCalls.some(c => c.text === '[Q / ESC] Close')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawCombatScreen — status effect label contracts
+//
+// drawCombatScreen renders status effect labels near the HP bars during combat.
+// Player-side effects and enemy-side effects use DIFFERENT naming schemes:
+//
+//   Player: BLEED  → "BLEED(N)"    Enemy: BLEED  → "BLEED(N)"   (same)
+//   Player: STUN   → "STUN(N)"     Enemy: STUN   → "STUNNED(N)" (different!)
+//   Player: WEAKEN → "WEAKEN(N)"   Enemy: WEAKEN → "WEAK(N)"    (different!)
+//
+// No existing test in this file or in combat.test.ts exercises drawCombatScreen
+// with status effects — only combat-log messages are pinned.  If any label were
+// renamed (e.g. "STUNNED" → "STUN", "WEAK" → "WEAKEN", or the N-counter format
+// changed to "3 turns"), the player would see wrong status labels in the combat
+// UI with no test catching the regression.
+// ---------------------------------------------------------------------------
+
+// Extended canvas mock for drawCombatScreen — the renderer draws player/enemy
+// sprites using ctx.ellipse() and ctx.rotate(), which are absent from makeCtx().
+function makeCombatCtx() {
+  const textCalls: { text: string; x: number; y: number }[] = [];
+  const noop = () => {};
+  let _textAlign: CanvasTextAlign = 'left';
+  const ctx = {
+    fillStyle:   '',
+    strokeStyle: '',
+    lineWidth:   1,
+    globalAlpha: 1,
+    font:        '',
+    get textAlign()                    { return _textAlign; },
+    set textAlign(v: CanvasTextAlign)  { _textAlign = v; },
+    fillRect:   noop,
+    strokeRect: noop,
+    beginPath:  noop,
+    closePath:  noop,
+    arc:        noop,
+    ellipse:    noop,
+    fill:       noop,
+    stroke:     noop,
+    moveTo:     noop,
+    lineTo:     noop,
+    save:       noop,
+    restore:    noop,
+    translate:  noop,
+    scale:      noop,
+    rotate:     noop,
+    fillText: (text: string, x: number, y: number) => { textCalls.push({ text, x, y }); },
+    measureText: () => ({ width: 0 }),
+  } as unknown as CanvasRenderingContext2D;
+  return { ctx, textCalls };
+}
+
+function makeMinimalCombatState(
+  playerEffects: StatusEffect[] = [],
+  enemyEffects: StatusEffect[] = []
+): CombatState {
+  const enemy: EnemyInstance = {
+    id: 'test_skeleton',
+    type: EnemyType.SKELETON,
+    name: 'Skeleton',
+    hp: 20, maxHp: 20,
+    atk: 5, def: 4, agi: 2,
+    xp: 15, gold: 5,
+    tileX: 5, tileY: 5,
+    alive: true,
+  };
+  return {
+    enemy,
+    playerHp: 40, enemyHp: 20,
+    playerTurn: true, phase: CombatPhase.PLAYER_ACTION,
+    log: [],
+    defendingThisTurn: false, nextAttackBonus: 0,
+    freeHitUsed: false, enemyDefending: false,
+    animationFrame: 0, resultTimer: 0,
+    playerStatusEffects: playerEffects,
+    enemyStatusEffects: enemyEffects,
+    enemyTurnCount: 0, enemyIsPhaseTwo: false,
+    enemyJustDefended: false, abilityUsedThisCombat: false,
+  };
+}
+
+describe('UIRenderer.drawCombatScreen — status effect label contracts', () => {
+  const ui = new UIRenderer();
+
+  it('player BLEED renders exactly "BLEED(3)" with the turnsRemaining embedded', () => {
+    // Revenant Knight phase 2 applies BLEED to the player for 3 turns.
+    // The player must see "BLEED(3)" so they know how many damage ticks remain.
+    // If the format changed to "BLEEDING", "BLEED", or "BLEED 3", the count
+    // information would be lost with no test catching it.
+    const { ctx, textCalls } = makeCombatCtx();
+    ui.drawCombatScreen(
+      ctx,
+      createDefaultPlayer(),
+      makeMinimalCombatState([{ type: StatusEffectType.BLEED, turnsRemaining: 3 }]),
+      0
+    );
+    expect(textCalls.some(c => c.text === 'BLEED(3)')).toBe(true);
+  });
+
+  it('enemy STUN renders exactly "STUNNED(1)" — NOT "STUN(1)" — pinning the player/enemy label asymmetry', () => {
+    // Pin / Shield Bash stun the enemy for 1 turn.  The enemy-side label is
+    // "STUNNED(N)" while the player-side fallback is "STUN(N)".  This asymmetry
+    // is by design: enemy labels use full words for clarity.  If someone refactored
+    // the enemy branch to match the player branch ("STUN"), or vice versa, the
+    // wrong label would appear on screen with no other test catching it.
+    const { ctx, textCalls } = makeCombatCtx();
+    ui.drawCombatScreen(
+      ctx,
+      createDefaultPlayer(),
+      makeMinimalCombatState([], [{ type: StatusEffectType.STUN, turnsRemaining: 1 }]),
+      0
+    );
+    expect(textCalls.some(c => c.text === 'STUNNED(1)')).toBe(true);
+    // The player-side form must NOT appear on the enemy side.
+    expect(textCalls.some(c => c.text === 'STUN(1)')).toBe(false);
+  });
+
+  it('enemy WEAKEN renders exactly "WEAK(2)" — NOT "WEAKEN(2)" — pinning the enemy label', () => {
+    // Brigand Intimidate applies WEAKEN to the enemy for 3 turns (magnitude 3).
+    // The enemy-side label is "WEAK(N)", not "WEAKEN(N)" (the player-side fallback).
+    // If the rendering were unified to "WEAKEN(N)" for both sides, the player UI
+    // would show the wrong label for stunned/weakened enemies.
+    const { ctx, textCalls } = makeCombatCtx();
+    ui.drawCombatScreen(
+      ctx,
+      createDefaultPlayer(),
+      makeMinimalCombatState([], [{ type: StatusEffectType.WEAKEN, turnsRemaining: 2, magnitude: 3 }]),
+      0
+    );
+    expect(textCalls.some(c => c.text === 'WEAK(2)')).toBe(true);
+    // The player-side fallback form must NOT appear on the enemy side.
+    expect(textCalls.some(c => c.text === 'WEAKEN(2)')).toBe(false);
   });
 });
