@@ -1102,6 +1102,102 @@ describe('NPC data integrity — all quest NPCs have required dialog keys', () =
 // silently refusing the purchase at potions=9.  The test below pins the
 // exact boundary: potions=9 must still succeed and reach exactly 10.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// buySelectedItem — exact gold boundary
+//
+// The gold check is `player.state.gold < item.cost` (strict less-than).
+// Existing tests use 0 gold (fail) and 100+/999 gold (succeed) — neither pins
+// the exact boundary.  An off-by-one from `<` to `<=` would silently refuse any
+// player with *exactly* the right amount of gold, breaking exact-cost purchases.
+// Two tests per item type (succeeds-at-cost, fails-at-cost-minus-1) pin the
+// threshold precisely, matching the removeGold boundary tests in player.test.ts.
+// ---------------------------------------------------------------------------
+describe('NpcManager.buySelectedItem — exact gold boundary', () => {
+  it('weapon purchase succeeds when player has exactly the item cost (< not <=)', () => {
+    // Iron Longsword at cursor 0, cost=30.  player.gold=30 → 30 < 30 is false → purchase succeeds.
+    // If the guard were changed to <=, 30 <= 30 would be true → purchase falsely refused for
+    // a player who scraped together exactly enough gold.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    mgr.shopCursor = 0; // iron_longsword, cost=30
+    const player = makePlayer();
+    const item = mgr.shopItems[0]; // iron_longsword, cost=30
+    player.state.gold = item.cost; // exactly the asking price
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(player.state.gold).toBe(0);                        // full cost deducted
+    expect(player.ownsWeapon('iron_longsword')).toBe(true);
+  });
+
+  it('weapon purchase fails when player has exactly 1 gold less than the item cost', () => {
+    // The other side of the exact boundary: cost-1 < cost is true → purchase refused.
+    // Together with the cost-exact test above, these pin the strict < threshold with no
+    // room for off-by-one drift.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_WEAPONS);
+    mgr.shopCursor = 0; // iron_longsword, cost=30
+    const player = makePlayer();
+    const item = mgr.shopItems[0]; // iron_longsword, cost=30
+    player.state.gold = item.cost - 1; // 29 — one short
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Not enough gold!');
+    expect(player.state.gold).toBe(item.cost - 1);             // unchanged (29)
+    expect(player.ownsWeapon('iron_longsword')).toBe(false);   // not acquired
+  });
+
+  it('armor purchase succeeds when player has exactly the item cost', () => {
+    // Chain Mail cost=40; pins the same boundary for the armor shop path.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    const chainMail = mgr.shopItems.find(i => i.armorId === 'chain_mail')!;
+    player.state.gold = chainMail.cost;
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(player.state.gold).toBe(0);
+    expect(player.ownsArmor('chain_mail')).toBe(true);
+  });
+
+  it('armor purchase fails when player has exactly 1 gold less than the item cost', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_ARMOR);
+    const player = makePlayer();
+    const chainMail = mgr.shopItems.find(i => i.armorId === 'chain_mail')!;
+    player.state.gold = chainMail.cost - 1;
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Not enough gold!');
+    expect(player.state.gold).toBe(chainMail.cost - 1);
+    expect(player.ownsArmor('chain_mail')).toBe(false);
+  });
+
+  it('potion purchase succeeds when player has exactly POTION_COST gold', () => {
+    // POTION_COST=5; pins the same < boundary for the potion shop path.
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const player = makePlayer();
+    player.state.potions = 0;
+    player.state.gold = mgr.shopItems[0].cost; // POTION_COST=5
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(true);
+    expect(player.state.gold).toBe(0);
+    expect(player.state.potions).toBe(1);
+  });
+
+  it('potion purchase fails when player has exactly 1 gold less than POTION_COST', () => {
+    const mgr = new NpcManager();
+    mgr.openShop(NpcRole.SHOP_POTIONS);
+    const player = makePlayer();
+    player.state.potions = 0;
+    player.state.gold = mgr.shopItems[0].cost - 1; // POTION_COST-1=4
+    const result = mgr.buySelectedItem(player);
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Not enough gold!');
+    expect(player.state.potions).toBe(0); // unchanged
+  });
+});
+
 describe('NpcManager.buySelectedItem — potion cap boundary', () => {
   it('purchase succeeds when potions is exactly 9 (one below the 10-slot cap)', () => {
     // At potions=9: the check `potions >= 10` is false → purchase proceeds.
