@@ -211,6 +211,87 @@ describe('UIRenderer.drawHUD — stat display contracts', () => {
 });
 
 // ---------------------------------------------------------------------------
+// UIRenderer.drawHpBar — fill width proportional to HP fraction
+//
+// drawHpBar is called from drawHUD (overworld) and drawCombatScreen (combat).
+// The existing HUD tests check text labels like "30/40" but never verify
+// that the colored fill rectangle has the correct WIDTH.  If `current` and
+// `max` were accidentally swapped — or fillWidth were hardcoded to the full
+// bar width — the bar would show the wrong visual fraction while every
+// text-only test still passed.  These tests pin the rect-level contract.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawHpBar — fill width proportional to HP fraction', () => {
+  const ui = new UIRenderer();
+
+  // Minimal canvas mock that snapshots fillStyle at each fillRect call.
+  // drawHpBar only uses fillRect, strokeRect, fillStyle, strokeStyle, lineWidth.
+  function makeHpCtx() {
+    const rects: { fillStyle: string; x: number; y: number; w: number; h: number }[] = [];
+    let _fillStyle = '';
+    const ctx = {
+      get fillStyle() { return _fillStyle; },
+      set fillStyle(v: string) { _fillStyle = v; },
+      strokeStyle: '',
+      lineWidth: 1,
+      fillRect: (x: number, y: number, w: number, h: number) => {
+        rects.push({ fillStyle: _fillStyle, x, y, w, h });
+      },
+      strokeRect: () => {},
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, rects };
+  }
+
+  it('fill rect width is proportional — 30/40 of a 120px bar is 90px, not 120px', () => {
+    // fillWidth = Math.max(0, (current/max) * width) = (30/40) * 120 = 90.
+    // The overworld HUD calls drawHpBar with width=120 for the player HP bar.
+    // If current and max were swapped the fill would be 160 (>120), visually
+    // indistinguishable from a full bar because the browser clips at bar width;
+    // if fillWidth were always `width` the bar would never shrink.  Neither
+    // regression is caught by the text "30/40" label assertion alone.
+    const { ctx, rects } = makeHpCtx();
+    ui.drawHpBar(ctx, 40, 14, 120, 16, 30, 40, '#44aa44');
+    const fill = rects.find(r => r.fillStyle === '#44aa44')!;
+    expect(fill).toBeDefined();
+    expect(fill.w).toBe(90);         // 75 % of 120 — partial, not full
+    expect(fill.w).toBeLessThan(120); // visually shorter than the background rect
+  });
+
+  it('fill rect width equals totalWidth when HP is full (current === max)', () => {
+    // At 100 % HP the fill must span the entire bar.  If fillWidth were computed
+    // as (current - max) or any other wrong formula, a full-health combatant
+    // would show an empty or undersized bar.
+    const { ctx, rects } = makeHpCtx();
+    ui.drawHpBar(ctx, 40, 14, 120, 16, 40, 40, '#44aa44');
+    const fill = rects.find(r => r.fillStyle === '#44aa44')!;
+    expect(fill).toBeDefined();
+    expect(fill.w).toBe(120);
+  });
+
+  it('fill rect width is 0 when current HP is 0 (dead combatant bar is empty)', () => {
+    // Math.max(0, (0/40) * 120) = 0. A dead player or enemy should show an
+    // empty bar.  This pins the zero-HP visual contract and documents that the
+    // Math.max(0, ...) guard exists to prevent negative widths if current < 0.
+    const { ctx, rects } = makeHpCtx();
+    ui.drawHpBar(ctx, 40, 14, 120, 16, 0, 40, '#44aa44');
+    const fill = rects.find(r => r.fillStyle === '#44aa44')!;
+    expect(fill).toBeDefined();
+    expect(fill.w).toBe(0);
+  });
+
+  it('fill uses the caller-supplied color — enemy bar (#cc4444) vs player bar (#44aa44)', () => {
+    // drawCombatScreen calls drawHpBar with '#cc4444' (red) for the enemy and
+    // '#44aa44' (green) for the player.  If the color argument were hardcoded
+    // to one constant, one of the two bars would silently render the wrong color
+    // with no other test catching it.
+    const { ctx, rects } = makeHpCtx();
+    ui.drawHpBar(ctx, 0, 0, 100, 10, 50, 100, '#cc4444');
+    const fill = rects.find(r => r.fillStyle === '#cc4444')!;
+    expect(fill).toBeDefined();
+    expect(fill.w).toBe(50); // (50/100) * 100 = 50
+  });
+});
+
+// ---------------------------------------------------------------------------
 // UIRenderer.drawCombatMenu — combat action option contracts
 //
 // The combat menu is the player's interface for choosing actions.  Each option
