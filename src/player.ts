@@ -26,7 +26,13 @@ export class PlayerManager {
   }
 
   loadState(state: PlayerState): void {
-    this.state = { ...state };
+    this.state = {
+      ...state,
+      weapons: [...state.weapons],
+      armors: [...state.armors],
+      earnedTitles: [...state.earnedTitles],
+      materials: { ...state.materials }
+    };
   }
 
   // Movement
