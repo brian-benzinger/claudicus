@@ -3690,3 +3690,47 @@ describe('CombatEngine.playerFlee — AGI bonus and Brigand class modifier', () 
     expect(engine.state.log).toContain('Failed to escape!');
   });
 });
+
+describe('CombatEngine — playerPotion does not consume the defend bonus', () => {
+  it('nextAttackBonus stays at +1 after playerPotion — the bonus is reserved for the next attack, not spent on healing', () => {
+    // playerDefend() sets nextAttackBonus=1 so the player's next attack hits harder.
+    // playerPotion() is a non-attack action that skips the player's strike —
+    // it should NOT reset nextAttackBonus to 0.
+    // If it did, a defend→potion sequence would silently waste the +1 bonus and
+    // a player who defends and potions would get no payoff on their next strike.
+    const player = makeFastPlayer();
+    player.takeDamage(30); // hurt so the potion is usable
+    player.state.potions = 3;
+    const engine = new CombatEngine(player, makeEnemy());
+
+    engine.playerDefend(); // nextAttackBonus = 1, phase → ENEMY_ACTION
+    expect(engine.state.nextAttackBonus).toBe(1);
+
+    engine.state.phase = CombatPhase.PLAYER_ACTION; // simulate enemy turn completion
+    engine.playerPotion(); // non-attack action — bonus must survive
+    expect(engine.state.nextAttackBonus).toBe(1); // still +1, NOT zeroed out
+  });
+
+  it('the persisted defend bonus (+1) flows through to the attack after a potion turn', () => {
+    // End-to-end contract: defend → potion → attack grants +1 damage relative to
+    // a bare attack.  dagger: str(5)+damageBonus(3)+bonus(1)=9; skeleton def=4;
+    // variance=floor(0*4)-1=-1 → damage = max(1, 9-4-1) = 4.
+    // Without the bonus the same setup yields max(1, 8-4-1) = 3.
+    // If playerPotion() ever reset nextAttackBonus the enemy HP would be 17, not 16.
+    const player = makeFastPlayer();
+    player.takeDamage(15); // hurt so potion is usable and the engine does not short-circuit
+    player.state.potions = 3;
+    const engine = new CombatEngine(player, makeEnemy()); // skeleton: hp=20, def=4
+
+    engine.playerDefend(); // nextAttackBonus = 1, phase → ENEMY_ACTION
+    engine.state.phase = CombatPhase.PLAYER_ACTION; // simulate first enemy turn
+
+    engine.playerPotion(); // nextAttackBonus must survive this
+    engine.state.phase = CombatPhase.PLAYER_ACTION; // simulate second enemy turn
+
+    mockAttacks([0, 0, 0]); // no miss, variance → -1, no crit
+    engine.playerAttack(); // bonus should be consumed here, dealing 4 damage
+    expect(engine.state.enemyHp).toBe(16); // 20 - 4 = 16 (not 17, which would mean bonus was lost)
+    expect(engine.state.nextAttackBonus).toBe(0); // bonus consumed by the attack
+  });
+});
