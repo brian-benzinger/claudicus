@@ -1258,3 +1258,234 @@ describe('UIRenderer.drawClassSelectScreen — content contracts', () => {
     expect(texts).toContain('[5] Intimidate');
   });
 });
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawInventoryScreen — item list and detail panel contracts
+//
+// drawInventoryScreen is the player's equipment management interface.  It must:
+//   – label the equipped item with "[E]" so the player knows what they're using
+//   – label active titles with "[*]" to distinguish them from inactive ones
+//   – show health potions with their count ("Health Potion xN")
+//   – offer context-sensitive action hints ("[SPACE] Equip", "[SPACE] Use Potion",
+//     "[SPACE] Wear Title", "[SPACE] Remove Title") in the detail panel
+//   – display weapon stats (damage, speed) and armor stats (defense) in the panel
+//
+// These tests had zero coverage; the function is called from the overworld loop
+// whenever the player presses [I].  A silent regression in any label format would
+// corrupt the player's equipment decisions with no test catching it.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawInventoryScreen — item list contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "INVENTORY" as the panel title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 0);
+    expect(textCalls.some(c => c.text === 'INVENTORY')).toBe(true);
+  });
+
+  it('renders equipped weapon with "[E]" prefix', () => {
+    // Contract: the currently equipped weapon must be labelled "[E] {name}" so
+    // the player can immediately tell which weapon is active in their inventory.
+    // If the prefix were omitted, every weapon would look unequipped in the list.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer(); // weaponId = 'rusty_shortsword'
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '[E] Rusty Shortsword')).toBe(true);
+  });
+
+  it('renders non-equipped weapon WITHOUT "[E]" prefix', () => {
+    // A weapon owned but not equipped must carry "    {name}" (four spaces), not
+    // "[E]".  If every weapon were shown as "[E]", the distinction would be lost
+    // and the player could not tell what they are currently using.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.weapons = ['rusty_shortsword', 'iron_longsword'];
+    player.weaponId = 'rusty_shortsword'; // iron_longsword is owned but NOT equipped
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '    Iron Longsword')).toBe(true);
+    expect(textCalls.some(c => c.text === '[E] Iron Longsword')).toBe(false);
+  });
+
+  it('renders equipped armor with "[E]" prefix', () => {
+    // Same contract as for weapons — the equipped armor shows "[E] {name}".
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer(); // armorId = 'leather_vest'
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '[E] Leather Vest')).toBe(true);
+  });
+
+  it('renders potions as "    Health Potion x{N}"', () => {
+    // The potion row always appears and must show the exact count.
+    // If the count were omitted or formatted differently (e.g. "Potions: 3"),
+    // the player cannot see their stock at a glance.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer(); // potions = 3
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '    Health Potion x3')).toBe(true);
+  });
+
+  it('renders "    Health Potion x0" when potions are depleted', () => {
+    // Even with 0 potions the slot must still appear (dimmed) — the player
+    // should not see a hole in the list or a missing row.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.potions = 0;
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '    Health Potion x0')).toBe(true);
+  });
+
+  it('active title renders with "[*]" prefix and quoted label', () => {
+    // An active title is visually distinguished from inactive ones by the
+    // "[*]" marker.  The label must be quoted to match the HUD display format
+    // ("Wolfsbane" in the HUD).  If the prefix or quotes were dropped, the player
+    // could not tell which title they are wearing.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.earnedTitles = ['wolfsbane'];
+    player.activeTitle = 'wolfsbane';
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '[*] "Wolfsbane"')).toBe(true);
+  });
+
+  it('inactive title renders WITHOUT "[*]" prefix', () => {
+    // An earned but inactive title must show "    "{label}"" (spaces, not "[*]").
+    // If "[*]" appeared on an inactive title the player would be misled about
+    // which title is currently displayed.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.earnedTitles = ['wolfsbane'];
+    player.activeTitle = null;
+    ui.drawInventoryScreen(ctx, player, 0);
+    expect(textCalls.some(c => c.text === '    "Wolfsbane"')).toBe(true);
+    expect(textCalls.some(c => c.text === '[*] "Wolfsbane"')).toBe(false);
+  });
+});
+
+describe('UIRenderer.drawInventoryScreen — detail panel contracts', () => {
+  const ui = new UIRenderer();
+
+  // Default player: weapons[0]='rusty_shortsword', armors[0]='leather_vest', then potions.
+  // Cursor indices: 0=rusty_shortsword, 1=leather_vest, 2=potions.
+
+  it('detail panel shows "Currently Equipped" for the equipped weapon', () => {
+    // When cursor is on the equipped weapon the right-hand panel must confirm
+    // "Currently Equipped" — removing this label would force the player to
+    // cross-reference the [E] prefix in the list rather than reading the panel.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 0); // cursor=0 → rusty_shortsword (equipped)
+    expect(textCalls.some(c => c.text === 'Currently Equipped')).toBe(true);
+  });
+
+  it('detail panel shows "[SPACE] Equip" for a non-equipped weapon', () => {
+    // When cursor is on a weapon not currently equipped, the action hint must
+    // guide the player to press [SPACE] to equip it.  Without this hint the
+    // player may not discover the keybinding.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.weapons = ['rusty_shortsword', 'iron_longsword'];
+    player.weaponId = 'rusty_shortsword'; // cursor 1 = iron_longsword (NOT equipped)
+    ui.drawInventoryScreen(ctx, player, 1);
+    expect(textCalls.some(c => c.text === '[SPACE] Equip')).toBe(true);
+  });
+
+  it('detail panel does NOT show "[SPACE] Equip" for the equipped weapon', () => {
+    // Showing the equip hint for an already-equipped weapon would be confusing
+    // — the player would try to equip something they're already using.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 0); // cursor=0 → rusty_shortsword (equipped)
+    expect(textCalls.some(c => c.text === '[SPACE] Equip')).toBe(false);
+  });
+
+  it('detail panel shows weapon damage bonus as "Damage:  +N"', () => {
+    // The double space in "Damage:  +N" aligns the stat value column with "Speed:"
+    // and other stats.  If the spacing changes, the column alignment breaks visually.
+    // rusty_shortsword damageBonus=2 → "Damage:  +2".
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 0); // cursor=0 → rusty_shortsword
+    expect(textCalls.some(c => c.text === 'Damage:  +2')).toBe(true);
+  });
+
+  it('detail panel shows "Currently Equipped" for the equipped armor', () => {
+    // Same contract as weapons: the equipped armor panel shows "Currently Equipped".
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 1); // cursor=1 → leather_vest (equipped)
+    expect(textCalls.some(c => c.text === 'Currently Equipped')).toBe(true);
+  });
+
+  it('detail panel shows armor defense bonus as "Defense: +N"', () => {
+    // leather_vest defBonus=1 → "Defense: +1".
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 1); // cursor=1 → leather_vest
+    expect(textCalls.some(c => c.text === 'Defense: +1')).toBe(true);
+  });
+
+  it('detail panel shows "In pack: N" and "Restores 20 HP" for the potions slot', () => {
+    // The potion detail must confirm the count ("In pack: 3") so the player can
+    // decide whether to use one.  The heal amount ("Restores 20 HP") is the key
+    // piece of information the player needs to make that decision.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 2); // cursor=2 → potions (default 3)
+    expect(textCalls.some(c => c.text === 'In pack: 3')).toBe(true);
+    expect(textCalls.some(c => c.text === 'Restores 20 HP')).toBe(true);
+  });
+
+  it('detail panel shows "[SPACE] Use Potion" when potions > 0', () => {
+    // The action hint must appear whenever the player has at least one potion.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawInventoryScreen(ctx, createDefaultPlayer(), 2); // cursor=2 → potions (3 potions)
+    expect(textCalls.some(c => c.text === '[SPACE] Use Potion')).toBe(true);
+  });
+
+  it('detail panel does NOT show "[SPACE] Use Potion" when potions = 0', () => {
+    // With 0 potions the action hint must be suppressed — offering an action the
+    // player cannot perform would be misleading.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.potions = 0;
+    ui.drawInventoryScreen(ctx, player, 2); // cursor=2 → potions (0 potions)
+    expect(textCalls.some(c => c.text === '[SPACE] Use Potion')).toBe(false);
+  });
+
+  it('detail panel shows "[SPACE] Wear Title" for an inactive title', () => {
+    // Cursor=3 points to the first (and only) title entry.
+    // An inactive title's action hint must guide the player to activate it.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.earnedTitles = ['wolfsbane'];
+    player.activeTitle = null;
+    ui.drawInventoryScreen(ctx, player, 3); // cursor=3 → 'wolfsbane' title (inactive)
+    expect(textCalls.some(c => c.text === '[SPACE] Wear Title')).toBe(true);
+    expect(textCalls.some(c => c.text === '[SPACE] Remove Title')).toBe(false);
+  });
+
+  it('detail panel shows "[SPACE] Remove Title" for an active title', () => {
+    // An active title's action hint must offer removal so the player can un-equip it.
+    const { ctx, textCalls } = makeCtx();
+    const player = createDefaultPlayer();
+    player.earnedTitles = ['wolfsbane'];
+    player.activeTitle = 'wolfsbane';
+    ui.drawInventoryScreen(ctx, player, 3); // cursor=3 → 'wolfsbane' title (active)
+    expect(textCalls.some(c => c.text === '[SPACE] Remove Title')).toBe(true);
+    expect(textCalls.some(c => c.text === '[SPACE] Wear Title')).toBe(false);
+  });
+
+  it('detail panel shows "✦ Active" for an active title and "Earned" for an inactive one', () => {
+    // The title detail panel distinguishes active from earned with "✦ Active" vs "Earned".
+    // If these labels swapped, the player would see "✦ Active" on an inactive title.
+    const { ctx: ctx1, textCalls: calls1 } = makeCtx();
+    const activePlayer = createDefaultPlayer();
+    activePlayer.earnedTitles = ['wolfsbane'];
+    activePlayer.activeTitle = 'wolfsbane';
+    ui.drawInventoryScreen(ctx1, activePlayer, 3);
+    expect(calls1.some(c => c.text === '✦ Active')).toBe(true);
+    expect(calls1.some(c => c.text === 'Earned')).toBe(false);
+
+    const { ctx: ctx2, textCalls: calls2 } = makeCtx();
+    const inactivePlayer = createDefaultPlayer();
+    inactivePlayer.earnedTitles = ['wolfsbane'];
+    inactivePlayer.activeTitle = null;
+    ui.drawInventoryScreen(ctx2, inactivePlayer, 3);
+    expect(calls2.some(c => c.text === 'Earned')).toBe(true);
+    expect(calls2.some(c => c.text === '✦ Active')).toBe(false);
+  });
+});
