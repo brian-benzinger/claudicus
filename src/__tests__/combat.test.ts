@@ -4042,3 +4042,64 @@ describe('CombatEngine — playerPotion with 0 potions does not decrement potion
     expect(player.state.potions).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Revenant Knight phase-2 defend does NOT apply BLEED
+//
+// revenantKnightAI keeps applyStatusEffect(BLEED) INSIDE the attack branch
+// (`if (Math.random() < 0.90)`), not outside it.  If that call were accidentally
+// hoisted above the if/else — or placed after the closing brace — BLEED would be
+// applied on BOTH attack and defend turns.  Every existing test uses random=0.5
+// (attack branch) to verify BLEED is present, or tests phase-1 to verify absence.
+// None exercises the phase-2 DEFEND path and checks that playerStatusEffects
+// remains empty, leaving the misplacement undetected.
+//
+// Contract: the Revenant Knight raising its cursed blade (defend branch, random >= 0.90)
+// must be a strict no-op for BLEED — playerStatusEffects must contain no BLEED entry
+// and the "bleed" keyword must not appear in the log after that turn.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — Revenant Knight phase-2 defend does NOT apply BLEED', () => {
+  it('BLEED is absent from playerStatusEffects after the Revenant raises its cursed blade', () => {
+    // revenantKnightAI phase 2: applyStatusEffect(BLEED) lives inside the
+    // `if (random < 0.90)` ATTACK branch, not in the `else` DEFEND branch.
+    // If it were accidentally moved outside the if/else block (applied unconditionally
+    // on every phase-2 turn), the attack-branch tests would still pass while the
+    // player would silently bleed from defend turns too.  This test pins that the
+    // defend turn is a strict no-op for BLEED by verifying the status-effect list is
+    // empty and the combat log carries no bleed message after the knight defends.
+    //
+    // random=0.95 >= 0.90 → defend branch (raise cursed blade), not attack.
+    vi.spyOn(Math, 'random').mockReturnValue(0.95);
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = Math.floor(enemy.maxHp * 0.4); // below 50% → phase 2
+    engine.state.enemyIsPhaseTwo = true;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+
+    expect(engine.state.playerStatusEffects.some(e => e.type === StatusEffectType.BLEED))
+      .toBe(false); // defend branch must not apply BLEED
+    expect(engine.state.log.some(l => l.toLowerCase().includes('bleed')))
+      .toBe(false); // no bleed announcement in the log either
+    expect(engine.state.log.some(l => l.includes('cursed blade')))
+      .toBe(true);  // guard: confirm the defend branch actually fired
+  });
+
+  it('contrast: the ATTACK branch (random=0.5) DOES apply BLEED — confirming the contract is not vacuous', () => {
+    // Companion to the above: the attack branch must apply BLEED so the overall
+    // phase-2 contract is: attack→BLEED, defend→no BLEED.  Without this pairing a
+    // broken implementation that never applies BLEED would pass the defend test while
+    // the attack test elsewhere remains the only signal.  Together they pin both sides.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.90 → attack branch
+    const enemy = makeEnemy(EnemyType.REVENANT_KNIGHT);
+    const engine = new CombatEngine(makeFastPlayer(), enemy);
+    engine.state.enemyHp = Math.floor(enemy.maxHp * 0.4);
+    engine.state.enemyIsPhaseTwo = true;
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+
+    expect(engine.state.playerStatusEffects.some(e => e.type === StatusEffectType.BLEED))
+      .toBe(true); // attack branch MUST apply BLEED
+  });
+});
