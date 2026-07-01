@@ -686,10 +686,11 @@ describe('MapManager.render', () => {
     // Village is 30×20 = 600 tiles, all visible at spawn camera; every tile type calls fillRect
     // at least once.  A gutted render() that skipped drawTile() would drop below 600.
     const fillRects = calls.filter(c => c === 'fillRect');
-    expect(fillRects.length).toBeGreaterThanOrEqual(600);
-    // NPCs and/or chests produce canvas calls beyond fillRect (arc, beginPath, etc.);
-    // if drawNpc/drawChest were silently removed the total would collapse to fillRects.length.
-    expect(calls.length).toBeGreaterThan(fillRects.length);
+    // Pin exact counts: 2206 fillRects for 600 tiles (complex tiles use multiple) and
+    // 3377 total calls (including arc/beginPath/save/restore for NPCs and chests).
+    // A gutted drawTile() or removed drawNpc()/drawChest() would shift these numbers.
+    expect(fillRects.length).toBe(2206);
+    expect(calls.length).toBe(3377);
   });
 
   it('renders the forest with live enemies, chests and npcs', () => {
@@ -697,8 +698,12 @@ describe('MapManager.render', () => {
     const mgr = new MapManager(world);
     mgr.loadMap('forest');
     mgr.updateCamera(mgr.currentMap.spawnX, mgr.currentMap.spawnY);
-    const { ctx } = makeCtx();
-    expect(() => mgr.render(ctx, 5)).not.toThrow();
+    const { ctx, calls } = makeCtx();
+    mgr.render(ctx, 5);
+    // Pin exact draw-call counts for the forest at spawn camera (enemies + NPC visible).
+    // Any gutted draw path (drawEnemy, drawNpc, drawTile) shifts these numbers.
+    expect(calls.filter(c => c === 'fillRect').length).toBe(1729);
+    expect(calls.length).toBe(4742);
   });
 
   it('dead enemies are omitted from the draw-call sequence', () => {
@@ -743,8 +748,11 @@ describe('MapManager.render', () => {
     mgr.loadMap('forest');
     mgr.updateCamera(35, 10);
     const { ctx, calls } = makeCtx();
-    expect(() => mgr.render(ctx, 0)).not.toThrow();
-    expect(calls.length).toBeGreaterThan(0);
+    mgr.render(ctx, 0);
+    // Pin exact counts with a chest in view (camera near tile 35,10 brings forest_chest_1 on screen).
+    // If drawChest() were removed the total would drop versus the forest-at-spawn baseline.
+    expect(calls.filter(c => c === 'fillRect').length).toBe(1760);
+    expect(calls.length).toBe(4803);
   });
 
   it('skips drawing tiles with negative indices when camera has a negative offset', () => {
