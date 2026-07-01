@@ -37,8 +37,17 @@ describe('MapManager.loadMap', () => {
 describe('MapManager.isWalkable', () => {
   it('returns false for out-of-bounds tiles', () => {
     const mgr = makeMapManager();
+    // Both axes out of bounds
     expect(mgr.isWalkable(-1, -1)).toBe(false);
     expect(mgr.isWalkable(9999, 9999)).toBe(false);
+    // Single-axis out of bounds — pins that each axis is checked independently
+    // (OR not AND). If the guard were `tileX < 0 && tileY < 0`, these would
+    // silently return true and allow movement off the map edge.
+    expect(mgr.isWalkable(-1, 0)).toBe(false);                          // only x negative
+    expect(mgr.isWalkable(0, -1)).toBe(false);                          // only y negative
+    const { width, height } = mgr.currentMap;
+    expect(mgr.isWalkable(width, 0)).toBe(false);                       // x === width (≥)
+    expect(mgr.isWalkable(0, height)).toBe(false);                      // y === height (≥)
   });
 
   it('returns false for WALL tiles', () => {
