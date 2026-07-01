@@ -1764,6 +1764,69 @@ describe('Enemy AI — Bandit desperate attack multiplier', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Bandit defaultEnemyAI — failed desperate roll falls through to normal branching
+//
+// defaultEnemyAI uses an if / else-if / else chain:
+//   if (hpPercent < 0.25 && random < 0.3)  → desperate attack (1.5×)
+//   else if (random < 0.2)                  → defend
+//   else                                    → normal attack
+//
+// Existing tests only cover:
+//   • Low HP + random < 0.3  → desperate fires  (the "at low HP" tests above)
+//   • Full HP + random < 0.2 → defend fires     (the "braces for the attack" test)
+//   • Full HP + random >= 0.2 → normal attack
+//
+// The path "low HP + desperate roll FAILS (>= 0.3) → fall through to defend/attack"
+// is unexercised. If someone inserted a bare `return` after the failed desperate
+// guard (treating it as a no-op instead of a fallthrough), the bandit would freeze
+// at low HP — dealing zero damage on those turns — while every existing test passed.
+// These tests pin that fallthrough so a freeze-on-fail regression is caught.
+// ---------------------------------------------------------------------------
+
+describe('Enemy AI — Bandit desperate fallthrough: failed roll falls through to normal branching', () => {
+  it('low HP + desperate roll fails (>= 0.3) + defend roll succeeds (< 0.2) → bandit defends, no desperate message', () => {
+    // Random calls consumed inside enemyTurn → dispatchEnemyAI → defaultEnemyAI:
+    //   call 1 (desperate check): 0.5 >= 0.3 → desperate FAILS → fall through
+    //   call 2 (brace check):     0.1 < 0.2  → bandit defends
+    // If the function returned early after a failed desperate, enemyDefending would be
+    // false and no "braces" log line would appear — both assertions would fail.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // desperate check: 0.5 >= 0.3 → desperate FAILS
+      .mockReturnValueOnce(0.1);  // brace check:     0.1 <  0.2 → defend
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyHp = 2; // 2/18 ≈ 0.11 < 0.25 → desperate condition met, but roll fails
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log.some(l => l.includes('desperate attack'))).toBe(false);
+    expect(engine.state.enemyDefending).toBe(true);
+    expect(engine.state.log.some(l => l.includes('braces'))).toBe(true);
+  });
+
+  it('low HP + desperate roll fails (>= 0.3) + brace roll fails (>= 0.2) → bandit attacks normally, deals damage', () => {
+    // Random calls:
+    //   call 1 (desperate check): 0.5 >= 0.3 → desperate FAILS → fall through
+    //   call 2 (brace check):     0.5 >= 0.2 → defend FAILS → normal attack
+    //   call 3 (calcDamage variance): floor(0.5×4)−1 = 1
+    //   call 4 (calcDamage crit):     0.9 ≥ 0   → no crit
+    // Bandit ATK=6; effectiveDef = def(3)+leatherVest(1)=4; damage=max(1,6−4+1)=3.
+    // If the function returned early after a failed desperate, playerHp would be
+    // unchanged at 40, not 37 — the assertion catches a freeze regression.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.5)   // desperate check: FAILS
+      .mockReturnValueOnce(0.5)   // brace check:     FAILS → normal attack
+      .mockReturnValueOnce(0.5)   // variance: floor(0.5×4)−1 = 1
+      .mockReturnValueOnce(0.9);  // crit: no
+    const engine = new CombatEngine(makeFastPlayer(), makeEnemy(EnemyType.BANDIT));
+    engine.state.enemyHp = 2; // 2/18 < 0.25 → desperate condition met, but roll fails
+    engine.state.phase = CombatPhase.ENEMY_ACTION;
+    engine.enemyTurn();
+    expect(engine.state.log.some(l => l.includes('desperate attack'))).toBe(false);
+    expect(engine.state.enemyDefending).toBe(false);
+    expect(engine.state.playerHp).toBe(37); // 40 − 3 — bandit still attacked
+  });
+});
+
 describe('CombatEngine — bleed can kill the player on their enemy turn', () => {
   it('a bleeding player at 1 HP falls before the enemy acts', () => {
     const p = makePlayer();
