@@ -592,6 +592,51 @@ describe('CombatEngine.computeRewards', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// computeRewards — state-independence contract
+// ---------------------------------------------------------------------------
+// computeRewards() does NOT check getResult() internally: it always returns the
+// enemy's xp (and a randomised gold) regardless of whether the fight was won,
+// lost, or is still ongoing.  The caller (main.ts handleCombatUpdate) is the
+// one that guards with `if (result === 'victory')` before applying rewards.
+// These tests pin that contract so a refactor adding an internal guard (returning
+// {xp:0, gold:0} on non-victory) fails loudly — forcing the caller to be updated
+// at the same time rather than silently granting zero rewards in production.
+// ---------------------------------------------------------------------------
+describe('CombatEngine.computeRewards — state-independence contract', () => {
+  it('returns enemy xp on an ongoing fight before any action (no internal guard)', () => {
+    const enemy = makeEnemy(EnemyType.WOLF); // xp=8
+    const engine = new CombatEngine(makePlayer(), enemy);
+    expect(engine.getResult()).toBe('ongoing'); // precondition: fight not finished
+    expect(engine.computeRewards().xp).toBe(8); // still returns full xp
+  });
+
+  it('returns enemy xp after a defeat — caller must guard on getResult()', () => {
+    // Mirrors the defeat setup in the playerDefend describe: fast player ensures
+    // PLAYER_ACTION phase, then enemy one-shots them with atk=999.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const player = makeFastPlayer();
+    player.state.hp = 1;
+    player.state.def = 0;
+    const enemy = makeEnemy(EnemyType.SKELETON);
+    enemy.atk = 999;
+    const engine = new CombatEngine(player, enemy);
+    engine.playerDefend();
+    engine.enemyTurn();
+    expect(engine.getResult()).toBe('defeat'); // precondition: defeat confirmed
+    expect(engine.computeRewards().xp).toBe(enemy.xp); // xp returned regardless
+  });
+
+  it('returns enemy xp after a fled outcome — caller must guard on getResult()', () => {
+    const enemy = makeEnemy(EnemyType.WOLF);
+    const engine = new CombatEngine(makeFastPlayer(), enemy); // FAST → PLAYER_ACTION
+    vi.spyOn(Math, 'random').mockReturnValue(0.0); // 0.0 < fleeChance(0.5) → flee succeeds
+    engine.playerFlee();
+    expect(engine.getResult()).toBe('fled'); // precondition: fled confirmed
+    expect(engine.computeRewards().xp).toBe(enemy.xp); // xp returned regardless
+  });
+});
+
 describe('CombatEngine.getRecentLog', () => {
   it('returns the last N entries', () => {
     const engine = new CombatEngine(makePlayer(), makeEnemy());
