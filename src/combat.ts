@@ -309,6 +309,7 @@ export class CombatEngine {
 
     this.state.enemyTurnCount++;
     this.dispatchEnemyAI();
+    this.tickEnemyEffects();
     this.state.defendingThisTurn = false;
 
     if (this.state.playerHp <= 0) {
