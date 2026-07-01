@@ -320,6 +320,156 @@ describe('InputManager', () => {
     });
   });
 
+  describe('movement direction exclusivity', () => {
+    // Individual "returns true when X is held" tests verify the happy path but
+    // cannot catch a helper accidentally checking the wrong key — e.g.
+    // `moveUp() { return isHeld('w') || isHeld('s') }` would pass every test
+    // above.  These tests press each key and assert all OTHER direction helpers
+    // remain false.
+
+    it('pressing w triggers only moveUp', () => {
+      press('w');
+      expect(input.moveUp()).toBe(true);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('pressing s triggers only moveDown', () => {
+      press('s');
+      expect(input.moveDown()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('pressing a triggers only moveLeft', () => {
+      press('a');
+      expect(input.moveLeft()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('pressing d triggers only moveRight', () => {
+      press('d');
+      expect(input.moveRight()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+    });
+
+    it('ArrowUp triggers only moveUp', () => {
+      press('ArrowUp');
+      expect(input.moveUp()).toBe(true);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('ArrowDown triggers only moveDown', () => {
+      press('ArrowDown');
+      expect(input.moveDown()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('ArrowLeft triggers only moveLeft', () => {
+      press('ArrowLeft');
+      expect(input.moveLeft()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveRight()).toBe(false);
+    });
+
+    it('ArrowRight triggers only moveRight', () => {
+      press('ArrowRight');
+      expect(input.moveRight()).toBe(true);
+      expect(input.moveUp()).toBe(false);
+      expect(input.moveDown()).toBe(false);
+      expect(input.moveLeft()).toBe(false);
+    });
+  });
+
+  describe('menu direction exclusivity', () => {
+    // Mirrors movement direction exclusivity but for the wasJustPressed-based
+    // menu helpers.  A swapped key binding (e.g. menuDown accidentally wired to
+    // 'w') would be invisible to the happy-path menu tests above.
+
+    it('pressing w triggers only menuUp', () => {
+      press('w');
+      input.flushFrame();
+      expect(input.menuUp()).toBe(true);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('pressing s triggers only menuDown', () => {
+      press('s');
+      input.flushFrame();
+      expect(input.menuDown()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('pressing a triggers only menuLeft', () => {
+      press('a');
+      input.flushFrame();
+      expect(input.menuLeft()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('pressing d triggers only menuRight', () => {
+      press('d');
+      input.flushFrame();
+      expect(input.menuRight()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+    });
+
+    it('ArrowUp triggers only menuUp', () => {
+      press('ArrowUp');
+      input.flushFrame();
+      expect(input.menuUp()).toBe(true);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('ArrowDown triggers only menuDown', () => {
+      press('ArrowDown');
+      input.flushFrame();
+      expect(input.menuDown()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('ArrowLeft triggers only menuLeft', () => {
+      press('ArrowLeft');
+      input.flushFrame();
+      expect(input.menuLeft()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuRight()).toBe(false);
+    });
+
+    it('ArrowRight triggers only menuRight', () => {
+      press('ArrowRight');
+      input.flushFrame();
+      expect(input.menuRight()).toBe(true);
+      expect(input.menuUp()).toBe(false);
+      expect(input.menuDown()).toBe(false);
+      expect(input.menuLeft()).toBe(false);
+    });
+  });
+
   describe('non-game keys', () => {
     it('a key not in the game key list is still tracked as held and does not call preventDefault', () => {
       // Verify BOTH halves of the contract: the key is added to held AND
