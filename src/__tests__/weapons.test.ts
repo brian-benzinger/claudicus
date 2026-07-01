@@ -105,6 +105,25 @@ describe('WEAPONS data integrity', () => {
   });
 });
 
+describe('WEAPONS data — exact damageBonus contract table', () => {
+  it('pins exact damageBonus values for all weapons — changing any value silently rebalances combat for that weapon', () => {
+    // Mirrors the exact defBonus pin in armors.test.ts: the combat damage formula
+    // attackPower = player.str + weapon.damageBonus drives every combat outcome.
+    // The general field-validity test above only asserts damageBonus >= 0, so
+    // hand_axe (6), halberd (7), and war_halberd (9) have no existing exact pin.
+    // A silent change (e.g. hand_axe 6 → 4) rebalances those fights with no test failing.
+    expect(WEAPONS.rusty_shortsword.damageBonus).toBe(2);
+    expect(WEAPONS.dagger.damageBonus).toBe(1);
+    expect(WEAPONS.iron_longsword.damageBonus).toBe(4);
+    expect(WEAPONS.mace.damageBonus).toBe(5);
+    expect(WEAPONS.hand_axe.damageBonus).toBe(6);
+    expect(WEAPONS.hunting_bow.damageBonus).toBe(3);
+    expect(WEAPONS.halberd.damageBonus).toBe(7);
+    expect(WEAPONS.war_axe.damageBonus).toBe(8);
+    expect(WEAPONS.war_halberd.damageBonus).toBe(9);
+  });
+});
+
 describe('war_axe weapon', () => {
   it('has the correct damage, speed, and source', () => {
     const w = getWeapon('war_axe');
