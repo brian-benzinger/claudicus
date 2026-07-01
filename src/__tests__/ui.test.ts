@@ -1489,3 +1489,152 @@ describe('UIRenderer.drawInventoryScreen — detail panel contracts', () => {
     expect(calls2.some(c => c.text === '✦ Active')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawCombatVictoryOverlay — content and conditional-branch contracts
+//
+// drawCombatVictoryOverlay is the player's primary feedback after every combat
+// win.  It must:
+//   – always render "VICTORY!" and "[SPACE] to continue"
+//   – render "+N XP" with the exact XP amount gained
+//   – render "+N Gold" ONLY when goldGained > 0 (skipped for zero-gold enemies)
+//   – render the levelUpText ONLY when the string is non-empty
+//   – omit levelUpText when the string is empty (no level-up occurred)
+//
+// These tests had zero coverage.  A silent change to the XP/gold format, a
+// removed conditional, or a dropped "VICTORY!" would reach players undetected.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawCombatVictoryOverlay — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "VICTORY!" in all cases', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 8, 3, '', 360);
+    expect(textCalls.some(c => c.text === 'VICTORY!')).toBe(true);
+  });
+
+  it('renders "+N XP" with the exact XP amount', () => {
+    // Contract: "+8 XP" must appear verbatim.  A format change ("8 XP", "+8xp",
+    // "XP: 8") would silently break the player-facing reward feedback.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 8, 3, '', 360);
+    expect(textCalls.some(c => c.text === '+8 XP')).toBe(true);
+  });
+
+  it('renders "+N Gold" when goldGained > 0', () => {
+    // When the enemy drops gold the amount must be shown as "+N Gold".
+    // If the conditional were removed, the line would always render — including
+    // for zero-gold enemies (e.g. Wild Boar), showing "+0 Gold" incorrectly.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 12, 10, '', 360);
+    expect(textCalls.some(c => c.text === '+10 Gold')).toBe(true);
+  });
+
+  it('does NOT render gold line when goldGained is 0', () => {
+    // Wild Boar gives 0 gold.  The "+0 Gold" line must be suppressed — showing
+    // it would mislead the player into thinking they received a gold reward.
+    // This pins the `if (goldGained > 0)` branch in ui.ts.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 10, 0, '', 360);
+    expect(textCalls.some(c => c.text.includes('Gold'))).toBe(false);
+  });
+
+  it('renders levelUpText when it is non-empty', () => {
+    // On a level-up the reward label (e.g. "+2 Potions") is passed as levelUpText
+    // and must appear in the overlay so the player sees their progression reward.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 25, 5, '+2 Potions', 360);
+    expect(textCalls.some(c => c.text === '+2 Potions')).toBe(true);
+  });
+
+  it('does NOT render levelUpText when it is empty string', () => {
+    // When no level-up occurred the levelUpText is ''.  The `if (levelUpText)`
+    // guard must suppress it — rendering '' would add a blank line to the panel.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 8, 3, '', 360);
+    // No empty-string fillText call should appear from the levelUpText branch
+    expect(textCalls.some(c => c.text === '')).toBe(false);
+  });
+
+  it('renders "[SPACE] to continue" in all cases', () => {
+    // The action hint must always appear so the player knows how to dismiss the overlay.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawCombatVictoryOverlay(ctx, 8, 3, '', 360);
+    expect(textCalls.some(c => c.text === '[SPACE] to continue')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawQuestRewardPanel — content contracts
+//
+// drawQuestRewardPanel is the overlay shown when the player claims a quest
+// reward.  It must:
+//   – always render "QUEST COMPLETE"
+//   – render the quest name passed as a parameter
+//   – render each reward string from the rewards array
+//
+// These tests had zero coverage.  A rename ("Quest Complete!"), a dropped
+// reward line, or a transposed quest name would reach players silently.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawQuestRewardPanel — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "QUEST COMPLETE" header', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestRewardPanel(ctx, 'The Forest Menace', ['Received 50 gold!'], 60, 60);
+    expect(textCalls.some(c => c.text === 'QUEST COMPLETE')).toBe(true);
+  });
+
+  it('renders the quest name verbatim', () => {
+    // The quest name is the player's confirmation of which quest was completed.
+    // If it were omitted or replaced with a generic label, the player would not
+    // know which reward they are receiving.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestRewardPanel(ctx, 'The Forest Menace', ['Received 50 gold!'], 60, 60);
+    expect(textCalls.some(c => c.text === 'The Forest Menace')).toBe(true);
+  });
+
+  it('renders each reward string from the rewards array', () => {
+    // Each reward line (gold, weapon, potions) must appear so the player sees
+    // exactly what they earned.  A missing forEach iteration would silently drop
+    // one or more reward lines from the panel.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestRewardPanel(
+      ctx,
+      'Bandit Steel',
+      ['Received 30 gold!', 'Received Hand Axe!'],
+      60,
+      60
+    );
+    expect(textCalls.some(c => c.text === 'Received 30 gold!')).toBe(true);
+    expect(textCalls.some(c => c.text === 'Received Hand Axe!')).toBe(true);
+  });
+
+  it('renders all reward lines for a three-reward quest', () => {
+    // Covers the full rewards array path for a quest giving gold + weapon + potions.
+    // If the forEach were accidentally replaced by rewards[0] only, the weapon
+    // and potion lines would disappear with no existing test catching it.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestRewardPanel(
+      ctx,
+      'Boar Problem',
+      ['Received 25 gold!', 'Received 3 Health Potions!', 'Quest marked complete.'],
+      60,
+      60
+    );
+    expect(textCalls.some(c => c.text === 'Received 25 gold!')).toBe(true);
+    expect(textCalls.some(c => c.text === 'Received 3 Health Potions!')).toBe(true);
+    expect(textCalls.some(c => c.text === 'Quest marked complete.')).toBe(true);
+  });
+
+  it('renders correctly with an empty rewards array — no reward lines, header still present', () => {
+    // Edge case: if rewards is [], the forEach runs 0 times.  The header and
+    // quest name must still appear; no reward text should be rendered.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestRewardPanel(ctx, 'Quiet Dead', [], 60, 60);
+    expect(textCalls.some(c => c.text === 'QUEST COMPLETE')).toBe(true);
+    expect(textCalls.some(c => c.text === 'Quiet Dead')).toBe(true);
+    // No reward-line text beyond the header and quest name
+    expect(textCalls.filter(c => c.text.startsWith('Received')).length).toBe(0);
+  });
+});
