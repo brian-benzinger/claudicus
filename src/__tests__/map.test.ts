@@ -1031,3 +1031,55 @@ describe('MapManager — transition exact-value contracts', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// MapManager.getTile — OOB returns TileType.WALL, in-bounds returns real tile
+//
+// isWalkable() calls getTile() and checks inclusion in a walkable-tile list.
+// The existing OOB tests only verify isWalkable returns false — they do not pin
+// the specific TileType returned by getTile().  If getTile were changed to return
+// TileType.ROCK (also non-walkable) or TileType.GRASS (walkable) the isWalkable
+// tests would catch a GRASS change but silently miss a ROCK change, because ROCK
+// is also absent from the walkable list.
+//
+// The behavioral contract is: OOB coordinates are treated as TileType.WALL
+// (not ROCK, not undefined, not a thrown error).  This matters if any future code
+// calls getTile() directly and checks for WALL specifically — e.g. pathfinding or
+// NPC AI that branches on `tile === TileType.WALL`.  Pinning the return value to
+// TileType.WALL locks the intent expressed in the source comment "Out of bounds is solid".
+// ---------------------------------------------------------------------------
+describe('MapManager.getTile — exact return-value contracts', () => {
+  it('returns TileType.WALL for every OOB coordinate variant — not ROCK, not GRASS, not undefined', () => {
+    // Village is 30×20 tiles.  All four OOB axes are tested so that a change
+    // to any one boundary guard is caught: e.g. checking `tileX < 0` but not
+    // `tileX >= width` would leave the positive-overflow case uncaught.
+    const mgr = makeMapManager(); // village: width=30, height=20
+
+    // Negative axes (underflow)
+    expect(mgr.getTile(-1,  0)).toBe(TileType.WALL);
+    expect(mgr.getTile( 0, -1)).toBe(TileType.WALL);
+    expect(mgr.getTile(-1, -1)).toBe(TileType.WALL);
+
+    // At-or-beyond upper bounds (overflow)
+    const { width, height } = mgr.currentMap;
+    expect(mgr.getTile(width,     0)).toBe(TileType.WALL); // tileX === width → OOB
+    expect(mgr.getTile(0,    height)).toBe(TileType.WALL); // tileY === height → OOB
+    expect(mgr.getTile(width, height)).toBe(TileType.WALL); // both axes OOB
+
+    // Far OOB — ensures the guard is not erroneously ranged (e.g. -1 < x < width+1)
+    expect(mgr.getTile(-999,  0)).toBe(TileType.WALL);
+    expect(mgr.getTile(9999,  0)).toBe(TileType.WALL);
+  });
+
+  it('returns the real TileType for valid in-bounds coordinates — not always WALL', () => {
+    // Companion to the OOB test: getTile must NOT return WALL for valid tiles.
+    // The village border row (y=0) is all TREE tiles (confirmed by other map tests
+    // and the "TREE tiles form the outer border" contract).  Position (0,0) is
+    // the northwest corner — definitively a TREE tile on every map load.
+    // If getTile() were broken to always return WALL, this assertion would fail.
+    const mgr = makeMapManager(); // village
+    const cornerTile = mgr.getTile(0, 0);
+    expect(cornerTile).not.toBe(TileType.WALL);
+    expect(cornerTile).toBe(TileType.TREE); // village corner is always the border TREE tile
+  });
+});
