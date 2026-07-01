@@ -3630,3 +3630,63 @@ describe('CombatEngine — exact log message: player attack miss', () => {
     expect(engine.state.log).toContain('Your attack misses!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// playerFlee — AGI bonus and Brigand class modifier
+//
+// playerFlee() computes:
+//   fleeChance = 0.5 + agiBonus + classBonus
+// where agiBonus = player.agi > enemy.agi ? 0.2 : 0, and classBonus is
+// +0.15 for Scout and −0.1 for Warrior.  Brigand gets 0.
+//
+// All existing flee tests use random=0 (guaranteed succeed) or random=0.99
+// (guaranteed fail), so neither isolates the +0.2 agiBonus boundary.  The
+// Scout test uses random=0.6 with fleeChance=0.5+0.2(agi)+0.15(scout)=0.85 —
+// the agiBonus is unnecessary for that test to pass (0.6 < 0.65 without it).
+//
+// These three tests pin the gap:
+//   1. player.agi > enemy.agi → +0.2 is wired into the calculation
+//   2. player.agi === enemy.agi → condition is strict > (not >=), no bonus
+//   3. ClassPath.BRIGAND → classBonus stays at 0
+// ---------------------------------------------------------------------------
+describe('CombatEngine.playerFlee — AGI bonus and Brigand class modifier', () => {
+  it('player AGI > enemy AGI applies +0.2 flee bonus — roll=0.6 succeeds with bonus but not without', () => {
+    // player.agi(3) > skeleton.agi(2) → agiBonus=0.2; no classPath.
+    // fleeChance = 0.5 + 0.2 + 0 = 0.7; random=0.6 < 0.7 → flee succeeds.
+    // Without the agiBonus: fleeChance=0.5 and 0.6 >= 0.5 → flee fails.
+    // This is the only test that isolates the +0.2 as load-bearing.
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    expect(engine.playerFlee()).toBe(true);
+    expect(engine.state.log).toContain('You flee from battle!');
+  });
+
+  it('player AGI equal to enemy AGI gives NO flee bonus — strict > means ties are excluded', () => {
+    // player.agi(3) === bandit.agi(3): `player.agi > enemy.agi` is false → agiBonus=0.
+    // fleeChance = 0.5 + 0 + 0 = 0.5; random=0.6 >= 0.5 → flee fails.
+    // If the condition were changed to >= (including equal), agiBonus=0.2 and
+    // fleeChance=0.7: 0.6 < 0.7 → succeed — this test would catch that regression.
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.BANDIT)); // agi=3 vs agi=3
+    expect(engine.playerFlee()).toBe(false);
+    expect(engine.state.log).toContain('Failed to escape!');
+  });
+
+  it('Brigand class has no flee modifier — classBonus stays 0, not +0.15 like Scout or −0.1 like Warrior', () => {
+    // playerFlee sets classBonus only for SCOUT (+0.15) and WARRIOR (−0.1).
+    // Brigand is absent from both branches, so classBonus=0.
+    // player.agi(3) === bandit.agi(3) → no agiBonus; fleeChance = 0.5.
+    // random=0.55 >= 0.5 → flee fails.
+    // If Brigand were accidentally granted SCOUT's +0.15: fleeChance=0.65, 0.55 < 0.65 → succeed.
+    // If Brigand were accidentally granted WARRIOR's −0.1: fleeChance=0.4, 0.55 >= 0.4 → still fail
+    // (that regression would be caught only by a succeed-expected test, but the positive Brigand
+    // test with random=0.4 in the existing suite already covers a successful flee for Brigand
+    // and would break if a penalty were applied: fleeChance=0.4, 0.4 < 0.4=false → fail).
+    vi.spyOn(Math, 'random').mockReturnValue(0.55);
+    const player = makePlayer();
+    player.state.classPath = ClassPath.BRIGAND;
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.BANDIT)); // equal agi → no agiBonus
+    expect(engine.playerFlee()).toBe(false);
+    expect(engine.state.log).toContain('Failed to escape!');
+  });
+});
