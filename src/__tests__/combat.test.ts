@@ -4021,3 +4021,24 @@ describe('CombatEngine — studded_leather and shadow_cloak (defBonus=2) reduce 
     expect(studdedDmg).toBeLessThan(leatherDmg);   // stronger protection than leather_vest
   });
 });
+
+// ---------------------------------------------------------------------------
+// playerPotion with 0 potions — potion count must not change
+//
+// The existing "returns false and logs when no potions" test (line ~444) pins
+// the return value and log output, but never verifies the potion count is
+// unchanged.  Contract: a failed potion use is a strict no-op on the count.
+// If the implementation ever changed to decrement-then-check (or dropped the
+// guard altogether), player.state.potions would reach -1 with no existing
+// test catching it — and the player would appear to have -1 potions in any
+// UI that reads the raw count.
+// ---------------------------------------------------------------------------
+describe('CombatEngine — playerPotion with 0 potions does not decrement potion count', () => {
+  it('potion count stays at 0 after a failed playerPotion call', () => {
+    const player = makeFastPlayer();
+    player.state.potions = 0;
+    const engine = new CombatEngine(player, makeEnemy());
+    engine.playerPotion();
+    expect(player.state.potions).toBe(0);
+  });
+});
