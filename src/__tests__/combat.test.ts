@@ -741,6 +741,30 @@ describe('Victory reward integration', () => {
     expect(r1.xp).toBe(8);   // wolf.xp = 8
     expect(r1.gold).toBe(3); // Math.random()=0.1 < 0.5 → wolf.gold = 3
   });
+
+  it('WILD_BOAR gives 0 gold even when the drop roll wins (enemy.gold=0, not a fixed base amount)', () => {
+    // computeRewards(): gold = Math.random() < 0.5 ? enemy.gold : 0
+    // For WILD_BOAR (gold=0), even a "winning" roll returns 0 — not a flat 1 or
+    // any other base.  All existing gold tests use WOLF (gold=3); they would pass
+    // a broken formula like `Math.max(1, enemy.gold)` or `(enemy.gold || 1)` because
+    // max(1, 3)=3 still matches.  This test uses a zero-gold enemy so the same
+    // formula would return 1 instead of 0, catching the regression.
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // 0.1 < 0.5 → drop roll succeeds
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    const rewards = engine.computeRewards();
+    expect(rewards.xp).toBe(10);  // WILD_BOAR xp=10 (also pins XP for this enemy type)
+    expect(rewards.gold).toBe(0); // enemy.gold=0; winning roll still gives 0, not 1
+  });
+
+  it('WILD_BOAR gives 0 gold when the drop roll fails too — always 0 regardless of the roll', () => {
+    // Companion to the above: when the roll fails (>= 0.5) the formula returns 0 outright.
+    // Together with the winning-roll test, both branches of the random condition are
+    // pinned for a zero-gold enemy so any path that produces non-zero gold breaks a test.
+    vi.spyOn(Math, 'random').mockReturnValue(0.9); // 0.9 >= 0.5 → drop roll fails
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.WILD_BOAR));
+    const rewards = engine.computeRewards();
+    expect(rewards.gold).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
