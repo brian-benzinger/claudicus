@@ -776,3 +776,174 @@ describe('UIRenderer.drawDefeatScreen — content contracts', () => {
     expect(textCalls.some(c => c.text === '[SPACE] Return to Brannford')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawLevelUpBanner — content and conditional-branch contracts
+//
+// drawLevelUpBanner is called on every level-up with the new level number and
+// the reward label from LEVEL_REWARDS.  Two key contracts:
+//   1. "LEVEL UP!" and "Level N" must always appear (unconditional text).
+//   2. "Reward: {label}" must appear when rewardLabel is non-empty, and must
+//      NOT appear when it is empty — the branch can silently invert.
+// These tests pin both the happy path and the falsy-label path.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawLevelUpBanner — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "LEVEL UP!" as the headline', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawLevelUpBanner(ctx, 2, '+2 Potions', 0);
+    expect(textCalls.some(c => c.text === 'LEVEL UP!')).toBe(true);
+  });
+
+  it('renders "Level N" with the exact new level number', () => {
+    // If the template changed from `Level ${newLevel}` to `Level up to ${newLevel}`
+    // or the argument were swapped with rewardLabel, the player would see the
+    // wrong level number in their banner with no test catching it.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawLevelUpBanner(ctx, 5, '+5 STR, +5 Max HP', 0);
+    expect(textCalls.some(c => c.text === 'Level 5')).toBe(true);
+  });
+
+  it('renders "Reward: {label}" when a non-empty rewardLabel is provided', () => {
+    // Contract: `if (rewardLabel)` branch must execute and produce the exact string.
+    // If the template changed to "Bonus: {label}" or the colon-space were removed,
+    // the reward description the player sees in the banner silently changes.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawLevelUpBanner(ctx, 3, '+50 Gold', 0);
+    expect(textCalls.some(c => c.text === 'Reward: +50 Gold')).toBe(true);
+  });
+
+  it('does NOT render any "Reward:" line when rewardLabel is empty', () => {
+    // The `if (rewardLabel)` guard must prevent the reward line from appearing
+    // when no reward label is supplied.  If the guard were inverted or removed,
+    // "Reward: " would appear as a stray line in the banner on every level-up,
+    // and this test would catch it.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawLevelUpBanner(ctx, 2, '', 0);
+    expect(textCalls.some(c => c.text.startsWith('Reward:'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawVictoryScreen — content contracts
+//
+// drawVictoryScreen is the endgame screen shown when the player defeats the
+// Revenant Knight and claims the final quest reward.  Its three text lines are
+// the player's payoff for completing the game — silent reformatting would break
+// the ending without any type check or coverage gate firing.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawVictoryScreen — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "QUEST COMPLETE!" as the title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawVictoryScreen(ctx);
+    expect(textCalls.some(c => c.text === 'QUEST COMPLETE!')).toBe(true);
+  });
+
+  it('renders "You have defended Brannford!" as the subtitle', () => {
+    // If this changed to "Brannford is saved!" or the village name were misspelled,
+    // the ending message would be wrong with no test catching it.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawVictoryScreen(ctx);
+    expect(textCalls.some(c => c.text === 'You have defended Brannford!')).toBe(true);
+  });
+
+  it('renders "[SPACE] to continue" as the action prompt', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawVictoryScreen(ctx);
+    expect(textCalls.some(c => c.text === '[SPACE] to continue')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UIRenderer.drawQuestLog — content and conditional-branch contracts
+//
+// drawQuestLog has three display states per entry (in-progress, completed-but-
+// unclaimed, reward-claimed) plus an empty-state ("No active quests.").  The
+// text shown in each state is the player's only in-game source of quest
+// guidance; silent changes (e.g. "Return to Elder Aldric" → "See Elder Aldric")
+// degrade usability without breaking any type check or coverage gate.
+// ---------------------------------------------------------------------------
+describe('UIRenderer.drawQuestLog — content contracts', () => {
+  const ui = new UIRenderer();
+
+  it('renders "QUEST LOG" as the panel title', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {});
+    expect(textCalls.some(c => c.text === 'QUEST LOG')).toBe(true);
+  });
+
+  it('renders "No active quests." when the quest map is empty', () => {
+    // row stays at 0 → empty-state message must appear.  If the condition were
+    // changed from `row === 0` to `row < 0`, the message would silently vanish.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {});
+    expect(textCalls.some(c => c.text === 'No active quests.')).toBe(true);
+  });
+
+  it('renders "No active quests." when all present quests have not been started', () => {
+    // Unstarted quests must be skipped by the `if (!state.started) continue` guard,
+    // leaving row=0.  If the guard were removed, quests the player hasn't accepted
+    // yet would silently appear in the log before they're taken on.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {
+      forest_menace: { started: false, count: 0, completed: false, rewardClaimed: false },
+    });
+    expect(textCalls.some(c => c.text === 'No active quests.')).toBe(true);
+  });
+
+  it('renders "Progress: N / M" for an in-progress quest — pins count, slash spacing, and goalCount', () => {
+    // Contract: state.count and def.goalCount are interpolated as "Progress: N / M".
+    // If the slash spacing changed ("N/M"), the variables were swapped, or the
+    // prefix changed to "Count:", the player would misread their progress.
+    // forest_menace.goalCount = 5 (pinned in quests.test.ts).
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {
+      forest_menace: { started: true, count: 3, completed: false, rewardClaimed: false },
+    });
+    expect(textCalls.some(c => c.text === 'Progress: 3 / 5')).toBe(true);
+  });
+
+  it('renders "Return to {npcName}" for a completed-but-unclaimed quest', () => {
+    // This is the most actionable piece of text in the quest log: it tells the
+    // player exactly which NPC to visit to claim their reward.  If the template
+    // changed to "Speak to {npcName}" or npcName were dropped entirely, the player
+    // loses their in-game reminder with no test catching the regression.
+    // forest_menace.npcName = "Elder Aldric" (pinned in quests.test.ts).
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {
+      forest_menace: { started: true, count: 5, completed: true, rewardClaimed: false },
+    });
+    expect(textCalls.some(c => c.text === 'Return to Elder Aldric')).toBe(true);
+  });
+
+  it('renders "Complete" for a fully claimed quest', () => {
+    // A reward-claimed quest must show "Complete" so the player knows they have
+    // finished that quest entirely.  If this changed to "Done" or the branch were
+    // lost, claimed quests would silently show wrong text.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {
+      forest_menace: { started: true, count: 5, completed: true, rewardClaimed: true },
+    });
+    expect(textCalls.some(c => c.text === 'Complete')).toBe(true);
+  });
+
+  it('does NOT render "No active quests." when at least one quest is started', () => {
+    // The empty-state message must be suppressed when row > 0.  If the row===0
+    // guard were changed to always render the message, it would appear alongside
+    // real quest entries, polluting the log.
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {
+      forest_menace: { started: true, count: 2, completed: false, rewardClaimed: false },
+    });
+    expect(textCalls.some(c => c.text === 'No active quests.')).toBe(false);
+  });
+
+  it('renders "[Q / ESC] Close" as the footer hint', () => {
+    const { ctx, textCalls } = makeCtx();
+    ui.drawQuestLog(ctx, {});
+    expect(textCalls.some(c => c.text === '[Q / ESC] Close')).toBe(true);
+  });
+});
