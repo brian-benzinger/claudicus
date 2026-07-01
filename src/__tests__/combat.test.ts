@@ -3734,3 +3734,59 @@ describe('CombatEngine — playerPotion does not consume the defend bonus', () =
     expect(engine.state.nextAttackBonus).toBe(0); // bonus consumed by the attack
   });
 });
+
+// ---------------------------------------------------------------------------
+// iron_longsword combat damage pin — the primary player upgrade path
+//
+// iron_longsword is the reward for completing the main quest (forest_menace)
+// and the first shop weapon players can afford.  Its damageBonus=4 is the
+// key property that makes it a meaningful upgrade over rusty_shortsword (damageBonus=2).
+//
+// All other weapons have their damageBonus implicitly pinned through exact-damage
+// combat tests (rusty_shortsword→3, dagger→2, mace→8, hand_axe→7, halberd→6,
+// war_axe→8, war_halberd→8, hunting_bow opening shot→4).  iron_longsword is the
+// only weapon whose damageBonus is never verified in a live combat calculation —
+// a silent change from 4 to 2 (matching rusty_shortsword) would make the quest
+// reward and shop purchase worthless while no test would catch it.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — iron_longsword (damageBonus=4, NORMAL speed, missChance=0, critChance=0)', () => {
+  it('deals floor(str(5)+damageBonus(4)−def(4)+var(0))=5 damage against a Skeleton — pins the +4 bonus', () => {
+    // iron_longsword: NORMAL, missChance=0, critChance=0, ignoresDefense=0, damageBonus=4.
+    // attackPower = str(5)+4 = 9; Skeleton def=4 → effectiveDef=4; variance=0 (roll=0.25).
+    // damage = max(1, 9−4+0) = 5.
+    // If damageBonus were silently changed from 4 to 2 (matching rusty_shortsword):
+    // attackPower=7 → damage=max(1,3)=3, not 5. This test catches that regression.
+    mockAttacks([0.5, 0.25, 0.5]); // no miss (missChance=0), variance=0, no crit (critChance=0)
+    const player = makePlayer(); // str=5, agi=3; NORMAL: 3 >= Skeleton.agi(2) → PLAYER_ACTION
+    player.equipWeapon('iron_longsword');
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.SKELETON)); // def=4, hp=20
+    const hpBefore = engine.state.enemyHp;
+    engine.playerAttack();
+    expect(hpBefore - engine.state.enemyHp).toBe(5); // str(5)+bonus(4)−def(4)+var(0) = 5
+  });
+
+  it('iron_longsword (damageBonus=4) vs rusty_shortsword (damageBonus=2) — pins the upgrade delta', () => {
+    // rusty_shortsword: attackPower=5+2=7 → damage=max(1,7−4+0)=3.
+    // iron_longsword:   attackPower=5+4=9 → damage=max(1,9−4+0)=5.
+    // Both values are pinned so a silent collapse of either bonus catches the regression,
+    // rather than only detecting that one weapon changed while the other drifted to match it.
+    mockAttacks([0.5, 0.25, 0.5]); // rusty: no miss, variance=0, no crit
+    const rustyEngine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON));
+    const rustyHpBefore = rustyEngine.state.enemyHp;
+    rustyEngine.playerAttack();
+    const rustyDamage = rustyHpBefore - rustyEngine.state.enemyHp;
+
+    mockAttacks([0.5, 0.25, 0.5]); // iron_longsword: same conditions
+    const ironPlayer = makePlayer();
+    ironPlayer.equipWeapon('iron_longsword');
+    const ironEngine = new CombatEngine(ironPlayer, makeEnemy(EnemyType.SKELETON));
+    const ironHpBefore = ironEngine.state.enemyHp;
+    ironEngine.playerAttack();
+    const ironDamage = ironHpBefore - ironEngine.state.enemyHp;
+
+    expect(rustyDamage).toBe(3); // str(5)+bonus(2)−def(4)+var(0) = 3 — pin so it cannot secretly drift to 5
+    expect(ironDamage).toBe(5);  // str(5)+bonus(4)−def(4)+var(0) = 5 — the core upgrade contract
+    expect(ironDamage).toBeGreaterThan(rustyDamage); // upgrade produces measurably more damage
+  });
+});
