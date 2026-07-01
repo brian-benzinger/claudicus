@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { QUESTS, MAIN_QUEST, createDefaultQuests } from '../data/quests';
+import { QUESTS, MAIN_QUEST, createDefaultQuests, questCountsKill } from '../data/quests';
 import { EnemyType } from '../types';
+import type { QuestState } from '../types';
 import { getWeapon } from '../data/weapons';
 
 // ---------------------------------------------------------------------------
@@ -184,6 +185,124 @@ describe('QUESTS — reward cross-reference integrity', () => {
         expect(q.goalEnemyTypes, `Quest "${id}" is kill_any but lists enemy types`).toBeUndefined();
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// questCountsKill — kill-type filtering contract
+//
+// The `checkQuestProgress` path in main.ts calls questCountsKill to decide
+// whether a given enemy type should advance a quest's count.  These tests pin
+// that filtering contract explicitly: a WOLF kill must never count toward
+// bandit_steel, a BANDIT kill must never count toward wolves_gate, etc.
+// ---------------------------------------------------------------------------
+
+describe('questCountsKill — kill_any quests count every enemy type', () => {
+  const q = QUESTS.forest_menace; // goalType: 'kill_any'
+
+  it('counts every EnemyType for a kill_any quest', () => {
+    for (const type of Object.values(EnemyType)) {
+      expect(questCountsKill(q, type), `forest_menace must count ${type}`).toBe(true);
+    }
+  });
+});
+
+describe('questCountsKill — defensive: kill_type with missing goalEnemyTypes returns false', () => {
+  it('returns false rather than throwing when goalEnemyTypes is absent', () => {
+    // Defensive branch: a malformed/migrated quest def with kill_type but no
+    // goalEnemyTypes should never match any enemy rather than crash.
+    const malformed = { ...QUESTS.bandit_steel, goalEnemyTypes: undefined };
+    expect(questCountsKill(malformed, EnemyType.BANDIT)).toBe(false);
+  });
+});
+
+describe('questCountsKill — kill_type quests count only matching types', () => {
+  it('bandit_steel: counts BANDIT and BANDIT_ARCHER; ignores WOLF, SKELETON, WILD_BOAR, REVENANT_KNIGHT', () => {
+    const q = QUESTS.bandit_steel;
+    expect(questCountsKill(q, EnemyType.BANDIT)).toBe(true);
+    expect(questCountsKill(q, EnemyType.BANDIT_ARCHER)).toBe(true);
+    expect(questCountsKill(q, EnemyType.WOLF)).toBe(false);
+    expect(questCountsKill(q, EnemyType.SKELETON)).toBe(false);
+    expect(questCountsKill(q, EnemyType.WILD_BOAR)).toBe(false);
+    expect(questCountsKill(q, EnemyType.REVENANT_KNIGHT)).toBe(false);
+  });
+
+  it('wolves_gate: counts only WOLF', () => {
+    const q = QUESTS.wolves_gate;
+    expect(questCountsKill(q, EnemyType.WOLF)).toBe(true);
+    expect(questCountsKill(q, EnemyType.BANDIT)).toBe(false);
+    expect(questCountsKill(q, EnemyType.SKELETON)).toBe(false);
+  });
+
+  it('boar_problem: counts only WILD_BOAR', () => {
+    const q = QUESTS.boar_problem;
+    expect(questCountsKill(q, EnemyType.WILD_BOAR)).toBe(true);
+    expect(questCountsKill(q, EnemyType.WOLF)).toBe(false);
+    expect(questCountsKill(q, EnemyType.BANDIT)).toBe(false);
+  });
+
+  it('quiet_dead: counts only SKELETON', () => {
+    const q = QUESTS.quiet_dead;
+    expect(questCountsKill(q, EnemyType.SKELETON)).toBe(true);
+    expect(questCountsKill(q, EnemyType.WOLF)).toBe(false);
+    expect(questCountsKill(q, EnemyType.BANDIT)).toBe(false);
+  });
+
+  it('revenant_threat: counts only REVENANT_KNIGHT', () => {
+    const q = QUESTS.revenant_threat;
+    expect(questCountsKill(q, EnemyType.REVENANT_KNIGHT)).toBe(true);
+    expect(questCountsKill(q, EnemyType.BANDIT)).toBe(false);
+    expect(questCountsKill(q, EnemyType.WOLF)).toBe(false);
+  });
+});
+
+describe('questCountsKill — kill-counting simulation for bandit_steel', () => {
+  // Replay a mixed-enemy kill sequence and verify the quest state machine
+  // reaches completion at exactly the right moment using questCountsKill to
+  // gate each increment — the same logic as checkQuestProgress in main.ts.
+
+  function simulate(kills: EnemyType[]): QuestState {
+    const questDef = QUESTS.bandit_steel;
+    const state: QuestState = { started: true, count: 0, completed: false, rewardClaimed: false };
+    for (const enemyType of kills) {
+      if (!state.completed && questCountsKill(questDef, enemyType)) {
+        state.count++;
+        if (state.count >= questDef.goalCount) state.completed = true;
+      }
+    }
+    return state;
+  }
+
+  it('completes after exactly 3 bandit kills in a mixed sequence, ignoring non-bandits', () => {
+    // WOLF (ignored), BANDIT (1), SKELETON (ignored), BANDIT (2), BANDIT_ARCHER (3 → done)
+    const result = simulate([
+      EnemyType.WOLF,
+      EnemyType.BANDIT,
+      EnemyType.SKELETON,
+      EnemyType.BANDIT,
+      EnemyType.BANDIT_ARCHER,
+    ]);
+    expect(result.count).toBe(3);
+    expect(result.completed).toBe(true);
+  });
+
+  it('does not complete on 3 non-bandit kills alone', () => {
+    const result = simulate([EnemyType.WOLF, EnemyType.SKELETON, EnemyType.WILD_BOAR]);
+    expect(result.count).toBe(0);
+    expect(result.completed).toBe(false);
+  });
+
+  it('stops incrementing count once completed — extra bandit kills are ignored', () => {
+    // 5 bandit kills: count must stay at 3, not reach 5
+    const result = simulate([
+      EnemyType.BANDIT,
+      EnemyType.BANDIT,
+      EnemyType.BANDIT,
+      EnemyType.BANDIT,
+      EnemyType.BANDIT,
+    ]);
+    expect(result.count).toBe(3);
+    expect(result.completed).toBe(true);
   });
 });
 
