@@ -23,7 +23,7 @@ import { UIRenderer } from './ui';
 import { save, load, hasSave, clearSave } from './save';
 import { drawPlayer } from './renderer';
 import { openChest } from './items';
-import { QUESTS, createDefaultQuests } from './data/quests';
+import { QUESTS, createDefaultQuests, questCountsKill } from './data/quests';
 import { CRAFT_RECIPES } from './data/recipes';
 import { MusicEngine, TrackName, SfxType } from './music';
 
@@ -953,9 +953,7 @@ class Game {
       const questState = this.quests[questId];
       if (!questState || !questState.started || questState.completed) continue;
 
-      const counts =
-        questDef.goalType === 'kill_any' ||
-        (questDef.goalType === 'kill_type' && questDef.goalEnemyTypes?.includes(enemyType));
+      const counts = questCountsKill(questDef, enemyType);
 
       if (counts) {
         questState.count++;

@@ -91,6 +91,15 @@ export const QUESTS: Record<string, QuestDef> = {
 // MAIN_QUEST kept as alias so any leftover references don't break
 export const MAIN_QUEST = QUESTS.forest_menace;
 
+// Returns true when killing enemyType should advance the given quest's count.
+// kill_any quests match every enemy; kill_type quests match only listed types.
+export function questCountsKill(questDef: QuestDef, enemyType: EnemyType): boolean {
+  return (
+    questDef.goalType === 'kill_any' ||
+    (questDef.goalType === 'kill_type' && (questDef.goalEnemyTypes?.includes(enemyType) ?? false))
+  );
+}
+
 export function createDefaultQuests(): Record<string, QuestState> {
   return Object.fromEntries(
     Object.keys(QUESTS).map(id => [
