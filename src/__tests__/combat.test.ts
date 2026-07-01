@@ -1554,6 +1554,54 @@ describe('CombatEngine.playerFlee — class modifiers', () => {
     const warriorEngine = new CombatEngine(warriorPlayer, enemy);
     expect(warriorEngine.playerFlee()).toBe(false);
   });
+
+  it('Brigand has neutral flee chance — classBonus is 0, not a penalty like Warrior', () => {
+    // playerFlee(): classBonus is only set for SCOUT (+0.15) and WARRIOR (-0.1).
+    // Brigand has no if-branch, so classBonus remains 0.  If someone added a
+    // negative modifier for Brigand (e.g. matching Warrior's -0.1), the total
+    // would drop from 0.5 to 0.4, and this test at random=0.45 would wrongly fail.
+    //
+    // Use dagger (FAST) so the engine starts in PLAYER_ACTION regardless of agi.
+    // Enemy.agi=10 suppresses the AGI bonus: player.agi(3) < 10 → agiBonus=0.
+    // Total flee chance = 0.5 + 0 + 0 = 0.5. At random=0.45: 0.45 < 0.5 → SUCCESS.
+    // If classBonus were -0.1 (like Warrior): total=0.4, 0.45 >= 0.4 → FAILURE.
+    const brigandPlayer = makeFastPlayer(); // dagger (FAST) → always PLAYER_ACTION first
+    brigandPlayer.state.classPath = ClassPath.BRIGAND;
+    const enemy = makeEnemy();
+    enemy.agi = 10; // player agi(3) < enemy agi(10) → agiBonus=0
+    vi.spyOn(Math, 'random').mockReturnValue(0.45);
+    const brigandEngine = new CombatEngine(brigandPlayer, enemy);
+    expect(brigandEngine.playerFlee()).toBe(true); // 0.45 < 0.5 → succeeds (no class penalty)
+  });
+});
+
+describe('CombatEngine.playerFlee — AGI bonus', () => {
+  it('succeeds at random=0.65 when player.agi exceeds enemy.agi — AGI bonus (+0.2) pushes flee chance to 0.7', () => {
+    // agiBonus = player.agi > enemy.agi ? 0.2 : 0.
+    // Default player: agi=3. Skeleton: agi=2. 3 > 2 → agiBonus=0.2 → total=0.7.
+    // At random=0.65: 0.65 < 0.7 → SUCCEEDS.
+    // Without the AGI bonus (total=0.5): 0.65 >= 0.5 → FAILS.
+    // This pins both that the bonus is applied AND that it adds exactly +0.2:
+    //   – removing the bonus: test fails (flee fails instead of succeeds)
+    //   – inverting the condition to player.agi < enemy.agi: test fails (agi=3 is NOT < agi=2)
+    //   – reducing bonus to +0.1 (total=0.6): 0.65 >= 0.6 → test fails
+    vi.spyOn(Math, 'random').mockReturnValue(0.65);
+    const engine = new CombatEngine(makePlayer(), makeEnemy(EnemyType.SKELETON)); // player.agi=3 > skeleton.agi=2
+    expect(engine.playerFlee()).toBe(true);
+  });
+
+  it('fails at random=0.65 when player.agi equals enemy.agi — AGI bonus does NOT apply (strict >)', () => {
+    // agiBonus is only awarded when player.agi is STRICTLY GREATER THAN enemy.agi.
+    // At equality (agi=3 vs agi=3) the condition `3 > 3` is false → agiBonus=0 → total=0.5.
+    // At random=0.65: 0.65 >= 0.5 → FAILS.
+    // If `>` were changed to `>=`: agiBonus=0.2 → total=0.7 → 0.65 < 0.7 → flee SUCCEEDS → test fails.
+    // Together with the test above, these two pin the exact `>` boundary (not `>=`, not `<`).
+    vi.spyOn(Math, 'random').mockReturnValue(0.65);
+    const player = makePlayer(); // agi=3
+    const enemy = makeEnemy(EnemyType.BANDIT); // agi=3 — equal to player
+    const engine = new CombatEngine(player, enemy);
+    expect(engine.playerFlee()).toBe(false); // 0.65 >= 0.5 (no AGI bonus at equal agi)
+  });
 });
 
 // ===========================================================================
