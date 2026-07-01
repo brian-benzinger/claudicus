@@ -21,6 +21,20 @@ describe('CRAFT_RECIPES — exact count and structure', () => {
     expect(CRAFT_RECIPES).toHaveLength(3);
   });
 
+  it('appears in the exact forge menu order — studded_leather → iron_longsword → war_axe', () => {
+    // The forge UI iterates CRAFT_RECIPES in array order (cursor starts at index 0).
+    // A reordering (e.g., war_axe moved first) changes which recipe the player sees
+    // highlighted by default — a silent UX regression that the find()-based tests above
+    // cannot catch since they are order-independent.
+    // Mirrors the weapons shop pin in weapons.test.ts ("returns exactly 5 shop weapons")
+    // and the armor shop pin in npc.test.ts ("armor shop stocks the exact two purchasable armors").
+    expect(CRAFT_RECIPES.map(r => r.id)).toEqual([
+      'studded_leather',
+      'iron_longsword',
+      'war_axe',
+    ]);
+  });
+
   it('every recipe has required fields: id, name, cost, description', () => {
     for (const r of CRAFT_RECIPES) {
       expect(typeof r.id, `${r.id}: id must be string`).toBe('string');
