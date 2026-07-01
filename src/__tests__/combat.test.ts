@@ -3814,3 +3814,80 @@ describe('CombatEngine — iron_longsword (damageBonus=4, NORMAL speed, missChan
     expect(ironDamage).toBeGreaterThan(rustyDamage); // upgrade produces measurably more damage
   });
 });
+
+// ---------------------------------------------------------------------------
+// Equipped armor defBonus reduces enemy attack damage in live combat
+//
+// All prior combat tests use the default player wearing leather_vest (defBonus=1).
+// The armor defBonus feeds into player.getEffectiveDef() which CombatEngine reads
+// during executeEnemyAttack.  The unit tests for getEffectiveDef() verify the
+// math, but no test has ever verified the chain armor → getEffectiveDef → damage
+// reduction in a live enemy attack.  This is exactly analogous to the iron_longsword
+// gap (weapon damageBonus never verified in combat until it was recently pinned).
+//
+// If executeEnemyAttack read player.state.def instead of player.getEffectiveDef(),
+// or if getEffectiveDef() stopped including armor.defBonus, the getEffectiveDef
+// unit test would fail but the combat damage would silently use only base DEF.
+//
+// Setup: Revenant Knight (ATK=10, phase 1), random=0.5 throughout.
+//   – brace check: 0.5 >= 0.25 → attack (not brace).
+//   – variance: floor(0.5×4)−1 = 1.
+//   – enemy has no critChance → no crit.
+//   – effectiveDef = player.state.def(3) + armor.defBonus
+//   – damage = max(1, 10 − effectiveDef + 1)
+//
+// Leather vest (defBonus=1): effectiveDef=4; damage=max(1,10−4+1)=7 → HP=33
+// Chain mail   (defBonus=3): effectiveDef=6; damage=max(1,10−6+1)=5 → HP=35
+// Iron plate   (defBonus=5): effectiveDef=8; damage=max(1,10−8+1)=3 → HP=37
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — equipped armor defBonus reduces enemy attack damage in live combat', () => {
+  function runRevenantAttack(armorId: string) {
+    const player = makePlayer(); // def=3, rusty_shortsword NORMAL, agi=3
+    player.equipArmor(armorId);
+    // Revenant Knight agi=4 > player agi=3 → ENEMY_ACTION at start (NORMAL weapon)
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.REVENANT_KNIGHT));
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 → attack; variance=1; no crit
+    const hpBefore = engine.state.playerHp;
+    engine.enemyTurn();
+    return hpBefore - engine.state.playerHp;
+  }
+
+  it('leather_vest (defBonus=1) baseline: Revenant Knight deals 7 damage (effectiveDef=4)', () => {
+    // Pins the baseline so the upgrade tests below are grounded in a concrete reference.
+    // effectiveDef = def(3)+leatherVest(1)=4; damage=max(1,10−4+1)=7.
+    // If getEffectiveDef() silently stopped adding armor.defBonus (returning only 3),
+    // effectiveDef=3 and damage=max(1,10−3+1)=8, breaking this test.
+    expect(runRevenantAttack('leather_vest')).toBe(7);
+  });
+
+  it('chain_mail (defBonus=3) reduces damage to 5 — exactly 2 less than leather_vest baseline', () => {
+    // effectiveDef = def(3)+chainMail(3)=6; damage=max(1,10−6+1)=5 (not 7).
+    // If the armor bonus were silently ignored: effectiveDef=3, damage=8 — test fails.
+    // If chain_mail.defBonus were reduced from 3 to 1: effectiveDef=4, damage=7 — test also fails.
+    expect(runRevenantAttack('chain_mail')).toBe(5);
+  });
+
+  it('iron_plate (defBonus=5) reduces damage to 3 — exactly 4 less than leather_vest baseline', () => {
+    // effectiveDef = def(3)+ironPlate(5)=8; damage=max(1,10−8+1)=3 (not 7 or 5).
+    // If the armor bonus were silently ignored: effectiveDef=3, damage=8 — test fails.
+    // If iron_plate.defBonus were reduced from 5 to 3: effectiveDef=6, damage=5 — test also fails.
+    expect(runRevenantAttack('iron_plate')).toBe(3);
+  });
+
+  it('iron_plate deals strictly less damage than chain_mail, which deals strictly less than leather_vest', () => {
+    // Together the three exact-value tests above pin the full armor tier ladder.
+    // This relational test is a cross-check: if two armors accidentally swapped their
+    // defBonus values (iron_plate=3, chain_mail=5) the individual tests would still each
+    // pass for the wrong armor ID — but the ordering would flip and this test would catch it.
+    vi.restoreAllMocks();
+    const leatherDmg = runRevenantAttack('leather_vest');
+    vi.restoreAllMocks();
+    const chainDmg   = runRevenantAttack('chain_mail');
+    vi.restoreAllMocks();
+    const plateDmg   = runRevenantAttack('iron_plate');
+    expect(leatherDmg).toBe(7); // anchor the baseline so a uniform shift is visible
+    expect(chainDmg).toBeLessThan(leatherDmg);
+    expect(plateDmg).toBeLessThan(chainDmg);
+  });
+});
