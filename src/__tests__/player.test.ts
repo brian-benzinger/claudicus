@@ -752,6 +752,55 @@ describe('PlayerManager.loadState / reset', () => {
     expect(p.state).not.toBe(incoming);
   });
 
+  it('loadState copies weapons array independently — mutating source after load does not affect loaded state', () => {
+    // { ...state } is a shallow spread: p.state.weapons and incoming.weapons would be the
+    // SAME array reference.  Pushing to incoming after loadState would silently modify the
+    // player's weapon list — e.g. save.ts returns JSON.parse output so this is safe today,
+    // but a caller that reuses the source object would corrupt the player inventory.
+    // This test pins the contract: loadState must produce an independent weapons array.
+    const p = makePlayer();
+    const incoming = createDefaultPlayer();
+    p.loadState(incoming);
+    incoming.weapons.push('iron_longsword'); // mutate source AFTER loading
+    expect(p.state.weapons).not.toContain('iron_longsword');
+    expect(p.state.weapons).toEqual(['rusty_shortsword']); // unchanged
+  });
+
+  it('loadState copies armors array independently — mutating source after load does not affect loaded state', () => {
+    // Same shallow-copy gap as weapons: if the spread shares the array reference, pushing
+    // to incoming.armors after loadState would also push to p.state.armors.
+    const p = makePlayer();
+    const incoming = createDefaultPlayer();
+    p.loadState(incoming);
+    incoming.armors.push('iron_plate'); // mutate source AFTER loading
+    expect(p.state.armors).not.toContain('iron_plate');
+    expect(p.state.armors).toEqual(['leather_vest']); // unchanged
+  });
+
+  it('loadState copies earnedTitles array independently — mutating source after load does not affect loaded state', () => {
+    // earnedTitles is another mutable array field on PlayerState that a shallow spread
+    // would alias.  If a caller mutated the source's title list after loadState, the
+    // player could gain or lose titles without any game event triggering them.
+    const p = makePlayer();
+    const incoming = createDefaultPlayer();
+    p.loadState(incoming);
+    incoming.earnedTitles.push('wolfsbane'); // mutate source AFTER loading
+    expect(p.state.earnedTitles).not.toContain('wolfsbane');
+    expect(p.state.earnedTitles).toEqual([]); // unchanged
+  });
+
+  it('loadState copies materials object independently — mutating source after load does not affect loaded state', () => {
+    // materials is a nested object ({ wolf_pelt, bandit_steel }).  A shallow spread copies
+    // the reference to the same object, so changing incoming.materials.wolf_pelt after
+    // loadState would silently change p.state.materials.wolf_pelt as well.
+    const p = makePlayer();
+    const incoming = createDefaultPlayer();
+    incoming.materials.wolf_pelt = 5;
+    p.loadState(incoming);
+    incoming.materials.wolf_pelt = 10; // mutate source AFTER loading
+    expect(p.state.materials.wolf_pelt).toBe(5); // still the value at load time, not 10
+  });
+
   it('reset returns the player to default starting state', () => {
     const p = makePlayer();
     p.state.gold = 9999;
