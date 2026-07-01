@@ -3954,3 +3954,70 @@ describe('CombatEngine — equipped armor defBonus reduces enemy attack damage i
     expect(plateDmg).toBeLessThan(chainDmg);
   });
 });
+
+// ---------------------------------------------------------------------------
+// studded_leather and shadow_cloak (defBonus=2) in live combat
+//
+// The existing armor combat tests above pin damage reduction for leather_vest
+// (defBonus=1), chain_mail (3), and iron_plate (5).  studded_leather (craftable,
+// defBonus=2) and shadow_cloak (chest drop, defBonus=2) are never exercised in a
+// live enemy attack — armors.test.ts pins the defBonus field in isolation but not
+// the full chain: armor → player.getEffectiveDef() → executeEnemyAttack damage.
+//
+// If executeEnemyAttack ever read player.state.def directly instead of calling
+// player.getEffectiveDef(), the field tests would still pass while the armor
+// bonus was silently discarded in combat.  These tests pin the missing tier.
+//
+// Setup: Revenant Knight ATK=10, player def=3, random=0.5 → attack, variance=1.
+// effectiveDef = 3 + defBonus(2) = 5; damage = max(1, floor(10−5+1)) = 6.
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine — studded_leather and shadow_cloak (defBonus=2) reduce enemy attack damage in live combat', () => {
+  function runAttack(armorId: string) {
+    const player = makePlayer(); // def=3
+    player.equipArmor(armorId);
+    // Revenant Knight agi=4 > player agi=3, NORMAL weapon → ENEMY_ACTION at start
+    const engine = new CombatEngine(player, makeEnemy(EnemyType.REVENANT_KNIGHT));
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 → attack; variance=1; no enemy crit
+    const hpBefore = engine.state.playerHp;
+    engine.enemyTurn();
+    return hpBefore - engine.state.playerHp;
+  }
+
+  it('studded_leather (defBonus=2) — Revenant Knight deals 6 damage (effectiveDef=5), not 7 from leather_vest baseline', () => {
+    // effectiveDef = def(3) + studded_leather.defBonus(2) = 5;
+    // damage = max(1, floor(10−5+1)) = 6.
+    // If studded_leather.defBonus were silently changed from 2 to 1 (leather_vest value):
+    // effectiveDef=4 → damage=7 — test fails.
+    // If executeEnemyAttack bypassed getEffectiveDef and read player.state.def directly:
+    // effectiveDef=3+0=3 → damage=max(1,8)=8 — test also fails.
+    expect(runAttack('studded_leather')).toBe(6);
+  });
+
+  it('shadow_cloak (defBonus=2) — Revenant Knight deals 6 damage (effectiveDef=5), same tier as studded_leather', () => {
+    // shadow_cloak is the chest-drop armor sharing defBonus=2 with studded_leather.
+    // Testing each armor independently pins their contracts separately: a change to
+    // shadow_cloak.defBonus fails its own test without relying on studded_leather as proxy.
+    // If shadow_cloak.defBonus were changed from 2 to 0: effectiveDef=3 → damage=8.
+    expect(runAttack('shadow_cloak')).toBe(6);
+  });
+
+  it('defBonus=2 tier sits between leather_vest(1) and chain_mail(3) — pins the full armor ladder with studded_leather included', () => {
+    // Relational contract: damage taken decreases as defBonus increases.
+    // leather_vest(1)→damage=7, studded_leather(2)→damage=6, chain_mail(3)→damage=5.
+    // If two adjacent armors swapped defBonus values, the individual exact-value tests
+    // above catch each swap; this test catches an equal-collapse (e.g. both defBonus set
+    // to 3), which would make studdedDmg == chainDmg and break the strict inequality below.
+    vi.restoreAllMocks();
+    const leatherDmg  = runAttack('leather_vest');     // 7: anchor
+    vi.restoreAllMocks();
+    const studdedDmg  = runAttack('studded_leather');  // 6: target tier
+    vi.restoreAllMocks();
+    const chainDmg    = runAttack('chain_mail');       // 5: anchor
+    expect(leatherDmg).toBe(7);  // anchor so uniform drift doesn't pass silently
+    expect(studdedDmg).toBe(6);  // the core defBonus=2 combat contract
+    expect(chainDmg).toBe(5);    // anchor
+    expect(studdedDmg).toBeGreaterThan(chainDmg);  // weaker protection than chain_mail
+    expect(studdedDmg).toBeLessThan(leatherDmg);   // stronger protection than leather_vest
+  });
+});
